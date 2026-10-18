@@ -11,6 +11,7 @@ import socket
 import subprocess
 import sys
 import threading
+import time
 import venv
 import webbrowser
 from datetime import datetime, timedelta
@@ -389,7 +390,60 @@ def launch_app(runtime_python: Path, first_run: bool, open_first_run_settings: b
     if bind_host != APP_CONFIG["default_bind_host"]:
         print(f"For another device, use http://{bind_host}:{port}/ (Tailscale or the same private network).")
     print("Keep this window open while using the reader. Press Ctrl+C to stop it.")
-    return subprocess.run([str(runtime_python), str(PROJECT_ROOT / "app.py")], cwd=PROJECT_ROOT, env=env).returncode
+    env["NEWS_SUPERVISED"] = "1"  # lets app.py restart itself into newly deployed code
+    return supervise_app(runtime_python, env)
+
+
+RESTART_EXIT_CODE = 75  # app.py: "a new version was deployed, start me again"
+VERSION_PATH = PROJECT_ROOT / "VERSION"
+QUICK_FAILURE_SECONDS = 30
+MAX_QUICK_FAILURES = 3
+
+
+def _file_digest(path: Path) -> str:
+    try:
+        return hashlib.sha256(path.read_bytes()).hexdigest()
+    except OSError:
+        return ""
+
+
+def supervise_app(runtime_python: Path, env: dict[str, str]) -> int:
+    """Run app.py and keep it running across deployments (the PC stays on while the user is out).
+
+    - exit 75: a new version was deployed -> refresh dependencies if requirements.txt changed, restart;
+    - exit 0: stopped normally (Ctrl+C) -> stop;
+    - any other exit: restart with back-off; after repeated quick failures, wait until the next
+      deployment (VERSION changes) instead of restarting in a tight loop.
+    """
+    requirements = PROJECT_ROOT / "requirements.txt"
+    requirements_digest = _file_digest(requirements)
+    quick_failures = 0
+    while True:
+        started = time.monotonic()
+        code = subprocess.run([str(runtime_python), str(PROJECT_ROOT / "app.py")], cwd=PROJECT_ROOT, env=env).returncode
+        if code == 0:
+            return 0
+        if code == RESTART_EXIT_CODE:
+            quick_failures = 0
+            if _file_digest(requirements) != requirements_digest:
+                try:
+                    update_dependencies(runtime_python)
+                    requirements_digest = _file_digest(requirements)
+                except (OSError, subprocess.CalledProcessError) as error:
+                    print(f"警告: 依存パッケージを更新できませんでした（{error}）。現在の環境で再起動します。")
+            print("新しいバージョンで再起動します...")
+            continue
+        quick_failures = quick_failures + 1 if time.monotonic() - started < QUICK_FAILURE_SECONDS else 1
+        if quick_failures >= MAX_QUICK_FAILURES:
+            print("アプリの起動に続けて失敗しました。次の更新を待って自動で再試行します（Ctrl+Cで終了）。")
+            seen = _file_digest(VERSION_PATH)
+            while _file_digest(VERSION_PATH) == seen:
+                time.sleep(30)
+            quick_failures = 0
+            continue
+        delay = min(60, 5 * quick_failures)
+        print(f"アプリが終了しました（コード {code}）。{delay}秒後に再起動します（Ctrl+Cで終了）。")
+        time.sleep(delay)
 
 
 def main() -> int:

@@ -27,6 +27,16 @@ STATUS_PATH = INSTANCE_DIR / "status.json"
 SECRET_KEY_PATH = INSTANCE_DIR / "secret_key"
 COLLECTOR_SETTINGS_PATH = INSTANCE_DIR / "collector.json"
 COLLECTOR_LOCK_PATH = INSTANCE_DIR / "collector.lock"
+#: Written last by a deployment. A supervised server that sees it change restarts
+#: itself into the new code (see web/run.py and launcher.py).
+VERSION_PATH = PROJECT_ROOT / "VERSION"
+
+
+def deployed_version() -> str:
+    try:
+        return VERSION_PATH.read_text(encoding="utf-8").strip()
+    except OSError:
+        return ""
 
 #: Used when ``HTML_DIRECTORY`` is unset. The collector keeps using this default
 #: directly (it does not read ``HTML_DIRECTORY``); see ``collect/runner.py``.

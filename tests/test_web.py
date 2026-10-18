@@ -372,13 +372,53 @@ class AppFactoryTests(unittest.TestCase):
         from newsreader.web import run
         with mock.patch.dict(os.environ, {"NEWS_BIND_HOST": "8.8.8.8", "NEWS_DEV": ""}):
             self.assertEqual(run.main(), 2)
-        with mock.patch.dict(os.environ, {"NEWS_BIND_HOST": "127.0.0.1", "NEWS_PORT": "5099", "NEWS_DEV": ""}), \
-                mock.patch("waitress.serve") as serve, \
+        with mock.patch.dict(os.environ, {"NEWS_BIND_HOST": "127.0.0.1", "NEWS_PORT": "5099", "NEWS_DEV": "",
+                                          "WERKZEUG_RUN_MAIN": ""}), \
+                mock.patch.object(run, "serve_until_redeployed", return_value=0) as serve, \
                 mock.patch("newsreader.web.create_app") as factory:
             self.assertEqual(run.main(), 0)
         serve.assert_called_once()
-        self.assertEqual(serve.call_args.kwargs["port"], 5099)
-        self.assertEqual(serve.call_args.kwargs["host"], "127.0.0.1")
+        self.assertEqual(serve.call_args.args[1:3], ("127.0.0.1", 5099))
+        self.assertFalse(serve.call_args.kwargs["supervised"], "only launcher-started servers restart themselves")
+
+    def test_supervised_server_restarts_on_new_version_after_finishing_requests(self):
+        import socket
+        import urllib.request
+        from newsreader import paths
+        from newsreader.web import run
+        tmp = Path(tempfile.mkdtemp())
+        version = tmp / "VERSION"
+        version.write_text("v1", encoding="utf-8")
+        gate = threading.Event()
+        from flask import Flask
+        app = Flask("slow")
+
+        @app.get("/slow")
+        def slow():
+            gate.wait(5)
+            return "done"
+
+        with socket.socket() as probe:
+            probe.bind(("127.0.0.1", 0))
+            port = probe.getsockname()[1]
+        result, body = {}, {}
+        with mock.patch.object(paths, "VERSION_PATH", version):
+            server = threading.Thread(target=lambda: result.setdefault(
+                "code", run.serve_until_redeployed(app, "127.0.0.1", port, poll_seconds=0.1)))
+            server.start()
+            time.sleep(0.3)
+            client = threading.Thread(target=lambda: body.setdefault(
+                "text", urllib.request.urlopen(f"http://127.0.0.1:{port}/slow", timeout=10).read()))
+            client.start()
+            time.sleep(0.3)
+            version.write_text("v2", encoding="utf-8")  # a deployment finished
+            time.sleep(0.5)
+            gate.set()
+            client.join(10)
+            server.join(10)
+        shutil.rmtree(tmp, ignore_errors=True)
+        self.assertEqual(body.get("text"), b"done", "the request in flight was answered")
+        self.assertEqual(result.get("code"), run.RESTART_EXIT_CODE)
 
 
 if __name__ == "__main__":

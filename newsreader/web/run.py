@@ -3,18 +3,64 @@
 Waitress serves by default, also on loopback: it is multi-threaded and production-grade,
 and it does not run a second, file-watching copy of the app the way Flask's reloader does.
 ``NEWS_DEV=1`` switches to Flask's development server with code and template reloading.
+
+Live updates: when started by launcher.py (``NEWS_SUPERVISED=1``), the server watches the
+``VERSION`` file a deployment writes last. When it changes, the server stops accepting
+connections, lets the requests in flight finish, and exits with RESTART_EXIT_CODE; the
+launcher then starts the new code. Started any other way, it never exits on its own.
 """
 from __future__ import annotations
 
 import ipaddress
 import os
 import sys
+import threading
 
+from newsreader import paths
 from newsreader.web import security
 
 #: Enough threads that a page view never waits behind several image downloads
 #: (those are capped separately in services.images).
 WAITRESS_THREADS = 16
+RESTART_EXIT_CODE = 75
+VERSION_POLL_SECONDS = 15.0
+
+
+def _dev_mode() -> bool:
+    from newsreader.web.assets import is_dev
+    # A child of Flask's reloader (an older version of this app ran with the reloader on
+    # loopback) must keep using the reloader's inherited socket, i.e. stay in dev mode.
+    return is_dev() or os.environ.get("WERKZEUG_RUN_MAIN") == "true"
+
+
+def serve_until_redeployed(app, host: str, port: int, poll_seconds: float = VERSION_POLL_SECONDS,
+                           supervised: bool = True) -> int:
+    from waitress.server import create_server
+
+    server = create_server(app, host=host, port=port, threads=WAITRESS_THREADS, ident="NewsHtmlReader")
+    redeployed = threading.Event()
+
+    def watch() -> None:
+        started = paths.deployed_version()
+        while not redeployed.wait(poll_seconds):
+            current = paths.deployed_version()
+            if current and current != started:
+                print(f"新しいバージョン {current} を検出しました。処理中の要求を終えてから再起動します。", flush=True)
+                redeployed.set()
+                # close() must run on the server's own loop thread; the loop then ends once the
+                # connections still open have been answered.
+                server.trigger.pull_trigger(server.close)
+                return
+
+    if supervised:
+        threading.Thread(target=watch, name="deploy-watch", daemon=True).start()
+    where = f"[{host}]" if ipaddress.ip_address(host).version == 6 else host
+    print(f"News HTML Reader: http://{where}:{port}/ （終了は Ctrl+C）", flush=True)
+    try:
+        server.run()
+    finally:
+        server.task_dispatcher.shutdown()
+    return RESTART_EXIT_CODE if redeployed.is_set() else 0
 
 
 def main() -> int:
@@ -25,19 +71,13 @@ def main() -> int:
         print(f"起動できませんでした: {exc}", file=sys.stderr)
         return 2
     from newsreader.web import create_app
-    from newsreader.web.assets import is_dev
 
-    if is_dev():
+    if _dev_mode():
         # Flask's reloader runs the app in a child process; only that child serves requests,
         # so only it starts the background index sync.
         serving_child = os.environ.get("WERKZEUG_RUN_MAIN") == "true"
         app = create_app(start_background=serving_child)
         app.run(host=bind_host, port=port, debug=False, use_reloader=True)
         return 0
-    from waitress import serve
-
     app = create_app()
-    where = f"[{bind_host}]" if ipaddress.ip_address(bind_host).version == 6 else bind_host
-    print(f"News HTML Reader: http://{where}:{port}/ （終了は Ctrl+C）", flush=True)
-    serve(app, host=bind_host, port=port, threads=WAITRESS_THREADS, ident="NewsHtmlReader")
-    return 0
+    return serve_until_redeployed(app, bind_host, port, supervised=os.environ.get("NEWS_SUPERVISED") == "1")
