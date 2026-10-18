@@ -317,6 +317,19 @@ class NameEvidenceTests(unittest.TestCase):
         self.assertEqual(self.group("Delhi sees more protests as freed 'cockroach' group's leaders vow to fight on",
                                     "Police detain 'cockroach' leaders after protest")[0], [[0, 1]])
 
+    def test_title_case_headlines_do_not_make_names(self):
+        from newsreader.library import stories_core as core
+        self.assertTrue(core.is_title_case("Riyadh Airport Attacks Again Cause 1 Death and 11 Injuries"))
+        self.assertFalse(core.is_title_case("Trump proposes renaming the Atlantic Ocean or Pacific Ocean"))
+        names = core.name_tokens({1: core.shapes("White House Press Secretary Reportedly Fired Five Days After Taking Office"),
+                                  2: core.shapes("Protests turn violent in the capital"),
+                                  3: core.shapes("Police say protests turn into riots")})
+        self.assertNotIn("protes", names)
+        self.assertNotIn("fire", names)
+        # A quoted term keeps counting as a name even in a Title Case headline.
+        self.assertIn("cockro", core.name_tokens({1: core.shapes("Police Detain 'Cockroach' Party Leaders In Delhi"),
+                                                  2: core.shapes("the cockroach is an insect")}))
+
     def test_names_are_decided_over_the_whole_corpus(self):
         from newsreader.library import stories_core as core
         names = core.name_tokens({1: core.shapes("Pupil arrested after teachers shot"),

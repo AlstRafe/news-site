@@ -6,8 +6,10 @@ Source: handover reference/stories_core.py (parameters D-07). Pipeline: headline
 One addition (D-21): a pair that scores below ``NAME_EVIDENCE_BELOW`` must share at least one
 *name-like* token — a word capitalised away from the start of some headline, a word never seen in
 lower case in the corpus, or a one/two-word quoted term ('cockroach' party). Shared common words
-alone ("data centre", "school pupils", "protests turn") no longer join different events. Without
-``shapes`` (the handover's call signature) the behaviour is exactly D-07.
+alone ("data centre", "school pupils", "protests turn") no longer join different events. A Title
+Case headline (machine translation sometimes produces them) says nothing about which words are
+names, so its capitals are ignored. Without ``shapes`` (the handover's call signature) the
+behaviour is exactly D-07.
 """
 from __future__ import annotations
 
@@ -82,7 +84,7 @@ def _stem(word: str) -> str:
 
 
 def _tokens(pivot: str):
-    """(token, boosted, shape) per keyword; shape: name / initial / lower / digit."""
+    """(token, boosted, shape) per keyword; shape: quoted / name / initial / lower / digit."""
     text = _US.sub("US", pivot)
     quoted: set[int] = set()
     for match in _QUOTED.finditer(text):
@@ -96,7 +98,9 @@ def _tokens(pivot: str):
         word = _stem(_CANON.get(word, word))
         word = word[:STEM_LENGTH] if len(word) > STEM_LENGTH else word
         boosted = (raw[0].isupper() and index > 0) or (raw.isupper() and len(raw) >= 2)
-        if boosted or match.start() in quoted:
+        if match.start() in quoted:
+            shape = "quoted"
+        elif boosted:
             shape = "name"
         elif raw[0].isupper():
             shape = "initial"
@@ -115,10 +119,19 @@ def features(pivot: str) -> dict[str, float]:
     return out
 
 
+def is_title_case(pivot: str) -> bool:
+    """"Man Killed After Attacking Tiger Zone": every content word (4+ letters) after the first is capitalised."""
+    words = [w for w in _WORD.findall(pivot)[1:] if len(w) >= 4 and w[0].isalpha() and w.lower() not in _STOP]
+    return len(words) >= 3 and sum(w[0].isupper() for w in words) >= 0.9 * len(words)
+
+
 def shapes(pivot: str) -> dict[str, frozenset[str]]:
     """keyword -> the shapes it takes in this headline (input to ``name_tokens``)."""
+    title_case = is_title_case(pivot)
     out: dict[str, set[str]] = defaultdict(set)
     for word, _, shape in _tokens(pivot):
+        if title_case and shape in ("name", "initial"):
+            shape = "styled"  # capitalised because of the style: evidence neither way
         out[word].add(shape)
     return {word: frozenset(found) for word, found in out.items()}
 
@@ -129,7 +142,8 @@ def name_tokens(per_item: dict[int, dict[str, frozenset[str]]]) -> set[str]:
     for item in per_item.values():
         for word, found in item.items():
             seen[word] |= found
-    return {word for word, found in seen.items() if "name" in found or ("initial" in found and "lower" not in found)}
+    return {word for word, found in seen.items()
+            if "name" in found or "quoted" in found or ("initial" in found and "lower" not in found)}
 
 
 def parse_utc(published: str) -> datetime | None:
