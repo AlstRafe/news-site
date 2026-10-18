@@ -17,7 +17,7 @@ from urllib.robotparser import RobotFileParser
 
 from bs4 import BeautifulSoup
 
-from extractor import MAX_HTML_BYTES, ReaderError, extract_article
+from newsreader.sources import MAX_HTML_BYTES, ReaderError, extract_article
 
 USER_AGENT = "PersonalNewsReader/1.0"
 MAX_NEW_PER_SOURCE_PER_CYCLE = 3

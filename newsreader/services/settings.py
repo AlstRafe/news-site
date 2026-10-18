@@ -5,13 +5,13 @@ import json
 import ipaddress
 import os
 import tempfile
-from pathlib import Path
 
 import keyring
 from keyring.errors import PasswordDeleteError
 
-BASE_DIR = Path(__file__).resolve().parent
-SETTINGS_PATH = BASE_DIR / "instance" / "settings.json"
+from newsreader import paths
+
+SETTINGS_PATH = paths.SETTINGS_PATH
 SERVICE_NAME = "NewsHtmlReader"
 SECRET_NAMES = {
     "deepl_api_key", "azure_api_key", "stdict_api_key",

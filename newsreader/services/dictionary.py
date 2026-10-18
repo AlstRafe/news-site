@@ -14,8 +14,8 @@ from functools import lru_cache
 from bs4 import BeautifulSoup
 import truststore
 
-from local_cache import get as cache_get, put as cache_put
-from settings_store import SecretStoreError, get_secret
+from newsreader.services.cache import get as cache_get, put as cache_put
+from newsreader.services.settings import SecretStoreError, get_secret
 
 MOE_SEARCH = "https://dict.revised.moe.edu.tw/search.jsp"
 MOE_HOST = "dict.revised.moe.edu.tw"

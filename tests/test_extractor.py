@@ -4,7 +4,7 @@ import unittest
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
-from extractor import (
+from newsreader.sources import (
     ReaderError, extract_article, list_html_files, resolve_html_file, validate_directory,
 )
 

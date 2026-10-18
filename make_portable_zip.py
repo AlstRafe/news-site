@@ -9,7 +9,7 @@ import zipfile
 APP_NAME = "NewsHtmlReader"
 PROJECT_ROOT = Path(__file__).resolve().parent
 OUTPUT_DIRECTORY = PROJECT_ROOT.parent
-EXCLUDED_DIRECTORIES = {".git", ".venv", "__pycache__", "instance", "tests"}
+EXCLUDED_DIRECTORIES = {".git", ".venv", "__pycache__", ".pytest_cache", "instance", "tests"}
 EXCLUDED_SUFFIXES = {".pyc", ".sqlite", ".sqlite3", ".db", ".log", ".zip", ".key", ".pem", ".pfx", ".p12"}
 
 

@@ -5,10 +5,11 @@ import json
 import sqlite3
 import time
 from datetime import datetime
-from pathlib import Path
 
-BASE_DIR = Path(__file__).resolve().parent
-CACHE_PATH = BASE_DIR / "instance" / "translation_cache.sqlite3"
+from newsreader import paths
+
+# Module-level so tests can point it at an isolated file and never touch the real cache.
+CACHE_PATH = paths.DEFAULT_TRANSLATION_CACHE
 
 
 def _connect() -> sqlite3.Connection:

@@ -10,8 +10,8 @@ import urllib.request
 
 import truststore
 
-from local_cache import get as cache_get, put as cache_put, record_translation_usage
-from settings_store import SecretStoreError, get_secret, get_settings
+from newsreader.services.cache import get as cache_get, put as cache_put, record_translation_usage
+from newsreader.services.settings import SecretStoreError, get_secret, get_settings
 
 TARGETS = {
     "ja": {"deepl": "JA", "azure": "ja"},

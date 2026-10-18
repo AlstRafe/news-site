@@ -13,9 +13,12 @@ import time
 from contextlib import closing
 from pathlib import Path
 
-from extractor import ALLOWED_EXTENSIONS, MAX_HTML_BYTES, ReaderError, extract_article
+from newsreader import paths
 
-DEFAULT_DB_PATH = Path(__file__).resolve().parent / "instance" / "library.sqlite3"
+from newsreader.sources import ALLOWED_EXTENSIONS, MAX_HTML_BYTES, ReaderError, extract_article
+
+# Module-level so tests can redirect the index to a temporary database.
+DEFAULT_DB_PATH = paths.DEFAULT_LIBRARY_DB
 LEAD_CHARS = 140
 MIN_SYNC_INTERVAL_SECONDS = 30
 _sync_lock = threading.Lock()

@@ -5,11 +5,11 @@ import unittest
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
-import app as app_module
-import collector
-import library
-import local_cache
-import translation_service as ts
+from newsreader.web import app as app_module
+from newsreader.collect import runner as collector
+from newsreader.library import index as library
+from newsreader.services import cache as local_cache
+from newsreader.services import translation as ts
 from test_extractor import CNA, NORMAL
 
 
