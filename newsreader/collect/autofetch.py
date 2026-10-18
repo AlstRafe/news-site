@@ -310,18 +310,29 @@ def fetch_cycle(
     library_root: Path,
     naver_credentials: tuple[str, str] | None = None,
     naver_query: str = "뉴스",
+    report: dict | None = None,
 ) -> dict[str, int]:
-    """Fetch up to a few new articles per source, preserving original HTML."""
+    """Fetch up to a few new articles per source, preserving original HTML.
+
+    Returns {site: saved} exactly as before. When ``report`` is given it is filled with a
+    per-site breakdown for the status page: saved / duplicates / skipped / failed, and the
+    reason when a site could not be checked at all.
+    """
     totals = {}
     for source in SOURCES:
         directory = library_root / source["directory"]
         existing = _existing_article_urls(directory)
-        saved = 0
-        duplicates = 0
+        saved = duplicates = skipped = failed = 0
+        site = {"saved": 0, "duplicates": 0, "skipped": 0, "failed": 0, "error": ""}
+        if report is not None:
+            report[source["name"]] = site
+        if source["kind"] == "naver-api" and not (naver_credentials and all(naver_credentials)):
+            site["error"] = "APIキー未設定"
         try:
             links = _article_links(source, naver_credentials, naver_query)
         except (HTTPError, URLError, OSError, TimeoutError, ValueError) as exc:
             _log.warning("%s discovery failed (%s)", source["name"], type(exc).__name__)
+            site["error"] = f"一覧の取得に失敗（{type(exc).__name__}）"
             totals[source["name"]] = 0
             continue
 
@@ -333,16 +344,20 @@ def fetch_cycle(
                 result = _fetch_article(source, link, directory)
             except (HTTPError, URLError, OSError, TimeoutError, ValueError) as exc:
                 _log.warning("%s article fetch failed (%s): %s", source["name"], type(exc).__name__, link)
+                failed += 1
                 continue
             if result == "duplicate":
                 duplicates += 1
-            elif result not in {"skipped", "duplicate"}:
+            elif result == "skipped":
+                skipped += 1
+            else:
                 existing.add(result)
                 saved += 1
                 _log.info("Saved %s: %s", source["name"], result)
             if saved >= MAX_NEW_PER_SOURCE_PER_CYCLE:
                 break
         totals[source["name"]] = saved
+        site.update(saved=saved, duplicates=duplicates, skipped=skipped, failed=failed)
         _log.info("%s cycle complete: saved=%d duplicates=%d", source["name"], saved, duplicates)
     return totals
 

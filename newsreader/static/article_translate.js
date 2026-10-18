@@ -267,22 +267,43 @@
     return { word, range: wordRange };
   }
 
+  function showToolbarForSelection() {
+    const selection = window.getSelection();
+    const text = selection?.toString().trim() || "";
+    const anchor = selection?.rangeCount ? selection.getRangeAt(0).commonAncestorContainer : null;
+    const inTranslation = !!(anchor && (anchor.nodeType === Node.TEXT_NODE ? anchor.parentElement : anchor)?.closest?.(".bi-tr"));
+    if (text && !inTranslation && selection?.rangeCount && reader.contains(selection.getRangeAt(0).commonAncestorContainer)) {
+      selectedText = text;
+      const rect = selection.getRangeAt(0).getBoundingClientRect();
+      toolbar.hidden = false;
+      toolbar.style.left = `${Math.max(8, Math.min(rect.left, window.innerWidth - 180))}px`;
+      toolbar.style.top = `${Math.max(8, rect.bottom + 8)}px`;
+    } else {
+      toolbar.hidden = true;
+    }
+  }
+
   reader.addEventListener("mouseup", () => {
-    window.setTimeout(() => {
-      const selection = window.getSelection();
-      const text = selection?.toString().trim() || "";
-      const anchor = selection?.rangeCount ? selection.getRangeAt(0).commonAncestorContainer : null;
-      const inTranslation = !!(anchor && (anchor.nodeType === Node.TEXT_NODE ? anchor.parentElement : anchor)?.closest?.(".bi-tr"));
-      if (text && !inTranslation && selection?.rangeCount && reader.contains(selection.getRangeAt(0).commonAncestorContainer)) {
-        selectedText = text;
-        const rect = selection.getRangeAt(0).getBoundingClientRect();
-        toolbar.hidden = false;
-        toolbar.style.left = `${Math.max(8, Math.min(rect.left, window.innerWidth - 180))}px`;
-        toolbar.style.top = `${Math.max(8, rect.bottom + 8)}px`;
-      } else {
-        toolbar.hidden = true;
-      }
-    }, 0);
+    window.setTimeout(showToolbarForSelection, 0);
+  });
+
+  // Touch screens: a long-press selection never produces mouseup, so the toolbar follows
+  // selectionchange instead. Only for touch, so mouse behaviour stays exactly as before.
+  let lastPointer = "mouse";
+  document.addEventListener("pointerdown", event => { lastPointer = event.pointerType || "mouse"; }, { capture: true, passive: true });
+  let selectionTimer = 0;
+  document.addEventListener("selectionchange", () => {
+    if (lastPointer !== "touch") return;
+    window.clearTimeout(selectionTimer);
+    selectionTimer = window.setTimeout(showToolbarForSelection, 250);
+  });
+  // Touch screens: tapping outside the translation sheet (and outside the article text,
+  // where a tap looks up the tapped word instead) closes it.
+  document.addEventListener("click", event => {
+    if (lastPointer !== "touch" || selectionResult.hidden) return;
+    if (selectionResult.contains(event.target) || toolbar.contains(event.target) || reader.contains(event.target)) return;
+    selectionResult.hidden = true;
+    clearWordHighlight();
   });
 
   reader.addEventListener("click", event => {

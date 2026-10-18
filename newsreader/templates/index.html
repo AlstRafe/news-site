@@ -16,7 +16,7 @@
 {% if items %}
 <div class="card-grid">{% for item in items %}
 <a class="card" href="{{ url_for('show_article', article_id=item.id) }}">
-<div class="card-thumb">{% if item.thumb %}<img src="{{ item.thumb }}" alt="" loading="lazy" decoding="async">{% else %}<span class="thumb-fallback">{{ (item.source or 'N')[:1] }}</span>{% endif %}</div>
+<div class="card-thumb" data-initial="{{ (item.source or 'N')[:1] }}">{% if item.thumb %}<img src="{{ item.thumb }}" alt="" loading="lazy" decoding="async">{% else %}<span class="thumb-fallback">{{ (item.source or 'N')[:1] }}</span>{% endif %}</div>
 <div class="card-body"><div class="card-meta"><span class="badge">{{ item.source or '未分類' }}</span><span>{{ (item.published|localtime) if item.published else '' }}</span></div>
 <h2>{{ item.title }}</h2>{% if item.lead %}<p>{{ item.lead }}</p>{% endif %}</div></a>{% endfor %}</div>
 {% if pages > 1 %}<nav class="pager" aria-label="ページ送り">

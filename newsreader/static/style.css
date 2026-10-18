@@ -46,3 +46,36 @@
 progress.usage-meter{display:block;width:100%;height:9px;border:0;-webkit-appearance:none;appearance:none;background:#e7e9ed;border-radius:99px;overflow:hidden;margin-top:14px;color:#438b55}
 progress.usage-meter::-webkit-progress-bar{background:#e7e9ed;border-radius:99px}progress.usage-meter::-webkit-progress-value{background:#438b55;border-radius:99px}progress.usage-meter::-moz-progress-bar{background:#438b55;border-radius:99px}
 @media(max-width:650px){.topnav{gap:12px}.topnav a{font-size:12px}}
+
+/* ---- Phase 6: status badge and status page ---- */
+.status-badge{display:inline-flex;align-items:center;gap:6px;padding:5px 10px;border-radius:99px;background:#f1f2f5;color:#4b4f57!important;font-size:12px!important;font-weight:700}.status-badge::before{content:"";width:8px;height:8px;border-radius:50%;background:#9aa0a8}
+.status-badge.tone-ok::before{background:#3f9a5a}.status-badge.tone-warn::before{background:#d39b16}.status-badge.tone-bad::before{background:#c8333b}.status-badge.tone-bad{background:#fff4f3;color:#8d1820!important}
+.tone-ok{color:#2f7d46;font-weight:700}.tone-warn{color:#9a6b00;font-weight:700}.tone-bad{color:#a3202a;font-weight:700}
+.facts{display:grid;grid-template-columns:max-content 1fr;gap:8px 18px;margin:14px 0 0;font-size:14px}.facts dt{color:#6b6f78;font-weight:600}.facts dd{margin:0;overflow-wrap:anywhere}
+.table-wrap{overflow-x:auto;-webkit-overflow-scrolling:touch;margin:6px -4px 0}.stats{border-collapse:collapse;width:100%;font-size:14px;min-width:420px}.stats th,.stats td{padding:9px 8px;border-bottom:1px solid #eceef2;text-align:left;white-space:nowrap}.stats td{font-variant-numeric:tabular-nums}.stats thead th{font-size:12px;color:#6b6f78}
+
+/* ---- Smartphone (used daily over Tailscale): compact header, real touch targets, no iOS zoom ---- */
+html{-webkit-text-size-adjust:100%;text-size-adjust:100%}
+.article-end{display:flex;justify-content:space-between;align-items:center;gap:12px;margin:26px 0 0}.article-end a{font-size:14px;font-weight:700;text-decoration:none;padding:10px 0}
+.to-top{color:#6b6f78}
+@media(max-width:650px){
+ .wrap{padding:0 16px}
+ .brand{min-height:58px;gap:10px;font-size:15px}.brand small{display:none}.mark{width:32px;height:32px;font-size:21px;border-radius:7px}
+ .brand-link{gap:9px;min-width:0}.brand-link>span:last-child{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+ .topnav{gap:2px}.topnav a{padding:10px 7px;font-size:13px}.status-badge{padding:6px 9px}
+ main{padding-top:18px!important;padding-bottom:calc(48px + env(safe-area-inset-bottom))!important}
+ input,select,textarea,.searchbar input{font-size:16px!important}
+ .chip{min-height:40px;padding:9px 14px}
+ .pager a{padding:12px 6px}
+ .article .eyebrow{margin-top:18px}.back{display:inline-block;padding:8px 0}
+ .reading{padding:20px 18px;margin-top:20px}.reading p{font-size:17px;line-height:1.95}
+ .translation-controls{padding:12px}.translation-controls button{min-height:44px}
+ .selection-result:not(.pinned){bottom:calc(8px + env(safe-area-inset-bottom))}
+ .selection-toolbar button{min-height:44px;padding:10px 16px}
+ .close-result{min-height:36px}
+ .article-images{grid-template-columns:1fr;margin:18px 0}
+ .facts{grid-template-columns:1fr;gap:2px}.facts dd{margin-bottom:8px}
+ .result-actions .close-result,.translation-result-head button{width:auto}
+ .selection-result .translation-result-head{flex-wrap:wrap;gap:8px}.selection-result .result-actions{justify-content:flex-start;max-width:none}
+ .reading-head{flex-direction:column;align-items:flex-start;gap:0}.reading-head h2{margin:0 0 4px}.reading-head span{margin-bottom:12px}
+}

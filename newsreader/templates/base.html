@@ -1,7 +1,7 @@
 <!doctype html>
-<html lang="ja"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<html lang="ja"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="format-detection" content="telephone=no">
 {% block head %}{% endblock %}<link rel="icon" href="{{ asset('favicon.svg') }}" type="image/svg+xml"><link rel="stylesheet" href="{{ asset('style.css') }}"></head>
-<body><header class="topbar"><div class="wrap brand"><a class="brand-link" href="{{ url_for('index') }}"><span class="mark">N</span><span>News HTML Reader <small>翻訳しながら読むニュース</small></span></a>
-<nav class="topnav" aria-label="メインメニュー">{% block nav %}<a href="{{ url_for('index') }}"{% if request.endpoint == 'index' %} aria-current="page"{% endif %}>記事</a><a class="settings-nav" href="{{ url_for('translation_settings') }}"{% if request.endpoint == 'translation_settings' %} aria-current="page"{% endif %}>設定</a>{% endblock %}</nav></div></header>
+<body id="top"><header class="topbar"><div class="wrap brand"><a class="brand-link" href="{{ url_for('index') }}"><span class="mark">N</span><span>News HTML Reader <small>翻訳しながら読むニュース</small></span></a>
+<nav class="topnav" aria-label="メインメニュー">{% block nav %}<a href="{{ url_for('index') }}"{% if request.endpoint == 'index' %} aria-current="page"{% endif %}>記事</a><a class="status-badge tone-{{ status_badge.tone }}" href="{{ url_for('status_page') }}" title="{{ status_badge.title }}"{% if request.endpoint == 'status_page' %} aria-current="page"{% endif %}>{{ status_badge.label }}</a><a class="settings-nav" href="{{ url_for('translation_settings') }}"{% if request.endpoint == 'translation_settings' %} aria-current="page"{% endif %}>設定</a>{% endblock %}</nav></div></header>
 <main class="wrap{% block main_class %}{% endblock %}">{% block content %}{% endblock %}</main>
-{% block scripts %}{% endblock %}<script type="speculationrules">{{ speculation_rules|safe }}</script><script src="{{ asset('prefetch.js') }}" defer></script></body></html>
+{% block scripts %}{% endblock %}<script type="speculationrules">{{ speculation_rules|safe }}</script><script src="{{ asset('app.js') }}" defer></script></body></html>

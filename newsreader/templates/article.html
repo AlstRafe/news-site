@@ -27,6 +27,7 @@
 <p class="selected-original" id="selected-original"></p><p class="translation-error" id="selection-error" hidden></p><strong class="selection-translation-heading">翻訳／意味</strong>
 <div class="selection-translation" id="selection-translation"></div><div class="language-details" id="language-details"></div>
 </aside>
+<nav class="article-end" aria-label="記事の終わり"><a class="back" href="{{ url_for('index', source=record.source or None) }}">← {{ record.source or '記事' }}の一覧へ戻る</a><a class="to-top" href="#top">▲ 上へ</a></nav>
 <p class="hint endnote">単語をクリックすると単語単位、文章をドラッグすると選択範囲を翻訳します。翻訳時はその文章が設定中の翻訳サービスに送信されます。翻訳結果はこのPC内にキャッシュされます。</p>
 {% endblock %}
 {% block scripts %}<script src="{{ asset('article_translate.js') }}" defer></script>{% endblock %}

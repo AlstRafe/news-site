@@ -10,12 +10,14 @@ import json
 import logging
 import os
 import sys
+import time
 from pathlib import Path
 
 from newsreader import paths
 from newsreader.collect.autofetch import configure_logging, fetch_cycle
 from newsreader.library import index as library
-from newsreader.services.settings import get_secret, get_settings
+from newsreader.library import status
+from newsreader.services.settings import SecretStoreError, get_secret, get_settings
 
 INSTANCE_DIRECTORY = paths.INSTANCE_DIR
 COLLECTOR_SETTINGS = paths.COLLECTOR_SETTINGS_PATH
@@ -57,11 +59,17 @@ def acquire_process_lock():
     return lock_file
 
 
+def status_path() -> Path:
+    """status.json sits beside the index (instance/ in production, a temp dir in tests)."""
+    return Path(library.DEFAULT_DB_PATH).parent / "status.json"
+
+
 def update_library_index(library_root: Path) -> dict | None:
     """Index newly saved articles at once so the web app shows them without waiting for its own scan."""
     log = logging.getLogger("news_autofetch")
     try:
         result = library.sync(library_root, library.DEFAULT_DB_PATH, force=True)
+        status.update("library", {"synced": status.now_iso(), "result": result}, path=status_path())
     except Exception:  # an index problem must not turn a successful collection into a failure
         log.exception("Library index update failed")
         return None
@@ -77,24 +85,43 @@ def main() -> int:
     if lock_file is None:
         print("An article collection cycle is already running; skipping this trigger.")
         return 0
+    log = logging.getLogger("news_autofetch")
+    started = time.perf_counter()
     try:
         configure_logging(INSTANCE_DIRECTORY)
+        status.update("collector", {"running": True, "started": status.now_iso()}, path=status_path())
         library_root = get_library_root()
-        naver_client_id = get_secret("naver_api_key_id")
-        naver_client_secret = get_secret("naver_api_key_secret")
-        naver_credentials = (naver_client_id, naver_client_secret) if naver_client_id and naver_client_secret else None
+        naver_credentials = _naver_credentials(log)
         naver_query = get_settings().get("naver_search_query", "뉴스")
-        logging.getLogger("news_autofetch").info("Standalone scheduled collection started: %s", library_root)
-        totals = fetch_cycle(library_root, naver_credentials, naver_query)
-        logging.getLogger("news_autofetch").info("Standalone scheduled collection complete: %s", totals)
+        log.info("Standalone scheduled collection started: %s", library_root)
+        report: dict = {}
+        totals = fetch_cycle(library_root, naver_credentials, naver_query, report=report)
+        log.info("Standalone scheduled collection complete: %s", totals)
+        status.update("collector", {"running": False, "finished": status.now_iso(), "ok": True, "error": "",
+                                    "seconds": round(time.perf_counter() - started, 1), "sites": report,
+                                    "naver_configured": naver_credentials is not None}, path=status_path())
         update_library_index(library_root)
         print("Article collection complete:", ", ".join(f"{source}={count}" for source, count in totals.items()))
         return 0
-    except Exception:
-        logging.getLogger("news_autofetch").exception("Standalone scheduled collection failed")
+    except Exception as exc:
+        log.exception("Standalone scheduled collection failed")
+        status.update("collector", {"running": False, "finished": status.now_iso(), "ok": False,
+                                    "error": f"自動取得が失敗しました（{type(exc).__name__}）",
+                                    "seconds": round(time.perf_counter() - started, 1)}, path=status_path())
         return 1
     finally:
         lock_file.close()
+
+
+def _naver_credentials(log: logging.Logger) -> tuple[str, str] | None:
+    """NAVER API keys from the credential store. An unavailable store skips NAVER only."""
+    try:
+        client_id = get_secret("naver_api_key_id")
+        client_secret = get_secret("naver_api_key_secret")
+    except SecretStoreError:
+        log.warning("Credential store unavailable; NAVER NEWS is skipped this cycle")
+        return None
+    return (client_id, client_secret) if client_id and client_secret else None
 
 
 if __name__ == "__main__":
