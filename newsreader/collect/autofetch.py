@@ -4,6 +4,7 @@ from __future__ import annotations
 import hashlib
 import json
 import logging
+import os
 import re
 import threading
 import time
@@ -18,9 +19,15 @@ from urllib.robotparser import RobotFileParser
 from bs4 import BeautifulSoup
 
 from newsreader.sources import MAX_HTML_BYTES, ReaderError, extract_article
+from newsreader.sources.slim import slim_if_equivalent
 
 USER_AGENT = "PersonalNewsReader/1.0"
 MAX_NEW_PER_SOURCE_PER_CYCLE = 3
+
+
+def slim_on_save() -> bool:
+    """Save new pages slimmed (D-11; only when extraction is identical). NEWS_SLIM_ON_SAVE=0 keeps originals."""
+    return os.environ.get("NEWS_SLIM_ON_SAVE", "1").strip() not in {"0", "false", "no", "off"}
 MAX_FEED_BYTES = 2 * 1024 * 1024
 REQUEST_TIMEOUT_SECONDS = 20
 NAVER_API_URL = "https://naverapihub.apigw.ntruss.com/search/v1/news"
@@ -296,6 +303,11 @@ def _fetch_article(source: dict, url: str, destination: Path) -> str:
     target = destination / _filename_for(source, canonical)
     if target.exists() or target.is_symlink():
         return "duplicate"
+    if slim_on_save():
+        kept, slimmed = slim_if_equivalent(data, article)
+        if slimmed:
+            _log.info("Slimmed before saving: %d -> %d bytes (extraction identical)", len(data), len(kept))
+        data = kept
     temporary = target.with_suffix(".html.part")
     try:
         temporary.write_bytes(data)

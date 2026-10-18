@@ -14,6 +14,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 from newsreader import sources
 from newsreader.sources import Page, ReaderError, SiteParse, extract_article
 from oracle import v3_extractor
+from oracle.intended import intended_input
 from test_extractor import CNA, NAVER, NORMAL, VIDEO
 
 EDGE_CASES = {
@@ -53,7 +54,18 @@ def outcome(fn, data):
 
 class EquivalenceTests(unittest.TestCase):
     def assertSameAsV3(self, data, label):
-        self.assertEqual(outcome(extract_article, data), outcome(v3_extractor.extract_article, data), label)
+        # Equal to v3 up to the documented intended differences (tests/oracle/intended.py).
+        self.assertEqual(outcome(extract_article, data), outcome(v3_extractor.extract_article, intended_input(data)), label)
+
+    def test_template_images_are_the_only_intended_difference(self):
+        page = (b'<meta name="pagetype" content="News Article"><main id="bbc-main"><h1>T</h1><article>'
+                b'<div data-component="layout-block"><p class="ParagraphStyled">body</p></div>'
+                b'<template><figure><img src="https://ichef.bbci.co.uk/images/ic/1920x1080/x.jpg"></figure></template>'
+                b'<figure><img src="https://ichef.bbci.co.uk/news/1024/real.jpg" alt="real"></figure></article></main>')
+        new, old = extract_article(page), v3_extractor.extract_article(page)
+        self.assertEqual([i["src"] for i in new["images"]], ["https://ichef.bbci.co.uk/news/1024/real.jpg"])
+        self.assertEqual(len(old["images"]), 2)  # v3 also took the never-rendered placeholder
+        self.assertEqual(new, v3_extractor.extract_article(intended_input(page)))
 
     def test_fixtures_and_edge_cases(self):
         corpus = {"VIDEO": VIDEO, "NORMAL": NORMAL, "NAVER": NAVER, "CNA": CNA, **EDGE_CASES}

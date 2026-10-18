@@ -117,6 +117,10 @@ def collect_images(page: "Page", selector: str, title: str) -> list[dict]:
     for image in page.soup.select(selector):
         if image.find_parent(class_=_CHROME_IMAGE_PARENTS):
             continue
+        # <template> content is never rendered: BBC video pages keep an alt-less placeholder
+        # image there (O-03, decided for Phase 8; the one known difference from v3).
+        if image.find_parent("template") is not None:
+            continue
         source = image_source(image)
         if not source:
             continue

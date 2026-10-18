@@ -26,7 +26,8 @@ SITES = (bbc, naver, cna)
 #: The index stores the version each row was parsed with and re-parses stale rows
 #: in the background, so improved extraction reaches already-indexed articles
 #: without anyone deleting the index.
-PARSER_VERSION = 1
+#: 2 = images inside <template> are ignored (O-03).
+PARSER_VERSION = 2
 
 
 def detect(page: Page):

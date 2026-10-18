@@ -136,6 +136,48 @@ class CollectionEndToEndTests(unittest.TestCase):
         again = json.loads((self.instance / "status.json").read_text(encoding="utf-8"))["collector"]
         self.assertEqual(again["sites"]["BBC"]["duplicates"] + again["sites"]["BBC"]["saved"], 1)
 
+    def run_with(self, url, body, env="1"):
+        responses = dict(RESPONSES)
+        responses[url] = (body, "text/html")
+
+        def opener(request, timeout=None):
+            target = request.full_url if hasattr(request, "full_url") else request
+            if target not in responses:
+                from urllib.error import HTTPError
+                raise HTTPError(target, 404, "not found", {}, None)
+            return FakeResponse(target, *responses[target])
+
+        with mock.patch.object(autofetch, "urlopen", opener), mock.patch.dict(os.environ, {"NEWS_SLIM_ON_SAVE": env}):
+            self.assertEqual(runner.main(), 0)
+
+    def test_new_pages_are_saved_slimmed_when_extraction_is_identical(self):
+        fat = BBC_ARTICLE.replace(b"</head>", b"<script>" + b"var x = 1;" * 2000 + b"</script><style>p{color:red}</style></head>")
+        self.run_with("https://www.bbc.com/news/articles/c1", fat)
+        saved = next(self.root.glob("BBC/*.html")).read_bytes()
+        self.assertLess(len(saved), len(fat) // 4)
+        self.assertNotIn(b"<script>", saved)
+        from newsreader.sources import extract_article
+        self.assertEqual(extract_article(saved), extract_article(fat))
+        # The slimmed file keeps its canonical link, so the next run sees it as a duplicate.
+        autofetch._robots_cache.clear()
+        self.run_with("https://www.bbc.com/news/articles/c1", fat)
+        self.assertEqual(len(list(self.root.glob("BBC/*.html"))), 1)
+
+    def test_original_is_kept_when_slimming_would_change_the_article(self):
+        # Text inside an inline <svg>: the extractor reads it, slimming would drop it.
+        page = CNA_ARTICLE.replace(b'<div class="paragraph"><p>Second CNA paragraph.</p></div>',
+                                   b'<div class="paragraph"><p>Chart<svg><text>2026</text></svg></p></div>'
+                                   b'<script>' + b"x" * 5000 + b'</script>')
+        from newsreader.sources import extract_article
+        self.assertIn("Chart 2026", extract_article(page)["paragraphs"])
+        self.run_with("https://www.cna.com.tw/news/aopl/202610180001.aspx", page)
+        self.assertEqual(next(self.root.glob("CNA/*.html")).read_bytes(), page)
+
+    def test_slimming_can_be_turned_off(self):
+        fat = BBC_ARTICLE.replace(b"</head>", b"<script>" + b"y" * 5000 + b"</script></head>")
+        self.run_with("https://www.bbc.com/news/articles/c1", fat, env="0")
+        self.assertEqual(next(self.root.glob("BBC/*.html")).read_bytes(), fat)
+
     def test_unreachable_site_is_reported_and_others_still_collected(self):
         broken = dict(RESPONSES)
         del broken["https://feeds.bbci.co.uk/news/world/rss.xml"]
