@@ -190,6 +190,21 @@ def get_story(db_path: Path, key: str) -> dict | None:
             "newest": members[0]["published"], "lead_title": central["title"]}
 
 
+def badges(db_path: Path, article_ids: list[int]) -> dict[int, dict]:
+    """For list cards: {article_id: {"key", "count", "outlets"}} for articles in a multi-outlet group."""
+    if not article_ids:
+        return {}
+    marks = ",".join("?" * len(article_ids))
+    with closing(index.connect(db_path)) as db:
+        rows = db.execute(
+            f"""SELECT m.article_id, g.story_key, g.n, g.outlets FROM story_members m
+                JOIN (SELECT m2.story_key, COUNT(*) AS n, COUNT(DISTINCT a.source) AS outlets
+                      FROM story_members m2 JOIN articles a ON a.id = m2.article_id WHERE a.error = ''
+                      GROUP BY m2.story_key) g ON g.story_key = m.story_key
+                WHERE m.article_id IN ({marks}) AND g.outlets > 1""", list(article_ids)).fetchall()
+    return {row[0]: {"key": row[1], "count": row[2], "outlets": row[3]} for row in rows}
+
+
 def related(db_path: Path, article_id: int) -> dict | None:
     """The other articles grouped with ``article_id`` (None when it is in no group)."""
     with closing(index.connect(db_path)) as db:

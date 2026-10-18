@@ -242,6 +242,12 @@ class WebTests(StoryTestCase):
         self.assertEqual(self.client.get("/stories/s999999", headers=H).status_code, 404)
         self.assertEqual(self.client.get("/stories?page=abc", headers=H).status_code, 200)
 
+    def test_list_cards_mark_articles_reported_by_several_outlets(self):
+        html = self.client.get("/", headers=H).get_data(as_text=True)
+        self.assertEqual(html.count("読み比べ 2媒体"), 3)  # the two BBC Nobel articles and the CNA one
+        self.assertEqual(stories.badges(self.db, [self.id_of("BBC", "o.html")]), {})
+        self.assertEqual(stories.badges(self.db, []), {})
+
     def test_article_page_lists_related_outside_the_reading_text(self):
         a = self.id_of("BBC", "a.html")
         html = self.client.get(f"/a/{a}", headers=H).get_data(as_text=True)

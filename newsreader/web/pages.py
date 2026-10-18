@@ -91,9 +91,12 @@ def index_page():
         page = 1
     db = db_path()
     result = index.list_articles(db, source=source, query=query, page=page, per_page=PER_PAGE)
+    from newsreader.library import stories
+    marks = stories.badges(db, [item["id"] for item in result["items"]])
     for item in result["items"]:
         thumb = item.get("thumb_src", "")
         item["thumb"] = image_url(item["id"], 0, thumb) if image_service.allowed_image_url(thumb) else ""
+        item["story"] = marks.get(item["id"])
     state = index.sync_state(db)
     indexing = bool(state.get("running")) and not result["total"] and not source and not query
     response = current_app.make_response(render_template(
