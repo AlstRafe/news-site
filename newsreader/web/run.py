@@ -80,4 +80,17 @@ def main() -> int:
         app.run(host=bind_host, port=port, debug=False, use_reloader=True)
         return 0
     app = create_app()
+    _record_web_status(app, bind_host, port)
     return serve_until_redeployed(app, bind_host, port, supervised=os.environ.get("NEWS_SUPERVISED") == "1")
+
+
+def _record_web_status(app, host: str, port: int) -> None:
+    """Where this server listens and what it serves, for /status and for whoever maintains the PC."""
+    from newsreader.library import status
+    where = f"[{host}]" if ipaddress.ip_address(host).version == 6 else host
+    try:
+        status.update("web", {"url": f"http://{where}:{port}/", "started": status.now_iso(), "pid": os.getpid(),
+                              "version": paths.deployed_version(), "library": str(app.config["LIBRARY_ROOT"]),
+                              "project": str(paths.PROJECT_ROOT)}, path=app.config["STATUS_PATH"])
+    except OSError:
+        pass
