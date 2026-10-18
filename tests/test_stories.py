@@ -178,6 +178,17 @@ class RefreshTests(StoryTestCase):
         self.assertIn("Nobel", pivot)
         self.assertTrue(any(o in g for g in self.groups().values()))
 
+    def test_groups_older_than_the_window_never_shrink_to_one_article(self):
+        self.refresh(FakeTranslator({NOBEL_ZH: NOBEL_ZH_EN}))
+        a = self.id_of("BBC", "a.html")
+        from unittest import mock
+        # Only the two newest articles are reclustered: the oldest member of the group is left behind.
+        with mock.patch.object(stories, "MAX_CLUSTER_ARTICLES", 2):
+            self.refresh(None)
+        counts = [len(g) for g in self.groups().values()]
+        self.assertTrue(all(n >= 2 for n in counts), counts)
+        self.assertFalse(any(a in g for g in self.groups().values()))  # left alone: no longer in a "group"
+
     def test_deleted_article_leaves_no_story_rows(self):
         self.refresh(FakeTranslator({NOBEL_ZH: NOBEL_ZH_EN}))
         z = self.id_of("CNA", "z.html")

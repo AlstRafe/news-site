@@ -132,6 +132,10 @@ def _refresh_locked(db_path: Path, translate: Translator | None, enabled: bool, 
             key = f"s{min(members)}"
             statements += [("INSERT OR REPLACE INTO story_members(article_id, story_key, score) VALUES(?,?,?)",
                             (article_id, key, round(score, 4))) for article_id, score in members.items()]
+        # A group computed before may straddle the clustering window (newest MAX_CLUSTER_ARTICLES):
+        # its newer members were just regrouped; never leave the rest as a one-article "group".
+        statements.append(("DELETE FROM story_members WHERE story_key IN (SELECT story_key FROM story_members "
+                           "GROUP BY story_key HAVING COUNT(*) < 2)", ()))
         _write(db, statements)
 
         pending = db.execute("SELECT COUNT(*) FROM story_items WHERE pivot IS NULL").fetchone()[0]
