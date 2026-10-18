@@ -79,6 +79,64 @@
     });
   }
 
+  // 3b. "見出しを訳す" on the article list: a translated line under each card's headline.
+  //     On/off is remembered per device; the language follows the article page's 翻訳先.
+  const glossToggle = document.getElementById("gloss-toggle");
+  if (glossToggle) {
+    const GLOSS_KEY = "news-html-reader-list-gloss";
+    const readLocal = key => { try { return localStorage.getItem(key); } catch (_) { return null; } };
+    const writeLocal = (key, value) => { try { localStorage.setItem(key, value); } catch (_) { /* private mode */ } };
+    const target = () => {
+      const saved = readLocal("news-html-reader-translation-target");
+      return ["ja", "en-gb", "ko", "zh-hant"].includes(saved) ? saved : "ja";
+    };
+    const csrfToken = document.querySelector('meta[name="csrf-token"]')?.content || "";
+    const cards = () => [...document.querySelectorAll("a.card[data-id]")];
+    const clear = () => document.querySelectorAll(".card-gloss, .gloss-error").forEach(node => node.remove());
+    const show = async () => {
+      clear();
+      const ids = cards().map(card => Number(card.dataset.id)).filter(Boolean);
+      if (!ids.length) return;
+      glossToggle.disabled = true;
+      try {
+        const response = await fetch("/api/translate-titles", {
+          method: "POST", credentials: "same-origin",
+          headers: { "Content-Type": "application/json", "X-CSRF-Token": csrfToken },
+          body: JSON.stringify({ ids, target: target() })
+        });
+        const payload = await response.json().catch(() => ({}));
+        if (!response.ok) throw new Error(payload.error || "見出しを翻訳できませんでした。");
+        if (glossToggle.getAttribute("aria-pressed") !== "true") return; // switched off meanwhile
+        for (const card of cards()) {
+          const text = payload.translations?.[card.dataset.id];
+          const heading = card.querySelector("h2");
+          if (!text || !heading || text === heading.textContent.trim()) continue;
+          const line = document.createElement("p");
+          line.className = "card-gloss";
+          line.lang = target() === "zh-hant" ? "zh-Hant" : target() === "en-gb" ? "en-GB" : target();
+          line.textContent = text;
+          heading.after(line);
+        }
+      } catch (error) {
+        const note = document.createElement("p");
+        note.className = "gloss-error hint";
+        note.setAttribute("role", "status");
+        note.textContent = error.message || "見出しを翻訳できませんでした。";
+        glossToggle.closest(".list-head")?.after(note);
+      } finally {
+        glossToggle.disabled = false;
+      }
+    };
+    const set = on => {
+      glossToggle.setAttribute("aria-pressed", String(on));
+      glossToggle.textContent = on ? "訳を隠す" : "見出しを訳す";
+      writeLocal(GLOSS_KEY, on ? "1" : "0");
+      if (on) show(); else clear();
+    };
+    glossToggle.addEventListener("click", () => set(glossToggle.getAttribute("aria-pressed") !== "true"));
+    if (readLocal(GLOSS_KEY) === "1") set(true);
+  }
+
   // 4. Prefetch fallback for browsers without Speculation Rules (e.g. Safari on iPhone):
   //    warm the HTTP cache for an article / comparison page when a pointer rests on its link
   //    or a finger touches it. Those pages are "Cache-Control: private, max-age=60", so the

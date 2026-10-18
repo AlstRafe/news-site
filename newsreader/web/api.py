@@ -13,6 +13,7 @@ from newsreader.library import index
 from newsreader.services.dictionary import british_ipa, lookup_chinese, lookup_korean_hanja
 from newsreader.services.translation import (
     MAX_ARTICLE_CHARS, MAX_SELECTION_CHARS, TARGETS, TranslationError, translate_paragraphs, translate_text,
+    translate_titles,
 )
 from newsreader.sources import ReaderError
 from newsreader.web.pages import db_path, load_article
@@ -115,3 +116,27 @@ def translate_article_paragraphs():
     except TranslationError as exc:
         return jsonify({"error": str(exc)}), 503
     return jsonify({"title": translated[0], "paragraphs": translated[1:]})
+
+
+#: One list page (24 cards) plus room; more ids in one request are refused.
+MAX_TITLES_PER_REQUEST = 40
+
+
+@routes.post("/api/translate-titles", "translate_list_titles")
+def translate_list_titles():
+    """Headline translations for the cards on a list page: {"translations": {id: text}}."""
+    payload = _json_request()
+    ids, target = payload.get("ids"), payload.get("target")
+    if (not isinstance(target, str) or target not in TARGETS or not isinstance(ids, list)
+            or not 0 < len(ids) <= MAX_TITLES_PER_REQUEST
+            or not all(isinstance(i, int) and not isinstance(i, bool) for i in ids)):
+        return jsonify({"error": "記事または翻訳先の指定が不正です。"}), 400
+    records = [(i, index.get(db_path(), i)) for i in dict.fromkeys(ids)]
+    found = [(i, record["title"]) for i, record in records if record and record.get("title")]
+    if not found:
+        return jsonify({"translations": {}})
+    try:
+        translated = translate_titles([title for _, title in found], target)
+    except TranslationError as exc:
+        return jsonify({"error": str(exc)}), 503
+    return jsonify({"translations": {str(i): text for (i, _), text in zip(found, translated) if text}})
