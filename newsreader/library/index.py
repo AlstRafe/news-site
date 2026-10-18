@@ -99,7 +99,16 @@ def _migration_2(db: sqlite3.Connection) -> None:
         chars INTEGER NOT NULL)""")
 
 
-MIGRATIONS: list[Callable[[sqlite3.Connection], None]] = [_migration_1, _migration_2]
+def _migration_3(db: sqlite3.Connection) -> None:
+    """Reader corrections to same-news grouping: pairs that are different news (a < b)."""
+    db.execute("""CREATE TABLE IF NOT EXISTS story_exclusions (
+        a INTEGER NOT NULL REFERENCES articles(id) ON DELETE CASCADE,
+        b INTEGER NOT NULL REFERENCES articles(id) ON DELETE CASCADE,
+        created TEXT NOT NULL DEFAULT '',
+        PRIMARY KEY (a, b))""")
+
+
+MIGRATIONS: list[Callable[[sqlite3.Connection], None]] = [_migration_1, _migration_2, _migration_3]
 SCHEMA_VERSION = len(MIGRATIONS)
 _schema_lock = threading.Lock()
 _wal_checked: set[str] = set()

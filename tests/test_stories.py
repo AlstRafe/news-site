@@ -12,6 +12,7 @@ import shutil
 import sys
 import tempfile
 import unittest
+from unittest import mock
 from contextlib import closing
 from pathlib import Path
 
@@ -238,9 +239,10 @@ class WebTests(StoryTestCase):
         page = self.client.get("/stories", headers=H)
         self.assertEqual(page.status_code, 200)
         html = page.get_data(as_text=True)
-        self.assertIn("2 媒体 · 3 本", html)
+        self.assertIn('<span class="badge">BBC ×2</span><span class="badge">CNA</span>', html)
+        self.assertIn("3 本を並べて読む", html)
         self.assertIn(NOBEL_ZH, html)
-        self.assertIn(NOBEL_ZH_EN, html)  # the English pivot is shown under a non-English title
+        self.assertEqual(html.count("data-gloss-id="), 3)  # headline + the two other members
         self.assertIn('aria-current="page">読み比べ', html)
         self.assertEqual(page.headers["Cache-Control"], "no-cache")
         all_scope = self.client.get("/stories?scope=all", headers=H).get_data(as_text=True)
@@ -250,8 +252,56 @@ class WebTests(StoryTestCase):
         self.assertEqual(detail.status_code, 200)
         text = detail.get_data(as_text=True)
         self.assertEqual(text.count('class="story-column"'), 2)
+        self.assertEqual(text.count('class="text-button exclude-button"'), 6)  # 3 articles x (by outlet + timeline)
+        self.assertIn("最初の報道", text)
+        self.assertEqual(detail.headers["Cache-Control"], "no-cache")
         self.assertEqual(self.client.get("/stories/s999999", headers=H).status_code, 404)
         self.assertEqual(self.client.get("/stories?page=abc", headers=H).status_code, 200)
+
+    def test_reader_correction_takes_an_article_out_for_good(self):
+        z = self.id_of("CNA", "z.html")
+        token = self.csrf()
+        response = self.client.post("/api/stories/exclude", headers={**H, "X-CSRF-Token": token},
+                                    json={"id": z, "key": self.key})
+        self.assertEqual(response.status_code, 200, response.get_data(as_text=True))
+        self.assertTrue(response.get_json()["redirect"].startswith("/stories/"))
+        self.assertIsNone(stories.related(self.db, z))
+        # A later regrouping (even with the headline translated) keeps them apart.
+        self.refresh(FakeTranslator({NOBEL_ZH: NOBEL_ZH_EN}))
+        self.assertIsNone(stories.related(self.db, z))
+        self.assertEqual(stories.exclusion_count(self.db), 2)
+        self.assertIn("外した組: 2 組", self.client.get("/status", headers=H).get_data(as_text=True))
+        # Not a member any more: refused. Undo brings it back.
+        again = self.client.post("/api/stories/exclude", headers={**H, "X-CSRF-Token": token},
+                                 json={"id": z, "key": self.key})
+        self.assertEqual(again.status_code, 404)
+        self.assertEqual(self.client.post("/api/stories/exclusions/clear", headers={**H, "X-CSRF-Token": token}).status_code, 200)
+        self.assertEqual(stories.exclusion_count(self.db), 0)
+        self.assertIsNotNone(stories.related(self.db, z))
+        for bad in ({"id": "1", "key": self.key}, {"id": z}, {"id": True, "key": self.key}):
+            self.assertEqual(self.client.post("/api/stories/exclude", headers={**H, "X-CSRF-Token": token}, json=bad).status_code, 400)
+
+    def test_openings_are_translated_for_comparison(self):
+        from newsreader.services import cache
+        from newsreader.services import translation as ts
+        calls = []
+
+        def fake(provider, texts, target):
+            calls.append(list(texts))
+            return [f"[{target}] {t}" for t in texts]
+
+        token = self.csrf()
+        ids = [self.id_of("BBC", "a.html"), self.id_of("CNA", "z.html")]
+        with mock.patch.object(ts, "_translate_batch", fake), mock.patch.object(ts, "active_provider", lambda: "deepl"), \
+                mock.patch.object(cache, "CACHE_PATH", self.tmp / "cache.sqlite3"):
+            leads = self.client.post("/api/translate-leads", headers={**H, "X-CSRF-Token": token},
+                                     json={"ids": ids, "target": "ja"}).get_json()["leads"]
+            self.assertEqual(leads[str(ids[0])]["original"], f"Body of {NOBEL_A}.")
+            self.assertEqual(leads[str(ids[0])]["translation"], f"[ja] Body of {NOBEL_A}.")
+            self.client.post("/api/translate-leads", headers={**H, "X-CSRF-Token": token}, json={"ids": ids, "target": "ja"})
+        self.assertEqual(sum(len(c) for c in calls), 2)  # cached the second time
+        bad = self.client.post("/api/translate-leads", headers={**H, "X-CSRF-Token": token}, json={"ids": list(range(1, 20)), "target": "ja"})
+        self.assertEqual(bad.status_code, 400)
 
     def test_list_cards_mark_articles_reported_by_several_outlets(self):
         html = self.client.get("/", headers=H).get_data(as_text=True)
@@ -360,6 +410,17 @@ class NameEvidenceTests(unittest.TestCase):
         # A quoted term keeps counting as a name even in a Title Case headline.
         self.assertIn("cockro", core.name_tokens({1: core.shapes("Police Detain 'Cockroach' Party Leaders In Delhi"),
                                                   2: core.shapes("the cockroach is an insect")}))
+
+    def test_forbidden_pairs_never_share_a_cluster(self):
+        from datetime import datetime, timedelta, timezone
+        from newsreader.library import stories_core as core
+        start = datetime(2026, 10, 13, tzinfo=timezone.utc)
+        heads = [NOBEL_A, NOBEL_B, NOBEL_ZH_EN, *self.FILLER]
+        items = {n: (core.features(h), start + timedelta(hours=n)) for n, h in enumerate(heads)}
+        shapes = {n: core.shapes(h) for n, h in enumerate(heads)}
+        self.assertEqual([sorted(c) for c in core.cluster(items, shapes)], [[0, 1, 2]])
+        clusters = [sorted(c) for c in core.cluster(items, shapes, {(0, 2)})]
+        self.assertTrue(all(not {0, 2} <= set(c) for c in clusters), clusters)
 
     def test_names_are_decided_over_the_whole_corpus(self):
         from newsreader.library import stories_core as core

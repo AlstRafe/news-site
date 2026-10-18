@@ -197,17 +197,18 @@ def translate_titles_to_english(titles: list[str]) -> list[str]:
 TITLE_CACHE_ENTRIES = 20_000
 
 
-def translate_titles(titles: list[str], target: str) -> list[str]:
+def translate_titles(titles: list[str], target: str, *, kind: str = "title", max_chars: int = 1_000) -> list[str]:
     """One translation per headline (blank stays blank), each cached on its own so a headline is
-    sent to the provider once per target, whichever list page it appears on."""
+    sent to the provider once per target, whichever list page it appears on. ``kind="lead"``
+    does the same for the opening paragraphs compared on a same-news page."""
     if target not in TARGETS:
         raise TranslationError("翻訳先の指定が不正です。")
     provider = active_provider()
     if provider == "azure" and "azure" not in TARGETS[target]:
         raise TranslationError("Azure Translatorは英語の地域変種を指定できないため、English (UK)への翻訳にはDeepLを選んでください。")
-    cleaned = [title.strip()[:1_000] for title in titles]
+    cleaned = [title.strip()[:max_chars] for title in titles]
     keys = [hashlib.sha256((provider + "\0" + target + "\0" + title).encode("utf-8")).hexdigest() for title in cleaned]
-    results = [cache_get("title", key) if title else "" for title, key in zip(cleaned, keys)]
+    results = [cache_get(kind, key) if title else "" for title, key in zip(cleaned, keys)]
     missing = [i for i, value in enumerate(results) if not isinstance(value, str)]
     if missing:
         fresh: list[str] = []
@@ -215,7 +216,7 @@ def translate_titles(titles: list[str], target: str) -> list[str]:
             fresh.extend(_translate_batch(provider, batch, target))
         for i, text in zip(missing, fresh):
             results[i] = text
-            cache_put("title", keys[i], text, max_entries=TITLE_CACHE_ENTRIES)
+            cache_put(kind, keys[i], text, max_entries=TITLE_CACHE_ENTRIES)
     return [value if isinstance(value, str) else "" for value in results]
 
 

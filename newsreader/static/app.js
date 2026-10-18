@@ -79,6 +79,20 @@
     });
   }
 
+  // 3a. Status page: undo every "別のニュース" correction.
+  const clearButton = document.querySelector('[data-action="stories-clear-exclusions"]');
+  if (clearButton) {
+    clearButton.addEventListener("click", () => {
+      const state = clearButton.parentElement.querySelector(".refresh-state");
+      clearButton.disabled = true;
+      if (state) state.textContent = "取り消しています…";
+      fetch("/api/stories/exclusions/clear", { method: "POST", credentials: "same-origin",
+        headers: { "X-CSRF-Token": document.querySelector('meta[name="csrf-token"]')?.content || "" } })
+        .then(r => { if (!r.ok) throw new Error(String(r.status)); location.reload(); })
+        .catch(() => { clearButton.disabled = false; if (state) state.textContent = "取り消せませんでした"; });
+    });
+  }
+
   // 3b. "見出しを訳す" on the article list: a translated line under each card's headline.
   //     On/off is remembered per device; the language follows the article page's 翻訳先.
   const glossToggle = document.getElementById("gloss-toggle");

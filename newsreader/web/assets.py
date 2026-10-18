@@ -110,6 +110,15 @@ def localtime_filter(iso_utc: str) -> str:
         return ""
 
 
+def localtime_short_filter(iso_utc: str) -> str:
+    """"10/13 21:00" in the server's timezone (lists where the year is obvious)."""
+    try:
+        moment = datetime.strptime(iso_utc, "%Y-%m-%dT%H:%M:%SZ").replace(tzinfo=timezone.utc)
+        return moment.astimezone().strftime("%m/%d %H:%M")
+    except (ValueError, TypeError):
+        return ""
+
+
 def init_app(app: Flask, *, dev: bool) -> None:
     static = StaticFiles(paths.STATIC_DIR, frozen=not dev)
     app.extensions["static_files"] = static
@@ -143,6 +152,7 @@ def init_app(app: Flask, *, dev: bool) -> None:
 
     app.jinja_env.globals["asset"] = asset
     app.add_template_filter(localtime_filter, "localtime")
+    app.add_template_filter(localtime_short_filter, "localtime_short")
 
     @app.after_request
     def _cache_and_compress(response: Response):

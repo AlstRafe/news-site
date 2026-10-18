@@ -1,20 +1,24 @@
 {% extends "base.html" %}
 {% block head %}<title>読み比べ | News HTML Reader</title>{% endblock %}
+{% block main_class %} stories-page{% endblock %}
 {% block content %}
 <div class="list-head"><h1>同じニュースの読み比べ</h1><span class="count">{{ result.total }} 件</span></div>
 <nav class="chips" aria-label="表示範囲">
 <a class="chip{% if result.scope == 'multi' %} active{% endif %}" href="{{ url_for('stories_page') }}">複数の媒体が報道</a>
 <a class="chip{% if result.scope == 'all' %} active{% endif %}" href="{{ url_for('stories_page', scope='all') }}">すべてのグループ</a>
 </nav>
-<p class="hint stories-note">{% if info.refreshed %}{{ refreshed_ago }}に更新{% else %}まだ集計していません{% endif %}{% if info.pending %} · 英訳待ちの見出し {{ info.pending }} 件{% endif %}{% if info.key_configured is defined and not info.key_configured %} · 翻訳キー未設定（英語の見出しのみで照合）{% endif %}
-<button type="button" class="link-button" data-action="stories-refresh">今すぐ更新</button><span class="refresh-state" role="status" aria-live="polite"></span></p>
+<p class="hint stories-note">{% if info.refreshed %}{{ refreshed_ago }}に集計{% else %}まだ集計していません{% endif %}{% if info.pending %} · 英訳待ちの見出し {{ info.pending }} 件{% endif %}{% if info.key_configured is defined and not info.key_configured %} · 翻訳キー未設定（英語の見出しのみで照合）{% endif %}
+<button type="button" class="link-button" data-action="stories-refresh">今すぐ更新</button><span class="refresh-state" role="status" aria-live="polite"></span>{% if result.stories %}<button type="button" class="gloss-toggle" id="story-gloss-toggle" aria-pressed="true" title="見出しの訳（見出しだけを翻訳サービスに送信。一度訳した見出しは再送信しません）">訳を隠す</button>{% endif %}</p>
+<p class="gloss-error hint" id="story-gloss-error" role="status" hidden></p>
 {% for story in result.stories %}
 <section class="story-card">
-<a class="story-head" href="{{ url_for('story_page', key=story.key) }}"><span class="story-count">{{ story.outlets }} 媒体 · {{ story.count }} 本</span><span class="story-time">{{ story.newest|localtime }}</span></a>
-<ul class="story-members">{% for m in story.members[:6] %}
-<li><a href="{{ url_for('show_article', article_id=m.id) }}"><span class="badge">{{ m.source or '未分類' }}</span><span class="story-title">{{ m.title }}</span>{% if m.lang != 'en' and m.pivot %}<span class="story-pivot" lang="en">{{ m.pivot }}</span>{% endif %}</a></li>
-{% endfor %}</ul>
-{% if story.count > 6 %}<a class="story-more" href="{{ url_for('story_page', key=story.key) }}">ほか {{ story.count - 6 }} 本を並べて読む →</a>{% else %}<a class="story-more" href="{{ url_for('story_page', key=story.key) }}">媒体ごとに並べて読む →</a>{% endif %}
+<div class="story-meta"><span class="story-outlets">{% for name, n in story.outlet_counts %}<span class="badge">{{ name }}{% if n > 1 %} ×{{ n }}{% endif %}</span>{% endfor %}</span>
+<span class="story-time">{{ story.oldest|localtime_short }}{% if story.newest_time and story.newest_time != story.oldest %} 〜 {{ story.newest_time|localtime_short }}{% endif %}</span></div>
+<h2 class="story-headline"><a href="{{ url_for('story_page', key=story.key) }}"><span data-gloss-id="{{ story.lead_id }}">{{ story.lead_title }}</span></a></h2>
+<ul class="story-members">{% for m in story.members if m.id != story.lead_id %}{% if loop.index <= 5 %}
+<li><a href="{{ url_for('show_article', article_id=m.id) }}"><span class="badge">{{ m.source or '未分類' }}</span><span class="story-title" data-gloss-id="{{ m.id }}">{{ m.title }}</span><span class="story-time">{{ m.published|localtime_short }}</span></a></li>
+{% endif %}{% endfor %}</ul>
+<a class="story-more" href="{{ url_for('story_page', key=story.key) }}">{{ story.count }} 本を並べて読む →</a>
 </section>
 {% else %}
 <p class="empty">{% if result.scope == 'multi' %}複数の媒体が報じたニュースはまだ見つかっていません。「すべてのグループ」も確認してください。{% else %}まだグループがありません。記事が増えると自動で集計されます。{% endif %}</p>
@@ -24,5 +28,6 @@
 <span>{{ result.page }} / {{ result.pages }}</span>
 {% if result.page < result.pages %}<a href="{{ url_for('stories_page', scope=result.scope if result.scope == 'all' else None, page=result.page+1) }}">過去 →</a>{% else %}<span></span>{% endif %}
 </nav>{% endif %}
-<p class="hint">見出しを英語にそろえて照合しています（英語以外の見出しは設定中の翻訳サービスで見出しだけを英訳、1日の上限あり）。無関係な記事を混ぜないことを優先しているため、同じニュースでも別グループになることがあります。</p>
+<p class="hint">見出しを英語にそろえて照合しています（英語以外の見出しは設定中の翻訳サービスで見出しだけを英訳、1日の上限あり）。無関係な記事を混ぜないことを優先しているため、同じニュースでも別グループになることがあります。違う記事が混ざっていたら、グループを開いて「別のニュース」で外せます。</p>
 {% endblock %}
+{% block scripts %}<script src="{{ asset('stories.js') }}" defer></script>{% endblock %}

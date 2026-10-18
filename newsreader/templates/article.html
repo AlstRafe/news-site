@@ -36,9 +36,9 @@
 <div class="tr-foot"><button class="text-button" id="translate-sentence" type="button" hidden>文全体を訳す</button><button class="text-button" id="copy-selection" type="button">訳をコピー</button><button class="text-button" id="copy-original" type="button">原文をコピー</button><span class="tr-target" id="selection-target"></span></div>
 </aside>
 {% if related %}<section class="related" aria-labelledby="related-head"><h2 id="related-head">同じニュースの他の記事</h2>
-<ul class="story-members">{% for m in related.members[:8] %}<li><a href="{{ url_for('show_article', article_id=m.id) }}"><span class="badge">{{ m.source or '未分類' }}</span><span class="story-title">{{ m.title }}</span><span class="story-time">{{ m.published|localtime }}</span></a></li>{% endfor %}</ul>
+<ul class="story-members">{% for m in related.members[:8] %}<li><a href="{{ url_for('show_article', article_id=m.id) }}"><span class="badge">{{ m.source or '未分類' }}</span><span class="story-title" data-gloss-id="{{ m.id }}">{{ m.title }}</span><span class="story-time">{{ m.published|localtime }}</span></a></li>{% endfor %}</ul>
 <a class="story-more" href="{{ url_for('story_page', key=related.key) }}">媒体ごとに並べて読む →</a></section>{% endif %}
 <nav class="article-end" aria-label="記事の終わり"><a class="back" href="{{ url_for('index', source=record.source or None) }}">← {{ record.source or '記事' }}の一覧へ戻る</a><a class="to-top" href="#top">▲ 上へ</a></nav>
 <p class="hint endnote">単語をタップ（クリック）すると単語を、文章を選ぶとその範囲をすぐに翻訳します。翻訳時はその文章が設定中の翻訳サービスに送信されます。翻訳結果はこのPC内にキャッシュされます。</p>
 {% endblock %}
-{% block scripts %}<script src="{{ asset('article_translate.js') }}" defer></script>{% endblock %}
+{% block scripts %}<script src="{{ asset('article_translate.js') }}" defer></script>{% if related %}<script src="{{ asset('stories.js') }}" defer></script>{% endif %}{% endblock %}

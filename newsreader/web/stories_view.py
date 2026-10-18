@@ -7,7 +7,6 @@ from flask import abort, current_app, jsonify, render_template, request
 
 from newsreader.library import stories, status
 from newsreader.services import images as image_service
-from newsreader.web.assets import CACHE_PAGE
 from newsreader.web.pages import db_path, image_url
 from newsreader.web.routing import Routes
 
@@ -47,7 +46,8 @@ def story_page(key: str):
         abort(404)
     _with_thumbs(story["members"])
     response = current_app.make_response(render_template("story.html", story=story))
-    response.headers["Cache-Control"] = CACHE_PAGE
+    # Not reused from the browser cache: a group changes when it is corrected or re-grouped.
+    response.headers["Cache-Control"] = "no-cache"
     return response
 
 
@@ -71,3 +71,36 @@ def stories_status():
     info = status.read(current_app.config["STATUS_PATH"]).get("stories") or {}
     running = _refresh_thread is not None and _refresh_thread.is_alive()
     return jsonify({**info, "running": running})
+
+
+@routes.post("/api/stories/exclude", "stories_exclude")
+def stories_exclude():
+    """"別のニュース": take one article out of a group for good, re-group, and say where to go next."""
+    from newsreader.library import pipeline
+    payload = request.get_json(silent=True) if request.is_json else None
+    article_id = payload.get("id") if isinstance(payload, dict) else None
+    key = payload.get("key") if isinstance(payload, dict) else None
+    if not isinstance(article_id, int) or isinstance(article_id, bool) or not isinstance(key, str) or len(key) > 32:
+        return jsonify({"error": "指定が不正です。"}), 400
+    db = db_path()
+    story = stories.get_story(db, key)
+    remaining = [m["id"] for m in story["members"] if m["id"] != article_id] if story else []
+    if not stories.exclude(db, article_id, key):
+        return jsonify({"error": "この記事はこのグループに入っていません。"}), 404
+    with _refresh_guard:
+        pipeline.refresh_stories(db, current_app.config["STATUS_PATH"])
+    # Where the rest of the group lives now (its key can change when the smallest id left).
+    for other in remaining:
+        group = stories.related(db, other)
+        if group:
+            return jsonify({"ok": True, "redirect": f"/stories/{group['key']}"})
+    return jsonify({"ok": True, "redirect": "/stories"})
+
+
+@routes.post("/api/stories/exclusions/clear", "stories_clear_exclusions")
+def stories_clear_exclusions():
+    from newsreader.library import pipeline
+    cleared = stories.clear_exclusions(db_path())
+    with _refresh_guard:
+        pipeline.refresh_stories(db_path(), current_app.config["STATUS_PATH"])
+    return jsonify({"ok": True, "cleared": cleared})

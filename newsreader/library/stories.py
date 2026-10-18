@@ -124,7 +124,8 @@ def _refresh_locked(db_path: Path, translate: Translator | None, enabled: bool, 
             if moment and feats:
                 items[row["id"]] = (feats, moment)
                 shapes[row["id"]] = core.shapes(row["pivot"])
-        clusters = core.cluster(items, shapes) if len(items) > 1 else []
+        forbidden = {(row[0], row[1]) for row in db.execute("SELECT a, b FROM story_exclusions")}
+        clusters = core.cluster(items, shapes, forbidden) if len(items) > 1 else []
 
         # 3. replace the groups of the articles that took part in this run.
         statements = [("DELETE FROM story_members WHERE article_id IN (%s)" % ",".join("?" * len(items)), tuple(items))] if items else []
@@ -174,9 +175,53 @@ def list_stories(db_path: Path, scope: str = "multi", page: int = 1, per_page: i
         total = db.execute(f"SELECT COUNT(*) FROM ({base})").fetchone()[0]
         heads = db.execute(f"{base} ORDER BY newest DESC LIMIT ? OFFSET ?", (per_page, (page - 1) * per_page)).fetchall()
         members = _members(db, [h["story_key"] for h in heads])
-    stories = [{"key": h["story_key"], "newest": h["newest"], "count": h["n"], "outlets": h["outlets"],
-                "members": members.get(h["story_key"], [])} for h in heads]
+    stories = []
+    for h in heads:
+        group = members.get(h["story_key"], [])
+        central = max(group, key=lambda m: (m["score"], m["published"])) if group else None
+        stories.append({"key": h["story_key"], "newest": h["newest"], "count": h["n"], "outlets": h["outlets"],
+                        "members": group, "lead_title": central["title"] if central else "",
+                        "lead_id": central["id"] if central else 0, **_summary(group)})
     return {"stories": stories, "total": total, "page": page, "pages": max(1, -(-total // per_page)), "scope": scope}
+
+
+def _summary(members: list[dict]) -> dict:
+    """Outlets (most articles first), first report and the time span of a group."""
+    counts: dict[str, int] = {}
+    for member in members:
+        counts[member["source"] or "未分類"] = counts.get(member["source"] or "未分類", 0) + 1
+    dated = sorted((m for m in members if m.get("published")), key=lambda m: (m["published"], m["id"]))
+    return {"outlet_counts": sorted(counts.items(), key=lambda kv: (-kv[1], kv[0].casefold())),
+            "first": dated[0] if dated else None, "oldest": dated[0]["published"] if dated else "",
+            "newest_time": dated[-1]["published"] if dated else ""}
+
+
+def exclude(db_path: Path, article_id: int, key: str) -> int:
+    """The reader says ``article_id`` is not the same news as the rest of group ``key``: remember
+    every such pair (never grouped again). Returns the number of new pairs; the caller re-groups."""
+    with closing(index.connect(db_path)) as db:
+        others = [row[0] for row in db.execute(
+            "SELECT article_id FROM story_members WHERE story_key = ? AND article_id != ?", (key, article_id))]
+        if not others or db.execute("SELECT 1 FROM story_members WHERE story_key = ? AND article_id = ?",
+                                    (key, article_id)).fetchone() is None:
+            return 0
+        before = db.execute("SELECT COUNT(*) FROM story_exclusions").fetchone()[0]
+        _write(db, [("INSERT OR IGNORE INTO story_exclusions(a, b, created) VALUES(?,?,?)",
+                     (min(article_id, other), max(article_id, other), status.now_iso())) for other in others]
+               + [("DELETE FROM story_members WHERE article_id = ?", (article_id,))])
+        return db.execute("SELECT COUNT(*) FROM story_exclusions").fetchone()[0] - before
+
+
+def exclusion_count(db_path: Path) -> int:
+    with closing(index.connect(db_path)) as db:
+        return db.execute("SELECT COUNT(*) FROM story_exclusions").fetchone()[0]
+
+
+def clear_exclusions(db_path: Path) -> int:
+    with closing(index.connect(db_path)) as db:
+        count = db.execute("SELECT COUNT(*) FROM story_exclusions").fetchone()[0]
+        _write(db, [("DELETE FROM story_exclusions", ())])
+        return count
 
 
 def get_story(db_path: Path, key: str) -> dict | None:
@@ -190,8 +235,10 @@ def get_story(db_path: Path, key: str) -> dict | None:
         columns.setdefault(member["source"] or "未分類", []).append(member)
     # Heading: the most central member (highest mean similarity), ties to the newest.
     central = max(members, key=lambda m: (m["score"], m["published"]))
+    timeline = sorted(members, key=lambda m: (m["published"], m["id"]))
     return {"key": key, "members": members, "columns": sorted(columns.items(), key=lambda kv: kv[0].casefold()),
-            "newest": members[0]["published"], "lead_title": central["title"]}
+            "newest": members[0]["published"], "lead_title": central["title"], "lead_id": central["id"],
+            "timeline": timeline, **_summary(members)}
 
 
 def badges(db_path: Path, article_ids: list[int]) -> dict[int, dict]:

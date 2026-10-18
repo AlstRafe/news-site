@@ -35,7 +35,9 @@
 <dt>グループ</dt><dd>{{ stories_info.groups }} 件（複数の媒体 {{ stories_info.multi_outlet }} 件）</dd>
 <dt>見出しの英訳</dt><dd>{% if not stories_info.enabled %}オフ（英語の見出しだけで照合）{% elif not stories_info.key_configured %}翻訳キー未設定（英語の見出しだけで照合）{% else %}本日 {{ "{:,}".format(stories_info.chars_today) }} / {{ "{:,}".format(stories_info.daily_limit) }} 文字{% endif %}{% if stories_info.pending %} · 英訳待ち {{ stories_info.pending }} 件{% endif %}</dd>
 {% if stories_info.error %}<dt>英訳エラー</dt><dd class="tone-bad">{{ stories_info.error }}</dd>{% endif %}
-</dl>{% endif %}</section>
+</dl>{% endif %}
+{% if story_exclusions %}<p class="hint">「別のニュース」で外した組: {{ story_exclusions }} 組 <button type="button" class="link-button" data-action="stories-clear-exclusions">すべて取り消して集計し直す</button><span class="refresh-state" role="status" aria-live="polite"></span></p>{% endif %}
+</section>
 <section class="panel"><h2>翻訳の利用量（{{ usage.month }}）</h2>
 <dl class="facts"><dt>Azure</dt><dd>{{ "{:,}".format(usage.providers.azure.metered_chars) }} 文字 · {{ usage.providers.azure.requests }} 回</dd>
 <dt>DeepL</dt><dd>{{ "{:,}".format(usage.providers.deepl.source_chars) }} 文字 · {{ usage.providers.deepl.requests }} 回</dd></dl></section>

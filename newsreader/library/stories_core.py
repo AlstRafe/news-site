@@ -154,8 +154,10 @@ def parse_utc(published: str) -> datetime | None:
 
 
 class Corpus:
-    def __init__(self, items: dict[int, tuple[dict[str, float], datetime]], names: set[str] | None = None):
+    def __init__(self, items: dict[int, tuple[dict[str, float], datetime]], names: set[str] | None = None,
+                 forbidden: set[tuple[int, int]] | None = None):
         self.names = names
+        self.forbidden = forbidden or set()
         self.times = {i: t for i, (_, t) in items.items()}
         doc_freq: dict[str, int] = defaultdict(int)
         for feats, _ in items.values():
@@ -175,6 +177,9 @@ class Corpus:
         if key in self._cache:
             return self._cache[key]
         value = 0.0
+        if key in self.forbidden:  # the reader said these are different news
+            self._cache[key] = value
+            return value
         if abs((self.times[a] - self.times[b]).total_seconds()) <= MAX_GAP_HOURS * 3600:
             va, vb = self.vectors[a], self.vectors[b]
             small, big = (va, vb) if len(va) <= len(vb) else (vb, va)
@@ -214,16 +219,21 @@ class Corpus:
 
 
 def cluster(items: dict[int, tuple[dict[str, float], datetime]],
-            shapes_by_item: dict[int, dict[str, frozenset[str]]] | None = None) -> list[dict[int, float]]:
+            shapes_by_item: dict[int, dict[str, frozenset[str]]] | None = None,
+            forbidden: set[tuple[int, int]] | None = None) -> list[dict[int, float]]:
     """Average-link clustering. Returns clusters (size >= 2) as {article_id: mean similarity to the others}.
 
-    With ``shapes_by_item`` (see ``shapes``) weak pairs need a shared name-like token (D-21)."""
-    corpus = Corpus(items, name_tokens(shapes_by_item) if shapes_by_item is not None else None)
+    With ``shapes_by_item`` (see ``shapes``) weak pairs need a shared name-like token (D-21).
+    ``forbidden`` pairs (smaller id first) never end up in one cluster (the reader's corrections)."""
+    forbidden = forbidden or set()
+    corpus = Corpus(items, name_tokens(shapes_by_item) if shapes_by_item is not None else None, forbidden)
     members = {i: [i] for i in items}
     owner = {i: i for i in items}
     for _, a, b in corpus.candidate_pairs():
         ca, cb = owner[a], owner[b]
         if ca == cb or len(members[ca]) + len(members[cb]) > MAX_CLUSTER:
+            continue
+        if forbidden and any((min(x, y), max(x, y)) in forbidden for x in members[ca] for y in members[cb]):
             continue
         link = sum(corpus.sim(x, y) for x in members[ca] for y in members[cb]) / (len(members[ca]) * len(members[cb]))
         if link < AVG_LINK_THRESHOLD:

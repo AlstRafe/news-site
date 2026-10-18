@@ -142,3 +142,41 @@ def translate_list_titles():
     except TranslationError as exc:
         return jsonify({"error": str(exc)}), 503
     return jsonify({"translations": {str(i): text for (i, _), text in zip(found, translated) if text}})
+
+
+#: A same-news page compares at most this many openings at once, each cut to LEAD_CHARS.
+MAX_LEADS_PER_REQUEST = 12
+LEAD_CHARS = 600
+
+
+def opening(article: dict) -> str:
+    """The first paragraph, or the first two when the first is only a short dateline/standfirst."""
+    paragraphs = [p for p in article.get("paragraphs", []) if p.strip()]
+    text = paragraphs[0] if paragraphs else ""
+    if len(text) < 80 and len(paragraphs) > 1:
+        text = f"{text} {paragraphs[1]}"
+    return text[:LEAD_CHARS]
+
+
+@routes.post("/api/translate-leads", "translate_story_leads")
+def translate_story_leads():
+    """Opening paragraphs of the articles on a same-news page: {"leads": {id: {"original", "translation"}}}."""
+    payload = _json_request()
+    ids, target = payload.get("ids"), payload.get("target")
+    if (not isinstance(target, str) or target not in TARGETS or not isinstance(ids, list)
+            or not 0 < len(ids) <= MAX_LEADS_PER_REQUEST
+            or not all(isinstance(i, int) and not isinstance(i, bool) for i in ids)):
+        return jsonify({"error": "記事または翻訳先の指定が不正です。"}), 400
+    found = []
+    for article_id in dict.fromkeys(ids):
+        content = index.get_content(db_path(), article_id)
+        text = opening(content) if content else ""
+        if text:
+            found.append((article_id, text))
+    if not found:
+        return jsonify({"leads": {}})
+    try:
+        translated = translate_titles([text for _, text in found], target, kind="lead", max_chars=LEAD_CHARS)
+    except TranslationError as exc:
+        return jsonify({"error": str(exc)}), 503
+    return jsonify({"leads": {str(i): {"original": text, "translation": tr} for (i, text), tr in zip(found, translated)}})
