@@ -289,12 +289,76 @@ class WebTests(StoryTestCase):
         super().tearDown()
 
 
+class NameEvidenceTests(unittest.TestCase):
+    """D-21: a weak pair must share a name-like token; common words alone do not join events."""
+
+    def group(self, *headlines, hours=1):
+        from datetime import datetime, timedelta, timezone
+        from newsreader.library import stories_core as core
+        start = datetime(2026, 10, 13, tzinfo=timezone.utc)
+        items = {n: (core.features(h), start + timedelta(hours=hours * n)) for n, h in enumerate(headlines)}
+        shapes = {n: core.shapes(h) for n, h in enumerate(headlines)}
+        return [sorted(c) for c in core.cluster(items, shapes)], [sorted(c) for c in core.cluster(items)]
+
+    FILLER = ("Heavy snow closes mountain passes across the Alps", "Bank of England holds interest rates",
+              "Wildfire forces evacuations in California", "Football club appoints new manager")
+
+    def test_common_words_alone_do_not_join(self):
+        # Two different events that share only "pupil / teacher / school" (a real false pair under D-07).
+        with_rule, without = self.group("Pupil arrested after two teachers shot at French school",
+                                        "At least 33 pupils and teacher killed after school roof collapses in Pakistan",
+                                        *self.FILLER)
+        self.assertEqual(with_rule, [])
+        self.assertEqual(without, [[0, 1]])  # the handover's D-07 behaviour, kept when no shapes are given
+
+    def test_shared_name_or_quoted_term_still_joins(self):
+        self.assertEqual(self.group("Albanian protests turn violent: What we know",
+                                    "Anti-government protesters battle with police in Albania")[0], [[0, 1]])
+        self.assertEqual(self.group("Delhi sees more protests as freed 'cockroach' group's leaders vow to fight on",
+                                    "Police detain 'cockroach' leaders after protest")[0], [[0, 1]])
+
+    def test_names_are_decided_over_the_whole_corpus(self):
+        from newsreader.library import stories_core as core
+        names = core.name_tokens({1: core.shapes("Pupil arrested after teachers shot"),
+                                  2: core.shapes("Ten pupils hurt as school roof collapses in Pakistan"),
+                                  3: core.shapes("Pope to be discharged after surgery")})
+        self.assertIn("pakist", names)
+        self.assertIn("pope", names)          # capitalised and never seen in lower case
+        self.assertNotIn("pupil", names)      # seen in lower case elsewhere
+        self.assertNotIn("school", names)
+
+
+class LiveBbcEvaluation(unittest.TestCase):
+    """Secondary check on 119 live English headlines (labels NOT blind, see the fixture's provenance)."""
+
+    #: Measured 2026-10-19 with D-21: precision 0.741, recall 0.645, partner 0.77 (D-07 alone: 0.588 / 0.645 / 0.77).
+    FLOORS = {"precision": 0.73, "recall": 0.64, "partner": 0.76}
+
+    def test_against_labels(self):
+        from newsreader.library import stories_core as core
+        data = json.loads((LABELS.parent / "story_labels_live_bbc.json").read_text(encoding="utf-8"))
+        articles = {n: a for n, a in enumerate(data["articles"])}
+        items = {n: (core.features(a["title"]), core.parse_utc(a["published"])) for n, a in articles.items()}
+        shapes = {n: core.shapes(a["title"]) for n, a in articles.items()}
+        key = {n: a["key"] for n, a in articles.items()}
+        pred = {tuple(sorted((key[a], key[b]))) for c in core.cluster(items, shapes) for a, b in itertools.combinations(c, 2)}
+        pred -= {tuple(sorted(p)) for p in data["ambiguous"]}
+        true = {tuple(sorted(p)) for members in data["groups"].values() for p in itertools.combinations(members, 2)}
+        correct = pred & true
+        labelled = [k for members in data["groups"].values() for k in members]
+        partner = sum(any(tuple(sorted((i, j))) in correct for j in labelled if j != i) for i in labelled) / len(labelled)
+        measured = {"precision": len(correct) / len(pred), "recall": len(correct) / len(true), "partner": partner}
+        print("\nlive BBC evaluation:", {k: round(v, 3) for k, v in measured.items()})
+        for name, floor in self.FLOORS.items():
+            self.assertGreaterEqual(measured[name], floor, name)
+
+
 @unittest.skipUnless(os.environ.get("NEWS_REALDATA"), "NEWS_REALDATA not set")
 class LabelledEvaluation(unittest.TestCase):
     """Pairwise agreement with labels written before any clustering run (tests/fixtures/story_labels.json)."""
 
     #: First measured run (2026-10-19, parameters D-07): precision 0.653, recall 0.528,
-    #: partner 0.78, cross-outlet partner 0.75. Floors leave room only for rounding.
+    #: partner 0.78, cross-outlet partner 0.75 — unchanged by D-21. Floors leave room only for rounding.
     FLOORS = {"precision": 0.64, "recall": 0.52, "partner": 0.76, "cross_partner": 0.72}
 
     def test_against_labels(self):

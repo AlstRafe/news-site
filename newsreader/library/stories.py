@@ -114,7 +114,7 @@ def _refresh_locked(db_path: Path, translate: Translator | None, enabled: bool, 
                     log.warning("Headline translation failed: %s", error)
 
         # 2. cluster everything that has a pivot and a time.
-        items = {}
+        items, shapes = {}, {}
         for row in db.execute(
                 """SELECT a.id, a.published, s.pivot FROM articles a JOIN story_items s ON s.article_id = a.id
                    WHERE a.error = '' AND s.pivot IS NOT NULL AND a.published != ''
@@ -123,7 +123,8 @@ def _refresh_locked(db_path: Path, translate: Translator | None, enabled: bool, 
             feats = core.features(row["pivot"])
             if moment and feats:
                 items[row["id"]] = (feats, moment)
-        clusters = core.cluster(items) if len(items) > 1 else []
+                shapes[row["id"]] = core.shapes(row["pivot"])
+        clusters = core.cluster(items, shapes) if len(items) > 1 else []
 
         # 3. replace the groups of the articles that took part in this run.
         statements = [("DELETE FROM story_members WHERE article_id IN (%s)" % ",".join("?" * len(items)), tuple(items))] if items else []

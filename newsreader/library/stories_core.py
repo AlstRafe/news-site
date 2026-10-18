@@ -1,7 +1,13 @@
-"""Same-news clustering core: pure functions, no I/O (imported unchanged from the handover).
+"""Same-news clustering core: pure functions, no I/O.
 
 Source: handover reference/stories_core.py (parameters D-07). Pipeline: headline -> English pivot
 -> keyword weights -> time-gated similarity -> average-link clustering.
+
+One addition (D-21): a pair that scores below ``NAME_EVIDENCE_BELOW`` must share at least one
+*name-like* token — a word capitalised away from the start of some headline, a word never seen in
+lower case in the corpus, or a one/two-word quoted term ('cockroach' party). Shared common words
+alone ("data centre", "school pupils", "protests turn") no longer join different events. Without
+``shapes`` (the handover's call signature) the behaviour is exactly D-07.
 """
 from __future__ import annotations
 
@@ -44,6 +50,9 @@ _HANGUL = re.compile(r"[가-힣ᄀ-ᇿ]")
 _KANA = re.compile(r"[぀-ヿ]")
 _HAN = re.compile(r"[㐀-䶿一-鿿]")
 _LATIN = re.compile(r"[A-Za-z]")
+NAME_EVIDENCE_BELOW = 0.6
+# A one/two-word quoted term: 'cockroach' party, ‘energy ceasefire’ (not quoted speech).
+_QUOTED = re.compile(r"(?:^|(?<=[\s(]))['‘\"“]([^'’\"”]{2,40})['’\"”](?=$|[\s,.:;!?)]|'s)")
 
 
 def detect_lang(text: str) -> str:
@@ -72,10 +81,14 @@ def _stem(word: str) -> str:
     return word
 
 
-def features(pivot: str) -> dict[str, float]:
-    """keyword -> boost; names/acronyms (capitalised away from the sentence start) weigh 1.6x."""
-    out: dict[str, float] = {}
-    for index, match in enumerate(_WORD.finditer(_US.sub("US", pivot))):
+def _tokens(pivot: str):
+    """(token, boosted, shape) per keyword; shape: name / initial / lower / digit."""
+    text = _US.sub("US", pivot)
+    quoted: set[int] = set()
+    for match in _QUOTED.finditer(text):
+        if 1 <= len(match.group(1).split()) <= 2:
+            quoted.update(range(match.start(1), match.end(1)))
+    for index, match in enumerate(_WORD.finditer(text)):
         raw = match.group(0)
         word = re.sub(r"'s$", "", raw.lower().replace("’", "'")).strip("'-")
         if not word or word in _STOP or (len(word) < 2 and not word.isdigit()):
@@ -83,8 +96,40 @@ def features(pivot: str) -> dict[str, float]:
         word = _stem(_CANON.get(word, word))
         word = word[:STEM_LENGTH] if len(word) > STEM_LENGTH else word
         boosted = (raw[0].isupper() and index > 0) or (raw.isupper() and len(raw) >= 2)
+        if boosted or match.start() in quoted:
+            shape = "name"
+        elif raw[0].isupper():
+            shape = "initial"
+        elif raw[0].isdigit():
+            shape = "digit"
+        else:
+            shape = "lower"
+        yield word, boosted, shape
+
+
+def features(pivot: str) -> dict[str, float]:
+    """keyword -> boost; names/acronyms (capitalised away from the sentence start) weigh 1.6x."""
+    out: dict[str, float] = {}
+    for word, boosted, _ in _tokens(pivot):
         out[word] = max(out.get(word, 1.0), 1.6 if boosted else 1.0)
     return out
+
+
+def shapes(pivot: str) -> dict[str, frozenset[str]]:
+    """keyword -> the shapes it takes in this headline (input to ``name_tokens``)."""
+    out: dict[str, set[str]] = defaultdict(set)
+    for word, _, shape in _tokens(pivot):
+        out[word].add(shape)
+    return {word: frozenset(found) for word, found in out.items()}
+
+
+def name_tokens(per_item: dict[int, dict[str, frozenset[str]]]) -> set[str]:
+    """Corpus-wide: capitalised mid-headline / quoted somewhere, or capitalised but never lower case."""
+    seen: dict[str, set[str]] = defaultdict(set)
+    for item in per_item.values():
+        for word, found in item.items():
+            seen[word] |= found
+    return {word for word, found in seen.items() if "name" in found or ("initial" in found and "lower" not in found)}
 
 
 def parse_utc(published: str) -> datetime | None:
@@ -95,7 +140,8 @@ def parse_utc(published: str) -> datetime | None:
 
 
 class Corpus:
-    def __init__(self, items: dict[int, tuple[dict[str, float], datetime]]):
+    def __init__(self, items: dict[int, tuple[dict[str, float], datetime]], names: set[str] | None = None):
+        self.names = names
         self.times = {i: t for i, (_, t) in items.items()}
         doc_freq: dict[str, int] = defaultdict(int)
         for feats, _ in items.values():
@@ -124,7 +170,10 @@ class Corpus:
             contained = sum(min(va[t], vb[t]) for t in shared) / min(self.mass[a], self.mass[b])
             score = CONTAIN_BLEND * contained + (1 - CONTAIN_BLEND) * cosine
             specific = [t for t in shared if t not in _GENERIC]
-            if score >= PAIR_THRESHOLD and (len(specific) >= 2 or score >= 0.6):
+            accepted = score >= PAIR_THRESHOLD and (len(specific) >= 2 or score >= 0.6)
+            if accepted and self.names is not None and score < NAME_EVIDENCE_BELOW:
+                accepted = any(token in self.names for token in specific)
+            if accepted:
                 value = score
         self._cache[key] = value
         return value
@@ -150,9 +199,12 @@ class Corpus:
         return sorted(pairs, reverse=True)
 
 
-def cluster(items: dict[int, tuple[dict[str, float], datetime]]) -> list[dict[int, float]]:
-    """Average-link clustering. Returns clusters (size >= 2) as {article_id: mean similarity to the others}."""
-    corpus = Corpus(items)
+def cluster(items: dict[int, tuple[dict[str, float], datetime]],
+            shapes_by_item: dict[int, dict[str, frozenset[str]]] | None = None) -> list[dict[int, float]]:
+    """Average-link clustering. Returns clusters (size >= 2) as {article_id: mean similarity to the others}.
+
+    With ``shapes_by_item`` (see ``shapes``) weak pairs need a shared name-like token (D-21)."""
+    corpus = Corpus(items, name_tokens(shapes_by_item) if shapes_by_item is not None else None)
     members = {i: [i] for i in items}
     owner = {i: i for i in items}
     for _, a, b in corpus.candidate_pairs():

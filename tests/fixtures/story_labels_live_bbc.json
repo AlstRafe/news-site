@@ -1,0 +1,694 @@
+{
+ "author": "Claude (Opus 5.5), 2026-10-19 03:00 JST",
+ "provenance": "Headlines of the 119 BBC articles in the user's live library on 2026-10-19 (English, so no translation is involved). NOT blind: labelled after seeing the D-07 grouping of the same articles. Use as a secondary check; story_labels.json (blind) stays the primary one. Pending user review.",
+ "rule": "Same as story_labels.json: same specific event or directly continuing story within 72 hours; related-but-different events are separate. Pairs listed in 'ambiguous' are neither rewarded nor penalised.",
+ "articles": [
+  {
+   "key": "'Time for Ukraine to get new president,' says Trump after Zelensky condemns diesel deal.html",
+   "title": "'Time for Ukraine to get new president,' says Trump after Zelensky condemns diesel deal",
+   "published": "2026-10-10T17:31:24Z"
+  },
+  {
+   "key": "Everyone_hates_the_police_what_Frances_school_protests_reveal_ab_crq5nlqnn184o.html",
+   "title": "'Everyone hates the police' – what France's school protests reveal about a divided nation",
+   "published": "2026-10-09T23:24:33Z"
+  },
+  {
+   "key": "Questions_remain_over_Ebola_patient_who_travelled_across_three_n_cqp8gknl1njjo.html",
+   "title": "Questions remain over Ebola patient who travelled across three nations undetected",
+   "published": "2026-10-10T00:00:08Z"
+  },
+  {
+   "key": "bbc_news_articles_c317ke5ngrq7o_aea7aae871.html",
+   "title": "Nord Stream trial: How German police followed the evidence - to Ukraine",
+   "published": "2026-10-10T04:51:57Z"
+  },
+  {
+   "key": "bbc_news_articles_c32l4ekpvzl8o_3c8bd046e5.html",
+   "title": "Katie Zacharia leaving White House role less than five days into job",
+   "published": "2026-10-16T21:05:05Z"
+  },
+  {
+   "key": "bbc_news_articles_c3eweygrjzd7o_57605e8821.html",
+   "title": "Oil facilities hit in deadly overnight attack on St Petersburg",
+   "published": "2026-10-18T11:57:49Z"
+  },
+  {
+   "key": "bbc_news_articles_c3kgqjkzw29wo_c72501030d.html",
+   "title": "Three men jailed for 158 years each for murdering Australian and US surfers in Mexico",
+   "published": "2026-10-17T03:11:10Z"
+  },
+  {
+   "key": "bbc_news_articles_c3y0e871rk4vo_f47da60752.html",
+   "title": "Expedition hopes to find aviator Amelia Earhart's plane on remote island",
+   "published": "2026-10-10T18:22:29Z"
+  },
+  {
+   "key": "bbc_news_articles_c54g1mp7lz7zo_320e9a2499.html",
+   "title": "Boardroom feud tests trusted Indian business empire",
+   "published": "2026-10-12T23:10:32Z"
+  },
+  {
+   "key": "bbc_news_articles_c574e228vlygo_2cb4149471.html",
+   "title": "Hundreds of IDF investigations into killings still have no public outcome, BBC Verify finds",
+   "published": "2026-10-15T05:00:23Z"
+  },
+  {
+   "key": "bbc_news_articles_c574pdzl0k4no_22d9e3d39f.html",
+   "title": "Burnt out cars and shattered glass on Paris streets after protests turn to riots and looting",
+   "published": "2026-10-18T09:56:45Z"
+  },
+  {
+   "key": "bbc_news_articles_c58jz174w89ro_835389c1e8.html",
+   "title": "Zelensky rallies EU support as Trump says Ukraine leader 'more difficult to deal with than Putin'",
+   "published": "2026-10-16T08:47:17Z"
+  },
+  {
+   "key": "bbc_news_articles_c5x2vkddrkrko_88cce3dc18.html",
+   "title": "Pope to be discharged days after lung cancer surgery",
+   "published": "2026-10-17T12:37:26Z"
+  },
+  {
+   "key": "bbc_news_articles_c60qkgpp592yo_ca95899a20.html",
+   "title": "Eight crew missing after drone attack leaves tanker ablaze off Romania's coast",
+   "published": "2026-10-15T08:22:47Z"
+  },
+  {
+   "key": "bbc_news_articles_c61m4zkx47vlo_bacdc3c376.html",
+   "title": "Rare pink diamond goes on display in France 100 years after amateur heist",
+   "published": "2026-10-17T10:46:41Z"
+  },
+  {
+   "key": "bbc_news_articles_c623dnn3xvpko_ce5e9013fa.html",
+   "title": "The uncertain future of Canada's 30 rescued belugas",
+   "published": "2026-10-17T01:18:08Z"
+  },
+  {
+   "key": "bbc_news_articles_c64g18ljjd8do_c70fc4415c.html",
+   "title": "Trump 'completely wrong' to restrict support for Ukraine, Italian minister tells BBC",
+   "published": "2026-10-16T23:54:35Z"
+  },
+  {
+   "key": "bbc_news_articles_c64g1l5389kvo_85bd00e9b7.html",
+   "title": "Documents falsified to evade tax on Abramovich's wealth",
+   "published": "2026-10-12T05:00:52Z"
+  },
+  {
+   "key": "bbc_news_articles_c65ynk7212vqo_6de0edc4a5.html",
+   "title": "Palestinians and US journalist injured by Israeli settlers in West Bank harvest attack",
+   "published": "2026-10-16T14:31:04Z"
+  },
+  {
+   "key": "bbc_news_articles_c680zlny0gk4o_b2933a7fa8.html",
+   "title": "Young men live in fear of being snatched off the streets and sold to Myanmar's army",
+   "published": "2026-10-10T22:13:08Z"
+  },
+  {
+   "key": "bbc_news_articles_c680zyx8gkkjo_6430a9dc7c.html",
+   "title": "Iconic Australian band Powderfinger announce first tour in 17 years",
+   "published": "2026-10-11T23:33:24Z"
+  },
+  {
+   "key": "bbc_news_articles_c6d7q5z17gp5o_993fb6316f.html",
+   "title": "American ranchers wrestle with soaring costs - and their loyalty to Trump",
+   "published": "2026-10-11T23:13:51Z"
+  },
+  {
+   "key": "bbc_news_articles_c6jrwn3y3xe9o_5c73a2e2d6.html",
+   "title": "Was Neanderthal life violent? This wound suggests lethal fighting was more common",
+   "published": "2026-10-15T15:00:05Z"
+  },
+  {
+   "key": "bbc_news_articles_c6kg53zrexdeo_af24f0a4d1.html",
+   "title": "Pope's health should not be taken 'for granted', says top Vatican diplomat",
+   "published": "2026-10-17T05:01:40Z"
+  },
+  {
+   "key": "bbc_news_articles_c6kgq7rqdql7o_0f5efa48c4.html",
+   "title": "Public executions in the US stopped nearly a century ago -  why are they resuming now?",
+   "published": "2026-10-10T05:48:54Z"
+  },
+  {
+   "key": "bbc_news_articles_c6kgqjvdv4n2o_cad4f3d988.html",
+   "title": "A thousand slogans echoed here - but it could be the end for iconic Delhi protest site",
+   "published": "2026-10-17T00:41:58Z"
+  },
+  {
+   "key": "bbc_news_articles_c6m2dnngvw8xo_957bd7873c.html",
+   "title": "Pope Leo to have surgery after lump found on lung",
+   "published": "2026-10-11T10:53:52Z"
+  },
+  {
+   "key": "bbc_news_articles_c6n4ejx8x1z7o_9671e2fda1.html",
+   "title": "One dead and several hurt after rollercoaster incident at Six Flags",
+   "published": "2026-10-12T23:36:13Z"
+  },
+  {
+   "key": "bbc_news_articles_c6n9rvynl5p5o_45548f69d2.html",
+   "title": "Poland detains man suspected of planning assassination of PM Tusk",
+   "published": "2026-10-11T17:27:24Z"
+  },
+  {
+   "key": "bbc_news_articles_c6pvg4jyz1m0o_908bf31632.html",
+   "title": "Trump's 'energy ceasefire' claim welcomed by Zelensky but Russia silent",
+   "published": "2026-10-11T14:46:50Z"
+  },
+  {
+   "key": "bbc_news_articles_c6vg9nj4l322o_d0095f30f1.html",
+   "title": "Hungarian MPs scrap Orbán's anti-LGBTQ measures",
+   "published": "2026-10-13T13:23:45Z"
+  },
+  {
+   "key": "bbc_news_articles_c6wy435gd311o_a9b7557286.html",
+   "title": "Indian woman and boyfriend get death sentence in 'blue drum' murder case",
+   "published": "2026-10-15T07:25:54Z"
+  },
+  {
+   "key": "bbc_news_articles_c6wyrnmgzn01o_0c87e71303.html",
+   "title": "Bus hits train stopped on French side of Channel Tunnel, with 19 injured",
+   "published": "2026-10-15T21:12:14Z"
+  },
+  {
+   "key": "bbc_news_articles_c6x23qpzjklwo_fdd7268837.html",
+   "title": "They fled Russia, but the West sent them back",
+   "published": "2026-10-16T04:57:28Z"
+  },
+  {
+   "key": "bbc_news_articles_c820vwq7qg2ko_738ef5a208.html",
+   "title": "At least 17 dead in crush at Hindu festival event in India",
+   "published": "2026-10-17T19:19:16Z"
+  },
+  {
+   "key": "bbc_news_articles_c84g179n2393o_28f83aeb5e.html",
+   "title": "Delhi sees more protests as freed 'cockroach' group's leaders vow to fight on",
+   "published": "2026-10-11T06:02:25Z"
+  },
+  {
+   "key": "bbc_news_articles_c8vgxwq4q5r2o_9d31d5f0ff.html",
+   "title": "Judge throws out child sex abuse charges against actor Timothy Busfield",
+   "published": "2026-10-17T00:12:56Z"
+  },
+  {
+   "key": "bbc_news_articles_c8wy9d940pyko_ee4eb63509.html",
+   "title": "South Africa's deputy police chief resigns after being charged with sexual offences",
+   "published": "2026-10-12T14:18:50Z"
+  },
+  {
+   "key": "bbc_news_articles_c8y56re7ldqyo_d35766117a.html",
+   "title": "Ex-president named leader of new DR Congo rebel coalition",
+   "published": "2026-10-13T08:21:16Z"
+  },
+  {
+   "key": "bbc_news_articles_c8zxlyg965r3o_d96e3cf07d.html",
+   "title": "Are student protests being manipulated ahead of France's presidential election?",
+   "published": "2026-10-15T23:25:06Z"
+  },
+  {
+   "key": "bbc_news_articles_c962y4ld1d7do_1faadef73b.html",
+   "title": "Mourners killed by Kenya police at ex-PM's national farewell not part of violence, BBC finds",
+   "published": "2026-10-11T23:13:20Z"
+  },
+  {
+   "key": "bbc_news_articles_c962ydpmjm3zo_f164bedfbd.html",
+   "title": "European diplomats attacked by Israeli settlers in West Bank",
+   "published": "2026-10-17T18:38:57Z"
+  },
+  {
+   "key": "bbc_news_articles_c9vgregzk6gro_1583dafde2.html",
+   "title": "US justice department investigates TV networks over Trump pool coverage",
+   "published": "2026-10-11T00:49:17Z"
+  },
+  {
+   "key": "bbc_news_articles_c9y7l0pm8jkko_387b1aa6e9.html",
+   "title": "Is Zelensky right to say data centre strikes have taken down Russian bots?",
+   "published": "2026-10-13T13:27:31Z"
+  },
+  {
+   "key": "bbc_news_articles_c9y7lgg2vdggo_4698e4786d.html",
+   "title": "Russia's offensive ability is broken, Kyiv's former top general tells BBC",
+   "published": "2026-10-13T05:02:34Z"
+  },
+  {
+   "key": "bbc_news_articles_cjly0zqq27e4o_2de171f17e.html",
+   "title": "Saudi minister vows 'serious response' to Houthi attacks on airports",
+   "published": "2026-10-12T10:28:47Z"
+  },
+  {
+   "key": "bbc_news_articles_cjn5v21py07vo_8607dfc216.html",
+   "title": "Trump faces growing backlash over plans to import diesel from Russia",
+   "published": "2026-10-11T23:18:45Z"
+  },
+  {
+   "key": "bbc_news_articles_cjx2359qekrdo_b353316083.html",
+   "title": "Why Moscow is staying tight-lipped on Trump's energy ceasefire",
+   "published": "2026-10-12T20:17:37Z"
+  },
+  {
+   "key": "bbc_news_articles_cjzxl56q30k7o_0ae6794454.html",
+   "title": "Inside the room: What it was like to be with Blackpink's Lisa as race scandal erupted",
+   "published": "2026-10-10T23:31:35Z"
+  },
+  {
+   "key": "bbc_news_articles_ck1exg6qjdz3o_9456f3ef12.html",
+   "title": "US emergency call records reveal confusion after failed execution of Christa Pike",
+   "published": "2026-10-13T09:11:08Z"
+  },
+  {
+   "key": "bbc_news_articles_ck1exgw3j115o_6a9f21c07d.html",
+   "title": "North Korea and China open new bridge after 12-year delay",
+   "published": "2026-10-15T02:59:30Z"
+  },
+  {
+   "key": "bbc_news_articles_ck3r5pv5j1g1o_540c0b7950.html",
+   "title": "Actor Imran Khan ordered to leave India after participating in protest",
+   "published": "2026-10-15T08:17:07Z"
+  },
+  {
+   "key": "bbc_news_articles_ck86zppejjw3o_195cd51ffa.html",
+   "title": "Homes and bridges swept away as fresh floods hit Nepal",
+   "published": "2026-10-11T12:03:52Z"
+  },
+  {
+   "key": "bbc_news_articles_cke8re5v1pgmo_94630bd043.html",
+   "title": "Tom Cruise film Digger could lose $245m at box office",
+   "published": "2026-10-12T11:29:18Z"
+  },
+  {
+   "key": "bbc_news_articles_cked326llddgo_c9f7a604dd.html",
+   "title": "At least 33 pupils and teacher killed after school roof collapses in Pakistan",
+   "published": "2026-10-15T06:49:02Z"
+  },
+  {
+   "key": "bbc_news_articles_ckp8gyd65z2go_a23b230d78.html",
+   "title": "Poland stabbings driven by online glorification of violence, Tusk says",
+   "published": "2026-10-11T15:18:52Z"
+  },
+  {
+   "key": "bbc_news_articles_ckqxne2evqreo_0db6786728.html",
+   "title": "White House defends new press secretary amid questions about her legal credentials",
+   "published": "2026-10-15T03:03:16Z"
+  },
+  {
+   "key": "bbc_news_articles_ckz65g34wyd8o_d3ee3905e0.html",
+   "title": "Trump denies limiting Ukraine access to Starlink network",
+   "published": "2026-10-16T19:33:48Z"
+  },
+  {
+   "key": "bbc_news_articles_cm2keg7910gvo_32740d0d4e.html",
+   "title": "Pupil arrested after two teachers shot at French school",
+   "published": "2026-10-12T10:01:03Z"
+  },
+  {
+   "key": "bbc_news_articles_cm62y6lp73zdo_67ec43e3d8.html",
+   "title": "Houthi missile attack on Yemeni presidential palace kills five, minister says",
+   "published": "2026-10-15T15:31:26Z"
+  },
+  {
+   "key": "bbc_news_articles_cm89zp48k4kzo_fbda300348.html",
+   "title": "Children aged 5, 8 and 11 killed in US school shooting before suspect shot by bystander",
+   "published": "2026-10-16T01:29:24Z"
+  },
+  {
+   "key": "bbc_news_articles_cm9qzwjgnjxlo_2f1d9fa25d.html",
+   "title": "Dating app Bumble in $1bn takeover talks, say reports",
+   "published": "2026-10-13T01:36:36Z"
+  },
+  {
+   "key": "bbc_news_articles_cmde8dpg8g0no_54fff0ed2f.html",
+   "title": "Ship attack reports near Hormuz reach record high as oil exports slow",
+   "published": "2026-10-16T05:00:17Z"
+  },
+  {
+   "key": "bbc_news_articles_cmlyle97pqd7o_562b42f356.html",
+   "title": "US murderer Christa Pike discharged from hospital 10 days after failed execution",
+   "published": "2026-10-10T15:28:10Z"
+  },
+  {
+   "key": "bbc_news_articles_cmn045en7d88o_4f1743dcb5.html",
+   "title": "Breaking Bad actor RJ Mitte dies aged 34",
+   "published": "2026-10-12T21:01:15Z"
+  },
+  {
+   "key": "bbc_news_articles_cmn06w5x9g25o_631008c854.html",
+   "title": "Bulgaria summons Russian ambassador after ship sinks in Black Sea drone attack",
+   "published": "2026-10-13T08:52:48Z"
+  },
+  {
+   "key": "bbc_news_articles_cmn5d92423vyo_6f9c167866.html",
+   "title": "Robert Pattinson on new film Primetime and how hunting predators became hit TV",
+   "published": "2026-10-11T23:04:38Z"
+  },
+  {
+   "key": "bbc_news_articles_cmp3gnep35gko_30b352daa9.html",
+   "title": "Australian woman charged with lacing colleague's curry with snail poison",
+   "published": "2026-10-15T04:17:45Z"
+  },
+  {
+   "key": "bbc_news_articles_cmq8n513x523o_4e5bd01b30.html",
+   "title": "Letters with 'suspicious substances' sent to US senators and election offices",
+   "published": "2026-10-15T19:13:09Z"
+  },
+  {
+   "key": "bbc_news_articles_cmwy43pp08elo_efe3e3a03c.html",
+   "title": "Brazil's Congress approves shorter working week in win for Lula",
+   "published": "2026-10-15T10:05:17Z"
+  },
+  {
+   "key": "bbc_news_articles_cmwyvxj49gpwo_94d77e439a.html",
+   "title": "Patients in chains rescued from suspected illegal rehab centre in South Africa",
+   "published": "2026-10-16T13:09:43Z"
+  },
+  {
+   "key": "bbc_news_articles_cmx237n1y9lzo_e41153add2.html",
+   "title": "India's 'cockroach' party founder detained ahead of protest",
+   "published": "2026-10-15T23:30:29Z"
+  },
+  {
+   "key": "bbc_news_articles_cmx2wvyv5j17o_380fde0ad9.html",
+   "title": "A wave of homemade, synthetic drugs sweeps US and deepens crisis",
+   "published": "2026-10-18T05:04:31Z"
+  },
+  {
+   "key": "bbc_news_articles_cmy4xnyyg1lyo_c2510198fd.html",
+   "title": "Photos show luxury boat with 50m pool and water slides near Kim Jong Un's summer retreat",
+   "published": "2026-10-17T22:09:50Z"
+  },
+  {
+   "key": "bbc_news_articles_cq1j3wdxy48ro_d6cd4995dc.html",
+   "title": "China tells Israel to stop 'forced establishment' of West Bank settlements",
+   "published": "2026-10-16T08:45:54Z"
+  },
+  {
+   "key": "bbc_news_articles_cq398x7j1lrwo_9ebc228560.html",
+   "title": "Two dead in Istanbul after heaviest rainfall in 84 years, governor says",
+   "published": "2026-10-15T10:05:29Z"
+  },
+  {
+   "key": "bbc_news_articles_cq398zl8jmvdo_f0a62ca838.html",
+   "title": "US senators call for investigation into Ukraine's Starlink restrictions",
+   "published": "2026-10-16T12:16:42Z"
+  },
+  {
+   "key": "bbc_news_articles_cqd089r55vp3o_57edcdb1ec.html",
+   "title": "Death threats and isolation - the cost of fighting sexual violence in Iraq",
+   "published": "2026-10-13T05:02:57Z"
+  },
+  {
+   "key": "bbc_news_articles_cqdjv90d1jpko_5d4ec07d30.html",
+   "title": "Albanian protests turn violent: What we know",
+   "published": "2026-10-16T12:26:15Z"
+  },
+  {
+   "key": "bbc_news_articles_cqe8rzg6zl00o_d863cf0700.html",
+   "title": "Brazil sees record fall in Amazon deforestation as key election looms",
+   "published": "2026-10-17T02:33:09Z"
+  },
+  {
+   "key": "bbc_news_articles_cqe9lx54g7x9o_f0cee96600.html",
+   "title": "Nursery owner in China jailed for life after hundreds of children poisoned",
+   "published": "2026-10-17T12:11:58Z"
+  },
+  {
+   "key": "bbc_news_articles_cqgm0j4kjvevo_ee9fdb0375.html",
+   "title": "Tip-off foiled US teen's plot to attack Hindu temple, police say",
+   "published": "2026-10-15T12:20:24Z"
+  },
+  {
+   "key": "bbc_news_articles_cqj6j7wlxd5eo_25b5d362d2.html",
+   "title": "The island where locals say data centres are taking their water",
+   "published": "2026-10-12T22:30:55Z"
+  },
+  {
+   "key": "bbc_news_articles_cqkgjrpmr47vo_cc65bcdeb2.html",
+   "title": "Nobel peace laureate says US sanctions on ICC 'unacceptable'",
+   "published": "2026-10-10T15:23:47Z"
+  },
+  {
+   "key": "bbc_news_articles_cqkgk4zg54reo_f288b7f186.html",
+   "title": "Why is Starlink internet so important on the battlefield in Ukraine?",
+   "published": "2026-10-14T19:52:04Z"
+  },
+  {
+   "key": "bbc_news_articles_cqly03y3zg7lo_3375d6813b.html",
+   "title": "What we learned from heated US midterm Senate debates",
+   "published": "2026-10-16T19:09:37Z"
+  },
+  {
+   "key": "bbc_news_articles_cqwyrn1l74zro_7df42e5c57.html",
+   "title": "Maduro pleads not guilty to new torture-related charges in New York",
+   "published": "2026-10-15T16:52:13Z"
+  },
+  {
+   "key": "bbc_news_articles_cqwyrnwd9dw1o_f0930aaa5f.html",
+   "title": "Ukraine to restart strikes on Russian oil refineries, Zelensky says",
+   "published": "2026-10-15T08:11:48Z"
+  },
+  {
+   "key": "bbc_news_articles_cqy43vrk8wv8o_f582f4929a.html",
+   "title": "Dozens of gold prospectors killed in strikes on Egypt-Sudan border, rights group says",
+   "published": "2026-10-11T21:12:44Z"
+  },
+  {
+   "key": "bbc_news_articles_cqz0v11n2vj5o_b5afb5c2f8.html",
+   "title": "India 'cockroach' leaders detained after entering barricaded protest site",
+   "published": "2026-10-13T06:58:20Z"
+  },
+  {
+   "key": "bbc_news_articles_cr20wlp09gn3o_cd47cd792f.html",
+   "title": "Where the US midterm elections will be won and lost",
+   "published": "2026-10-13T05:02:44Z"
+  },
+  {
+   "key": "bbc_news_articles_cr4g1pwxxlq1o_a4800f9153.html",
+   "title": "Riyadh airport attacks another dangerous moment in already tense conflict",
+   "published": "2026-10-11T11:32:50Z"
+  },
+  {
+   "key": "bbc_news_articles_cr62yzypnw7no_f905e9f888.html",
+   "title": "Qantas flight grounded after bedbug outbreak",
+   "published": "2026-10-12T21:01:45Z"
+  },
+  {
+   "key": "bbc_news_articles_cr86z0w4lxdxo_ee7eccb8fe.html",
+   "title": "Several dead or injured in major fire at Canada military base",
+   "published": "2026-10-18T03:23:08Z"
+  },
+  {
+   "key": "bbc_news_articles_cr93znyk44e1o_1f26946a37.html",
+   "title": "Saudi Arabia's Riyadh airport hit by second Houthi strike in two days",
+   "published": "2026-10-11T16:41:37Z"
+  },
+  {
+   "key": "bbc_news_articles_crp3gy0x0dd1o_2f4ec1f874.html",
+   "title": "US detains man accused in multi-billion Venezuelan money laundering scheme",
+   "published": "2026-10-12T13:49:05Z"
+  },
+  {
+   "key": "bbc_news_articles_crq5nzxv9q4yo_2632170670.html",
+   "title": "Fridges in French supermarkets hit by cyber attack",
+   "published": "2026-10-12T14:30:09Z"
+  },
+  {
+   "key": "bbc_news_articles_crwyd7vq3xw1o_19690a35fd.html",
+   "title": "Obama says drift towards extremism 'not inevitable'",
+   "published": "2026-10-15T10:51:53Z"
+  },
+  {
+   "key": "bbc_news_articles_crwydey50xeno_874dc9c462.html",
+   "title": "Anti-government protesters battle with police in Albania",
+   "published": "2026-10-17T20:53:00Z"
+  },
+  {
+   "key": "bbc_news_articles_crx23qlnj27qo_c19abe9948.html",
+   "title": "Trump calls off livestream of Fort Hood attacker's execution by firing squad",
+   "published": "2026-10-15T14:20:35Z"
+  },
+  {
+   "key": "bbc_news_articles_cv8ezd246z1wo_c3cf7ec6b6.html",
+   "title": "Woman injures three people in third Poland school knife attack in a week",
+   "published": "2026-10-10T14:58:55Z"
+  },
+  {
+   "key": "bbc_news_articles_cv98zw1k8kp3o_c42e2fbf44.html",
+   "title": "Oregon teacher fought school attacker before armed dad shot suspect 'multiple times'",
+   "published": "2026-10-16T23:02:36Z"
+  },
+  {
+   "key": "bbc_news_articles_cvj6j1klez88o_5509cfde5b.html",
+   "title": "Dad fined after son, 2, died in Cyprus hotel fall",
+   "published": "2026-10-16T09:31:51Z"
+  },
+  {
+   "key": "bbc_news_articles_cvlyd4pdlwkxo_2cd7dbcdd9.html",
+   "title": "Six Ukrainian energy sites hit by Russia since Trump announced ceasefire, Zelensky says",
+   "published": "2026-10-12T07:56:10Z"
+  },
+  {
+   "key": "bbc_news_articles_cvp8glg97393o_ef590e0905.html",
+   "title": "Immigration agents search Congresswoman Ilhan Omar's home",
+   "published": "2026-10-12T13:39:42Z"
+  },
+  {
+   "key": "bbc_news_articles_cvx284w16z1po_da4374ac8d.html",
+   "title": "Ukraine pushes Russia back on front line where Starlink has played key role",
+   "published": "2026-10-16T16:00:30Z"
+  },
+  {
+   "key": "bbc_news_articles_cw0k0g57mk3zo_bc1065ba8c.html",
+   "title": "Ukraine strikes Yandex data centre in third attack on Russian tech giant",
+   "published": "2026-10-11T12:50:46Z"
+  },
+  {
+   "key": "bbc_news_articles_cw146ej00yn7o_9f87264c71.html",
+   "title": "Pope pictured for first time since surgery and cancer diagnosis",
+   "published": "2026-10-16T14:36:39Z"
+  },
+  {
+   "key": "bbc_news_articles_cwly0g2r4k3po_958bea8c1b.html",
+   "title": "School headscarf ban sparks rare protests in Azerbaijan and row with Turkey",
+   "published": "2026-10-15T16:15:06Z"
+  },
+  {
+   "key": "bbc_news_articles_cwly3zd1r45ro_de5a4577fe.html",
+   "title": "Actress Selma Blair says she 'did not intend to harm anyone' in plane altercation",
+   "published": "2026-10-17T01:55:45Z"
+  },
+  {
+   "key": "bbc_news_articles_cwr5y2lgr4gdo_5de32f3221.html",
+   "title": "Indian opposition leaders march to top court to demand election chief resign",
+   "published": "2026-10-12T06:42:35Z"
+  },
+  {
+   "key": "bbc_news_articles_cwr7y8er1n8vo_0a2086bfc3.html",
+   "title": "Toxic algorithms wouldn't let them go - now Australia wants an off switch",
+   "published": "2026-10-16T18:11:29Z"
+  },
+  {
+   "key": "bbc_news_articles_cwvgde0m2d73o_b7eefd50ce.html",
+   "title": "Orangutans released back into Borneo forest after devastating fires",
+   "published": "2026-10-11T19:08:04Z"
+  },
+  {
+   "key": "bbc_news_articles_cwvgdn3d656vo_d5de742d5f.html",
+   "title": "Trial of German steakhouse heiress that sparked a huge spy scandal",
+   "published": "2026-10-16T23:07:18Z"
+  },
+  {
+   "key": "bbc_news_articles_cwy7lxx60dg5o_fd20495faa.html",
+   "title": "Children among 139 dead after boat capsizes off Djibouti, UN says",
+   "published": "2026-10-11T12:05:59Z"
+  },
+  {
+   "key": "bbc_news_articles_cwy8lx1r2vrro_15a09319c6.html",
+   "title": "Headmaster detained after BBC investigation into alleged sexual abuse of students",
+   "published": "2026-10-10T12:28:51Z"
+  },
+  {
+   "key": "bbc_news_articles_cxr5yvzv7rp0o_0dfb5b40b5.html",
+   "title": "Trump waives several Russia sanctions as new US law takes effect",
+   "published": "2026-10-17T02:48:36Z"
+  },
+  {
+   "key": "bbc_news_articles_cxvgdneplgzeo_88762d799a.html",
+   "title": "At the Brooklyn novelty shop in 'surreal' row with Kelly Clarkson over mechanical bird",
+   "published": "2026-10-14T22:19:13Z"
+  },
+  {
+   "key": "bbc_news_articles_cv70pxe5j90eo_1f91918277.html",
+   "title": "Search for Amelia Earhart's plane resumes after stormy weather",
+   "published": "2026-10-18T13:47:07Z"
+  }
+ ],
+ "groups": {
+  "starlink-ukraine": [
+   "bbc_news_articles_ckz65g34wyd8o_d3ee3905e0.html",
+   "bbc_news_articles_cq398zl8jmvdo_f0a62ca838.html",
+   "bbc_news_articles_cqkgk4zg54reo_f288b7f186.html",
+   "bbc_news_articles_cvx284w16z1po_da4374ac8d.html"
+  ],
+  "pope-recovery": [
+   "bbc_news_articles_cw146ej00yn7o_9f87264c71.html",
+   "bbc_news_articles_c6kg53zrexdeo_af24f0a4d1.html",
+   "bbc_news_articles_c5x2vkddrkrko_88cce3dc18.html"
+  ],
+  "india-cockroach-protests": [
+   "bbc_news_articles_c84g179n2393o_28f83aeb5e.html",
+   "bbc_news_articles_cwr5y2lgr4gdo_5de32f3221.html",
+   "bbc_news_articles_cqz0v11n2vj5o_b5afb5c2f8.html",
+   "bbc_news_articles_cmx237n1y9lzo_e41153add2.html",
+   "bbc_news_articles_c6kgqjvdv4n2o_cad4f3d988.html"
+  ],
+  "christa-pike-execution": [
+   "bbc_news_articles_cmlyle97pqd7o_562b42f356.html",
+   "bbc_news_articles_ck1exg6qjdz3o_9456f3ef12.html"
+  ],
+  "riyadh-airport-attacks": [
+   "bbc_news_articles_cr4g1pwxxlq1o_a4800f9153.html",
+   "bbc_news_articles_cr93znyk44e1o_1f26946a37.html",
+   "bbc_news_articles_cjly0zqq27e4o_2de171f17e.html"
+  ],
+  "energy-ceasefire": [
+   "bbc_news_articles_c6pvg4jyz1m0o_908bf31632.html",
+   "bbc_news_articles_cvlyd4pdlwkxo_2cd7dbcdd9.html",
+   "bbc_news_articles_cjx2359qekrdo_b353316083.html"
+  ],
+  "data-centre-strikes": [
+   "bbc_news_articles_cw0k0g57mk3zo_bc1065ba8c.html",
+   "bbc_news_articles_c9y7l0pm8jkko_387b1aa6e9.html"
+  ],
+  "poland-school-stabbings": [
+   "bbc_news_articles_cv8ezd246z1wo_c3cf7ec6b6.html",
+   "bbc_news_articles_ckp8gyd65z2go_a23b230d78.html"
+  ],
+  "albania-protests": [
+   "bbc_news_articles_cqdjv90d1jpko_5d4ec07d30.html",
+   "bbc_news_articles_crwydey50xeno_874dc9c462.html"
+  ],
+  "white-house-press-secretary": [
+   "bbc_news_articles_ckqxne2evqreo_0db6786728.html",
+   "bbc_news_articles_c32l4ekpvzl8o_3c8bd046e5.html"
+  ],
+  "oregon-school-shooting": [
+   "bbc_news_articles_cm89zp48k4kzo_fbda300348.html",
+   "bbc_news_articles_cv98zw1k8kp3o_c42e2fbf44.html"
+  ]
+ },
+ "ambiguous": [
+  [
+   "bbc_news_articles_c8zxlyg965r3o_d96e3cf07d.html",
+   "bbc_news_articles_c574pdzl0k4no_22d9e3d39f.html"
+  ],
+  [
+   "bbc_news_articles_c65ynk7212vqo_6de0edc4a5.html",
+   "bbc_news_articles_c962ydpmjm3zo_f164bedfbd.html"
+  ],
+  [
+   "bbc_news_articles_c58jz174w89ro_835389c1e8.html",
+   "bbc_news_articles_c64g18ljjd8do_c70fc4415c.html"
+  ],
+  [
+   "bbc_news_articles_c64g18ljjd8do_c70fc4415c.html",
+   "bbc_news_articles_ckz65g34wyd8o_d3ee3905e0.html"
+  ],
+  [
+   "bbc_news_articles_c64g18ljjd8do_c70fc4415c.html",
+   "bbc_news_articles_cq398zl8jmvdo_f0a62ca838.html"
+  ],
+  [
+   "bbc_news_articles_ck3r5pv5j1g1o_540c0b7950.html",
+   "bbc_news_articles_cmx237n1y9lzo_e41153add2.html"
+  ],
+  [
+   "bbc_news_articles_ck3r5pv5j1g1o_540c0b7950.html",
+   "bbc_news_articles_c6kgqjvdv4n2o_cad4f3d988.html"
+  ],
+  [
+   "bbc_news_articles_cq1j3wdxy48ro_d6cd4995dc.html",
+   "bbc_news_articles_c65ynk7212vqo_6de0edc4a5.html"
+  ],
+  [
+   "bbc_news_articles_cq1j3wdxy48ro_d6cd4995dc.html",
+   "bbc_news_articles_c962ydpmjm3zo_f164bedfbd.html"
+  ]
+ ]
+}
