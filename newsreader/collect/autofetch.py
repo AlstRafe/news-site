@@ -25,6 +25,47 @@ USER_AGENT = "PersonalNewsReader/1.0"
 MAX_NEW_PER_SOURCE_PER_CYCLE = 3
 
 
+#: A page that could not be read as an article (a BBC video page without text, for example) is
+#: not downloaded again for this long: the same few pages used to be fetched every hour.
+SKIP_REMEMBER_SECONDS = 24 * 3600
+
+
+class SkipMemory:
+    """URLs recently skipped as unreadable, kept in a small JSON file beside the index.
+
+    Only "the page is not a readable article" is remembered — never network failures, which
+    are retried next hour. A missing or corrupt file simply means nothing is remembered.
+    """
+
+    def __init__(self, path: Path | None, now: float | None = None):
+        self.path, self.now = path, time.time() if now is None else now
+        self.entries: dict[str, float] = {}
+        if path is not None:
+            try:
+                data = json.loads(path.read_text(encoding="utf-8"))
+                self.entries = {str(url): float(at) for url, at in data.items()
+                                if self.now - float(at) < SKIP_REMEMBER_SECONDS}
+            except (OSError, ValueError, TypeError, AttributeError):
+                self.entries = {}
+
+    def __contains__(self, url: str) -> bool:
+        return url in self.entries
+
+    def add(self, url: str) -> None:
+        self.entries[url] = self.now
+
+    def save(self) -> None:
+        if self.path is None:
+            return
+        try:
+            self.path.parent.mkdir(parents=True, exist_ok=True)
+            temporary = self.path.with_suffix(".tmp")
+            temporary.write_text(json.dumps(self.entries, ensure_ascii=False), encoding="utf-8")
+            os.replace(temporary, self.path)
+        except OSError:
+            _log.warning("Could not save the list of skipped pages")
+
+
 def slim_on_save() -> bool:
     """Save new pages slimmed (D-11; only when extraction is identical). NEWS_SLIM_ON_SAVE=0 keeps originals."""
     return os.environ.get("NEWS_SLIM_ON_SAVE", "1").strip() not in {"0", "false", "no", "off"}
@@ -279,6 +320,8 @@ def _filename_for(source: dict, url: str) -> str:
 
 
 def _fetch_article(source: dict, url: str, destination: Path) -> str:
+    """Canonical URL when saved; "duplicate"; "skipped" (robots, size: try again next time);
+    "unreadable" (not a readable article: remembered for a day, see SkipMemory)."""
     result = _download(url, MAX_HTML_BYTES)
     if result is None:
         return "skipped"
@@ -286,19 +329,19 @@ def _fetch_article(source: dict, url: str, destination: Path) -> str:
     final_url = _normalize_url(final_url)
     if not final_url or not _host_allowed(final_url, source["article_hosts"]) or not source["is_article"](final_url):
         _log.warning("Redirected outside the allowed article host; skipped %s", url)
-        return "skipped"
+        return "unreadable"
     if content_type not in {"text/html", "application/xhtml+xml"} and not data.lstrip().lower().startswith((b"<!doctype html", b"<html")):
         _log.warning("Non-HTML response; skipped %s", url)
-        return "skipped"
+        return "unreadable"
     try:
         article = extract_article(data)
     except ReaderError as exc:
         _log.info("Unsupported or incomplete article skipped (%s): %s", type(exc).__name__, url)
-        return "skipped"
+        return "unreadable"
     canonical = _normalize_url(article.get("url", ""))
     if not canonical or not _host_allowed(canonical, source["article_hosts"]):
         _log.warning("Article has no supported canonical URL; skipped %s", url)
-        return "skipped"
+        return "unreadable"
     destination.mkdir(parents=True, exist_ok=True)
     target = destination / _filename_for(source, canonical)
     if target.exists() or target.is_symlink():
@@ -323,6 +366,7 @@ def fetch_cycle(
     naver_credentials: tuple[str, str] | None = None,
     naver_query: str = "뉴스",
     report: dict | None = None,
+    skip_memory_path: Path | None = None,
 ) -> dict[str, int]:
     """Fetch up to a few new articles per source, preserving original HTML.
 
@@ -331,6 +375,7 @@ def fetch_cycle(
     reason when a site could not be checked at all.
     """
     totals = {}
+    remembered = SkipMemory(skip_memory_path)
     for source in SOURCES:
         directory = library_root / source["directory"]
         existing = _existing_article_urls(directory)
@@ -352,6 +397,9 @@ def fetch_cycle(
             if link in existing:
                 duplicates += 1
                 continue
+            if link in remembered:  # unreadable last time: do not download it again yet
+                skipped += 1
+                continue
             try:
                 result = _fetch_article(source, link, directory)
             except (HTTPError, URLError, OSError, TimeoutError, ValueError) as exc:
@@ -360,8 +408,10 @@ def fetch_cycle(
                 continue
             if result == "duplicate":
                 duplicates += 1
-            elif result == "skipped":
+            elif result in ("skipped", "unreadable"):
                 skipped += 1
+                if result == "unreadable":
+                    remembered.add(link)
             else:
                 existing.add(result)
                 saved += 1
@@ -371,6 +421,7 @@ def fetch_cycle(
         totals[source["name"]] = saved
         site.update(saved=saved, duplicates=duplicates, skipped=skipped, failed=failed)
         _log.info("%s cycle complete: saved=%d duplicates=%d", source["name"], saved, duplicates)
+    remembered.save()
     return totals
 
 

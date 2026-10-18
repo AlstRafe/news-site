@@ -95,7 +95,8 @@ def main() -> int:
         naver_query = get_settings().get("naver_search_query", "뉴스")
         log.info("Standalone scheduled collection started: %s", library_root)
         report: dict = {}
-        totals = fetch_cycle(library_root, naver_credentials, naver_query, report=report)
+        totals = fetch_cycle(library_root, naver_credentials, naver_query, report=report,
+                             skip_memory_path=INSTANCE_DIRECTORY / "collector_skipped.json")
         log.info("Standalone scheduled collection complete: %s", totals)
         status.update("collector", {"running": False, "finished": status.now_iso(), "ok": True, "error": "",
                                     "seconds": round(time.perf_counter() - started, 1), "sites": report,

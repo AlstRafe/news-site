@@ -178,6 +178,49 @@ class CollectionEndToEndTests(unittest.TestCase):
         self.run_with("https://www.bbc.com/news/articles/c1", fat, env="0")
         self.assertEqual(next(self.root.glob("BBC/*.html")).read_bytes(), fat)
 
+    def test_unreadable_pages_are_not_downloaded_again_for_a_day(self):
+        requested = []
+
+        def counting(request, timeout=None):
+            url = request.full_url if hasattr(request, "full_url") else request
+            requested.append(url)
+            return fake_urlopen(request, timeout)
+
+        with mock.patch.object(autofetch, "urlopen", counting):
+            self.assertEqual(runner.main(), 0)
+            self.assertEqual(requested.count("https://www.bbc.com/news/videos/v1"), 1)
+            memory = json.loads((self.instance / "collector_skipped.json").read_text(encoding="utf-8"))
+            self.assertEqual(list(memory), ["https://www.bbc.com/news/videos/v1"])
+            autofetch._robots_cache.clear()
+            self.assertEqual(runner.main(), 0)
+            self.assertEqual(requested.count("https://www.bbc.com/news/videos/v1"), 1)  # not fetched again
+            again = json.loads((self.instance / "status.json").read_text(encoding="utf-8"))["collector"]
+            self.assertEqual(again["sites"]["BBC"]["skipped"], 1)  # still reported as skipped
+            # A day later it is tried once more.
+            stale = {url: at - autofetch.SKIP_REMEMBER_SECONDS - 1 for url, at in memory.items()}
+            (self.instance / "collector_skipped.json").write_text(json.dumps(stale), encoding="utf-8")
+            autofetch._robots_cache.clear()
+            self.assertEqual(runner.main(), 0)
+            self.assertEqual(requested.count("https://www.bbc.com/news/videos/v1"), 2)
+
+    def test_network_failures_are_not_remembered_and_a_corrupt_memory_is_ignored(self):
+        (self.instance).mkdir(parents=True, exist_ok=True)
+        (self.instance / "collector_skipped.json").write_text("{not json", encoding="utf-8")
+        broken = dict(RESPONSES)
+        del broken["https://www.cna.com.tw/news/aopl/202610180001.aspx"]  # 404 -> failed, not unreadable
+
+        def opener(request, timeout=None):
+            url = request.full_url if hasattr(request, "full_url") else request
+            if url not in broken:
+                from urllib.error import HTTPError
+                raise HTTPError(url, 404, "not found", {}, None)
+            return FakeResponse(url, *broken[url])
+
+        with mock.patch.object(autofetch, "urlopen", opener):
+            self.assertEqual(runner.main(), 0)
+        memory = json.loads((self.instance / "collector_skipped.json").read_text(encoding="utf-8"))
+        self.assertNotIn("https://www.cna.com.tw/news/aopl/202610180001.aspx", memory)
+
     def test_unreachable_site_is_reported_and_others_still_collected(self):
         broken = dict(RESPONSES)
         del broken["https://feeds.bbci.co.uk/news/world/rss.xml"]
