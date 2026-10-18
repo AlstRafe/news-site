@@ -16,7 +16,11 @@
   let selectedText = "";
   let activeWordHighlight = null;
   let requestCounter = 0;
-  let lastPopoverPoint = { x: 24, y: 24 };
+  // The popup follows what it explains: `anchor` returns the current on-screen rectangle of the
+  // looked-up word or selection (null when it is gone), so the card can sit next to it and move with it.
+  let anchor = () => null;
+  const narrow = window.matchMedia("(max-width: 650px)");
+  const PIN_KEY = "news-html-reader-translation-pinned";
   const targetNames = { ja: "日本語", "en-gb": "English (UK)", ko: "한국어", "zh-hant": "繁體中文" };
 
   try {
@@ -187,27 +191,85 @@
     if (payload.dictionary_url) addDictionaryLink(details, payload.dictionary_url, payload.dictionary_label);
   }
 
-  function positionPopover(x, y) {
-    lastPopoverPoint = { x, y };
-    selectionResult.hidden = false;
-    if (selectionResult.classList.contains("pinned")) return;
+  function isSheet() { return narrow.matches; }
+
+  function setPinned(pinned) {
+    selectionResult.classList.toggle("pinned", pinned);
+    document.body.classList.toggle("tr-docked", pinned && !selectionResult.hidden);
+    const button = document.getElementById("pin-selection");
+    button.setAttribute("aria-pressed", String(pinned));
+    button.title = pinned ? "固定を解除（単語の近くに表示）" : "右側に固定（本文を隠さない）";
+    button.setAttribute("aria-label", pinned ? "固定を解除" : "右側に固定");
+  }
+  try { setPinned(localStorage.getItem(PIN_KEY) === "1"); } catch (_) { setPinned(false); }
+
+  // Desktop: a card just below the word (above it when there is no room), never covering it.
+  // Phone: a bottom sheet; the page scrolls so the word stays visible above the sheet.
+  function placePopup({ reveal = false } = {}) {
+    if (selectionResult.hidden) return;
+    const docked = selectionResult.classList.contains("pinned") && !isSheet();
+    document.body.classList.toggle("tr-docked", docked);
+    document.body.classList.toggle("tr-sheet-open", isSheet());
+    if (docked || isSheet()) {
+      selectionResult.style.left = "";
+      selectionResult.style.top = "";
+      if (isSheet() && reveal) keepAnchorAboveSheet();
+      return;
+    }
+    const rect = anchor();
     const margin = 12;
-    const rect = selectionResult.getBoundingClientRect();
-    const left = Math.max(margin, Math.min(x, window.innerWidth - rect.width - margin));
-    const top = Math.max(margin, Math.min(y + 12, window.innerHeight - rect.height - margin));
+    const box = selectionResult.getBoundingClientRect();
+    if (!rect) return;
+    const below = rect.bottom + 10;
+    const above = rect.top - 10 - box.height;
+    let top = below + box.height <= window.innerHeight - margin || above < margin ? below : above;
+    top = Math.max(margin, Math.min(top, window.innerHeight - box.height - margin));
+    const left = Math.max(margin, Math.min(rect.left - 16, window.innerWidth - box.width - margin));
     selectionResult.style.left = `${left}px`;
     selectionResult.style.top = `${top}px`;
   }
 
-  async function translateSelected(text, point) {
+  function keepAnchorAboveSheet() {
+    const rect = anchor();
+    if (!rect) return;
+    const sheetTop = selectionResult.getBoundingClientRect().top;
+    const header = document.querySelector(".topbar")?.getBoundingClientRect().bottom || 0;
+    if (rect.bottom > sheetTop - 16) {
+      window.scrollBy({ top: rect.bottom - (sheetTop - 48), behavior: "smooth" });
+    } else if (rect.top < Math.max(0, header)) {
+      window.scrollBy({ top: rect.top - Math.max(0, header) - 48, behavior: "smooth" });
+    }
+  }
+
+  function openPopup() {
+    const wasHidden = selectionResult.hidden;
+    selectionResult.hidden = false;
+    if (wasHidden) selectionResult.classList.remove("dragging");
+    selectionResult.style.transform = "";
+    placePopup({ reveal: true });
+  }
+
+  function closePopup() {
+    selectionResult.hidden = true;
+    selectionResult.style.transform = "";
+    document.body.classList.remove("tr-docked", "tr-sheet-open");
+    clearWordHighlight();
+    anchor = () => null;
+  }
+
+  async function translateSelected(text, anchorFn) {
     const normalized = text.trim();
     if (!normalized) return;
     selectedText = normalized;
+    anchor = anchorFn || (() => null);
     const sequence = ++requestCounter;
     document.getElementById("selected-original").textContent = normalized;
+    document.getElementById("selection-target").textContent = `→ ${targetNames[targetSelect.value] || ""}`;
     clearSelectionDetails();
-    makeParagraphs(document.getElementById("selection-translation"), "翻訳しています…");
-    positionPopover(point.x, point.y);
+    const output = document.getElementById("selection-translation");
+    output.classList.add("loading");
+    makeParagraphs(output, "翻訳しています…");
+    openPopup();
     let payload;
     let ok = true;
     try {
@@ -216,8 +278,9 @@
       payload = { translation_error: "アプリに接続できませんでした。サーバーが起動しているか確認してください。" };
     }
     if (sequence !== requestCounter) return;
+    output.classList.remove("loading");
     if (!ok && !payload.translation_error && !payload.error) payload.translation_error = "翻訳要求に失敗しました。もう一度お試しください。";
-    makeParagraphs(document.getElementById("selection-translation"), payload.translation || "");
+    makeParagraphs(output, payload.translation || "");
     if (payload.translation_error || payload.error) {
       const error = document.getElementById("selection-error");
       error.textContent = payload.translation_error || payload.error;
@@ -229,7 +292,7 @@
       details.appendChild(link);
     }
     addDetails(payload);
-    positionPopover(point.x, point.y);
+    placePopup({ reveal: true });
   }
 
   function wordAtPoint(x, y) {
@@ -276,8 +339,11 @@
       selectedText = text;
       const rect = selection.getRangeAt(0).getBoundingClientRect();
       toolbar.hidden = false;
-      toolbar.style.left = `${Math.max(8, Math.min(rect.left, window.innerWidth - 180))}px`;
-      toolbar.style.top = `${Math.max(8, rect.bottom + 8)}px`;
+      const width = toolbar.getBoundingClientRect().width || 170;
+      toolbar.style.left = `${Math.max(8, Math.min(rect.left + rect.width / 2 - width / 2, window.innerWidth - width - 8))}px`;
+      // Phones show their own copy/select menu above a selection: stay below it there.
+      const aboveTop = rect.top - 52;
+      toolbar.style.top = `${!isSheet() && aboveTop > 8 ? aboveTop : Math.min(rect.bottom + 10, window.innerHeight - 60)}px`;
     } else {
       toolbar.hidden = true;
     }
@@ -297,13 +363,14 @@
     window.clearTimeout(selectionTimer);
     selectionTimer = window.setTimeout(showToolbarForSelection, 250);
   });
-  // Touch screens: tapping outside the translation sheet (and outside the article text,
-  // where a tap looks up the tapped word instead) closes it.
+  // Tapping / clicking outside the card (and outside the article text, where a tap looks up the
+  // tapped word instead) closes it. A card docked to the side stays until closed.
   document.addEventListener("click", event => {
-    if (lastPointer !== "touch" || selectionResult.hidden) return;
+    if (selectionResult.hidden) return;
     if (selectionResult.contains(event.target) || toolbar.contains(event.target) || reader.contains(event.target)) return;
-    selectionResult.hidden = true;
-    clearWordHighlight();
+    if (selectionResult.classList.contains("pinned") && !isSheet()) return;
+    if (event.target.closest?.("#translation-controls")) return;
+    closePopup();
   });
 
   reader.addEventListener("click", event => {
@@ -314,17 +381,21 @@
     if (selected) {
       toolbar.hidden = true;
       highlightWord(selected.range);
-      translateSelected(selected.word, { x: event.clientX, y: event.clientY });
+      translateSelected(selected.word, () => (activeWordHighlight?.isConnected ? activeWordHighlight.getBoundingClientRect() : null));
     }
   });
 
   selectionButton.addEventListener("mousedown", event => event.preventDefault());
   selectionButton.addEventListener("click", () => {
-    const selection = window.getSelection()?.toString().trim() || selectedText;
-    const rect = toolbar.getBoundingClientRect();
+    const current = window.getSelection();
+    const selection = current?.toString().trim() || selectedText;
+    const range = current?.rangeCount ? current.getRangeAt(0).cloneRange() : null;
     toolbar.hidden = true;
     clearWordHighlight();
-    translateSelected(selection, { x: rect.left, y: rect.bottom });
+    translateSelected(selection, () => {
+      const rect = range?.getBoundingClientRect();
+      return rect && (rect.width || rect.height) ? rect : null;
+    });
   });
 
 
@@ -405,25 +476,50 @@
     }
   });
 
-  document.getElementById("close-selection").addEventListener("click", () => { selectionResult.hidden = true; clearWordHighlight(); });
+  document.getElementById("close-selection").addEventListener("click", closePopup);
   document.getElementById("close-whole").addEventListener("click", () => { wholeResult.hidden = true; });
   document.getElementById("copy-original").addEventListener("click", event => copyText(document.getElementById("selected-original").textContent, event.currentTarget));
   document.getElementById("copy-selection").addEventListener("click", event => copyText(translationText(document.getElementById("selection-translation")), event.currentTarget));
   document.getElementById("copy-whole").addEventListener("click", event => copyText(translationText(document.getElementById("whole-translation")), event.currentTarget));
-  document.getElementById("pin-selection").addEventListener("click", event => {
-    const button = event.currentTarget;
-    const pinned = selectionResult.classList.toggle("pinned");
-    button.setAttribute("aria-pressed", String(pinned));
-    button.textContent = pinned ? "固定を解除" : "画面端に固定";
-    if (pinned) {
-      selectionResult.style.left = "";
-      selectionResult.style.top = "";
-    } else {
-      positionPopover(lastPopoverPoint.x, lastPopoverPoint.y);
-    }
+  document.getElementById("pin-selection").addEventListener("click", () => {
+    const pinned = !selectionResult.classList.contains("pinned");
+    setPinned(pinned);
+    try { localStorage.setItem(PIN_KEY, pinned ? "1" : "0"); } catch (_) { /* optional */ }
+    placePopup();
   });
   document.addEventListener("keydown", event => {
-    if (event.key === "Escape") { selectionResult.hidden = true; toolbar.hidden = true; clearWordHighlight(); }
+    if (event.key === "Escape") { closePopup(); toolbar.hidden = true; }
   });
-  window.addEventListener("scroll", () => { toolbar.hidden = true; }, { passive: true });
+  // The card moves with its word while the page scrolls (desktop); the toolbar just goes away.
+  let placing = 0;
+  const follow = () => {
+    if (placing) return;
+    placing = window.requestAnimationFrame(() => { placing = 0; if (!isSheet()) placePopup(); });
+  };
+  window.addEventListener("scroll", () => { toolbar.hidden = true; follow(); }, { passive: true });
+  window.addEventListener("resize", follow, { passive: true });
+  narrow.addEventListener?.("change", () => placePopup());
+
+  // Phone: drag the sheet down to close it.
+  let dragStart = null;
+  selectionResult.addEventListener("touchstart", event => {
+    if (!isSheet() || event.touches.length !== 1) return;
+    if (selectionResult.scrollTop > 0 && !event.target.closest(".sheet-grip, .tr-head")) return;
+    dragStart = { y: event.touches[0].clientY, moved: 0 };
+    selectionResult.classList.add("dragging");
+  }, { passive: true });
+  selectionResult.addEventListener("touchmove", event => {
+    if (!dragStart) return;
+    dragStart.moved = Math.max(0, event.touches[0].clientY - dragStart.y);
+    selectionResult.style.transform = dragStart.moved ? `translateY(${dragStart.moved}px)` : "";
+  }, { passive: true });
+  const endDrag = () => {
+    if (!dragStart) return;
+    const moved = dragStart.moved;
+    dragStart = null;
+    selectionResult.classList.remove("dragging");
+    if (moved > 70) closePopup(); else selectionResult.style.transform = "";
+  };
+  selectionResult.addEventListener("touchend", endDrag);
+  selectionResult.addEventListener("touchcancel", endDrag);
 })();

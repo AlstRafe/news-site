@@ -22,10 +22,14 @@
 <div class="reading" id="reading-content"><div class="reading-head"><h2>記事本文</h2><span>{{ article.paragraph_count }} 段落 · 単語クリックまたは文章をドラッグして翻訳</span></div>
 {% for paragraph in article.paragraphs %}<p>{{ paragraph }}</p>{% endfor %}</div>
 <div class="selection-toolbar" id="selection-toolbar" hidden><button id="translate-selection" type="button">選択範囲を翻訳</button></div>
-<aside class="selection-result" id="selection-result" role="dialog" aria-label="選択部分の翻訳" aria-live="polite" hidden>
-<div class="translation-result-head"><strong>選択部分</strong><div class="result-actions"><button class="close-result" id="copy-original" type="button">原文をコピー</button><button class="close-result" id="copy-selection" type="button">訳文をコピー</button><button class="close-result" id="pin-selection" type="button" aria-pressed="false">画面端に固定</button><button class="close-result" id="close-selection" type="button" aria-label="翻訳を閉じる">閉じる</button></div></div>
-<p class="selected-original" id="selected-original"></p><p class="translation-error" id="selection-error" hidden></p><strong class="selection-translation-heading">翻訳／意味</strong>
-<div class="selection-translation" id="selection-translation"></div><div class="language-details" id="language-details"></div>
+<aside class="selection-result" id="selection-result" role="dialog" aria-label="翻訳" hidden>
+<div class="sheet-grip" aria-hidden="true"></div>
+<div class="tr-head"><p class="selected-original" id="selected-original"></p>
+<div class="tr-head-actions"><button class="icon-button pin-button" id="pin-selection" type="button" aria-pressed="false" aria-label="右側に固定" title="右側に固定（本文を隠さない）"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M14 4h6v16h-6zM4 12h7M8 8l-4 4 4 4" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></button><button class="icon-button" id="close-selection" type="button" aria-label="翻訳を閉じる" title="閉じる（Esc）"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/></svg></button></div></div>
+<p class="translation-error" id="selection-error" hidden></p>
+<div class="selection-translation" id="selection-translation" aria-live="polite"></div>
+<div class="language-details" id="language-details"></div>
+<div class="tr-foot"><button class="text-button" id="copy-selection" type="button">訳をコピー</button><button class="text-button" id="copy-original" type="button">原文をコピー</button><span class="tr-target" id="selection-target"></span></div>
 </aside>
 {% if related %}<section class="related" aria-labelledby="related-head"><h2 id="related-head">同じニュースの他の記事</h2>
 <ul class="story-members">{% for m in related.members[:8] %}<li><a href="{{ url_for('show_article', article_id=m.id) }}"><span class="badge">{{ m.source or '未分類' }}</span><span class="story-title">{{ m.title }}</span><span class="story-time">{{ m.published|localtime }}</span></a></li>{% endfor %}</ul>
