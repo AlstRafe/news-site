@@ -22,6 +22,12 @@ from newsreader.sources.base import (
 
 SITES = (bbc, naver, cna)
 
+#: Bump whenever a change to any adapter can change ``extract_article`` output.
+#: The index stores the version each row was parsed with and re-parses stale rows
+#: in the background, so improved extraction reaches already-indexed articles
+#: without anyone deleting the index.
+PARSER_VERSION = 1
+
 
 def detect(page: Page):
     """The adapter module for ``page``, or None when no supported site matches."""
@@ -48,6 +54,7 @@ __all__ = [
     "ALLOWED_EXTENSIONS",
     "IMAGE_EXTENSIONS",
     "MAX_HTML_BYTES",
+    "PARSER_VERSION",
     "SITES",
     "Page",
     "ReaderError",

@@ -6,7 +6,9 @@ read an arbitrary file.
 """
 from __future__ import annotations
 
+import os
 import time
+from dataclasses import dataclass
 from pathlib import Path
 
 from bs4 import BeautifulSoup
@@ -15,6 +17,69 @@ from newsreader.sources import ALLOWED_EXTENSIONS, MAX_HTML_BYTES, ReaderError
 
 MAX_FILE_COUNT = 400
 MAX_TITLE_SCAN_BYTES = 128 * 1024
+
+#: Folders that sit beside saved articles but never hold articles themselves:
+#: ``<name>_files`` is what a browser's "Save As" writes (it can contain ad
+#: iframes saved as .html), ``<name>_media`` is this app's image cache.
+ASSET_DIR_SUFFIXES = ("_files", "_media")
+
+
+@dataclass(frozen=True)
+class FileInfo:
+    path: Path
+    size: int
+    mtime: float
+    mtime_ns: int
+
+
+def is_asset_dir(name: str) -> bool:
+    return name.endswith(ASSET_DIR_SUFFIXES)
+
+
+def _is_article_entry(entry: os.DirEntry) -> bool:
+    return (
+        not entry.is_symlink()
+        and entry.is_file(follow_symlinks=False)
+        and os.path.splitext(entry.name)[1].lower() in ALLOWED_EXTENSIONS
+    )
+
+
+def scan_library(root: Path) -> dict[tuple[str, str], FileInfo]:
+    """Map (source, filename) -> file info for ``root/*.html`` and ``root/<source>/*.html``.
+
+    One level of site folders, exactly like v3. Symlinks are skipped at every level
+    and asset folders (``*_files``, ``*_media``) are never treated as sites.
+    ``os.scandir`` is used because on Windows it returns size and mtime from the
+    directory listing itself, without one extra system call per file.
+    """
+    found: dict[tuple[str, str], FileInfo] = {}
+
+    def add(source: str, entry: os.DirEntry) -> None:
+        try:
+            stat = entry.stat(follow_symlinks=False)
+        except OSError:
+            return  # vanished or unreadable between listing and stat: picked up next time
+        found[(source, entry.name)] = FileInfo(Path(entry.path), stat.st_size, stat.st_mtime, stat.st_mtime_ns)
+
+    try:
+        with os.scandir(root) as top:
+            entries = list(top)
+    except OSError as exc:
+        raise ReaderError("記事ライブラリを読み取れません。") from exc
+    for entry in entries:
+        if entry.is_symlink():
+            continue
+        if _is_article_entry(entry):
+            add("", entry)
+        elif entry.is_dir(follow_symlinks=False) and not is_asset_dir(entry.name):
+            try:
+                with os.scandir(entry.path) as children:
+                    for child in children:
+                        if _is_article_entry(child):
+                            add(entry.name, child)
+            except OSError:
+                continue  # one unreadable site folder must not hide the others
+    return found
 
 
 def validate_directory(directory: str | Path) -> Path:
