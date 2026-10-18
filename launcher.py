@@ -231,7 +231,11 @@ def update_dependencies(runtime_python: Path) -> None:
 
 
 def resolve_article_directory() -> Path:
+    """HTML_DIRECTORY (start_config.bat) > the folder saved on the settings page > articles/."""
     configured = os.environ.get("HTML_DIRECTORY", "").strip()
+    if not configured:
+        saved = read_settings().get("library_dir", "")
+        configured = saved.strip() if isinstance(saved, str) else ""
     if not configured:
         return (PROJECT_ROOT / "articles").resolve()
     directory = Path(configured).expanduser()

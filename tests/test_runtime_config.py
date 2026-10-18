@@ -34,6 +34,18 @@ class LibraryDirTests(unittest.TestCase):
             self.assertEqual(paths.articles_dir(), self.library)
         with mock.patch.dict("os.environ", {"HTML_DIRECTORY": str(self.tmp)}):
             self.assertEqual(paths.articles_dir(), self.tmp)
+        # Older launchers pass the default folder explicitly: the saved folder still wins over it.
+        with mock.patch.dict("os.environ", {"HTML_DIRECTORY": str(paths.DEFAULT_ARTICLES_DIR)}):
+            self.assertEqual(paths.articles_dir(), self.library)
+
+    def test_launcher_uses_the_saved_folder(self):
+        import launcher
+        settings.save_library_dir(str(self.library))
+        with mock.patch.object(launcher, "SETTINGS_PATH", settings.SETTINGS_PATH), \
+                mock.patch.dict("os.environ", {"HTML_DIRECTORY": ""}):
+            self.assertEqual(launcher.resolve_article_directory(), self.library.resolve())
+        with mock.patch.dict("os.environ", {"HTML_DIRECTORY": str(self.tmp)}):
+            self.assertEqual(launcher.resolve_article_directory(), self.tmp.resolve())
 
     def test_collector_uses_collector_json_then_setting(self):
         settings.save_library_dir(str(self.library))

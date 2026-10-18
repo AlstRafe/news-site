@@ -60,5 +60,17 @@ def articles_dir() -> Path:
     the PC; then the folder saved on the settings page; then ``articles/`` beside
     the app. Not resolved here, matching the pre-Phase-1 web behaviour.
     """
-    configured = os.environ.get("HTML_DIRECTORY", "").strip() or configured_library_dir()
+    configured = os.environ.get("HTML_DIRECTORY", "").strip()
+    saved = configured_library_dir()
+    # launcher.py versions before the settings-page folder passed the default articles/ in
+    # HTML_DIRECTORY explicitly; that is not a choice, so a saved folder still applies.
+    if saved and (not configured or _same_path(configured, DEFAULT_ARTICLES_DIR)):
+        configured = saved
     return Path(configured).expanduser() if configured else DEFAULT_ARTICLES_DIR
+
+
+def _same_path(text: str, path: Path) -> bool:
+    try:
+        return Path(text).expanduser().resolve() == path.resolve()
+    except (OSError, RuntimeError):
+        return False
