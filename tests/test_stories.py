@@ -262,6 +262,20 @@ class WebTests(StoryTestCase):
         other = self.client.get(f"/a/{self.id_of('BBC', 'o.html')}", headers=H).get_data(as_text=True)
         self.assertNotIn("同じニュースの他の記事", other)
 
+    def test_status_page_shows_the_grouping(self):
+        html = self.client.get("/status", headers=H).get_data(as_text=True)
+        self.assertIn("<h2>読み比べ</h2>", html)
+        self.assertIn("1 件（複数の媒体 1 件）", html)
+        self.assertIn(f"本日 {len(NOBEL_ZH)} / 8,000 文字", html)
+
+    def test_version_time_is_shown_in_local_time(self):
+        from datetime import datetime, timezone
+        from newsreader.web.status_view import local_version
+        expected = datetime(2026, 10, 18, 18, 43, tzinfo=timezone.utc).astimezone().strftime("%Y-%m-%d %H:%M")
+        self.assertEqual(local_version("phase-9 (abc1234) 2026-10-18 18:43 +0000"), f"phase-9 (abc1234) {expected}")
+        self.assertEqual(local_version("dev"), "dev")
+        self.assertEqual(local_version(""), "")
+
     def test_refresh_api_requires_csrf_and_reports_status(self):
         self.assertEqual(self.client.post("/api/stories/refresh", headers=H).status_code, 400)  # central CSRF check
         response = self.client.post("/api/stories/refresh", headers={**H, "X-CSRF-Token": self.csrf()})

@@ -14,7 +14,7 @@
 {% for s in sites %}<tr><th scope="row">{{ s.name }}</th><td>{{ s.saved }}</td><td>{{ s.duplicates }}</td><td>{{ s.skipped }}</td><td>{{ s.failed }}</td><td>{{ s.error }}</td></tr>{% endfor %}
 </tbody></table></div>{% endif %}
 {% if collector.naver_configured is defined and not collector.naver_configured %}<p class="hint">NAVER NEWS は API キー未設定のため取得していません。<a href="{{ url_for('translation_settings') }}">設定</a>で NAVER API HUB のキーを登録すると取得を始めます。</p>{% endif %}
-<p class="hint">「対象外」は動画のみのページなど本文を抽出できない記事、「既存」は保存済みの記事です。1回の取得で各サイト最大3件を保存します。</p>
+<p class="hint">「対象外」は動画のみのページなど本文を抽出できない記事（同じページは1日のあいだ再取得しません）、「既存」は保存済みの記事です。1回の取得で各サイト最大3件を保存します。</p>
 {% endif %}</section>
 <section class="panel"><h2>記事ライブラリ</h2>
 <div class="table-wrap"><table class="stats"><thead><tr><th>サイト</th><th>記事</th><th>最新の公開日時</th><th>容量</th><th>解析不可</th></tr></thead><tbody>
@@ -25,7 +25,16 @@
 <dt>索引の更新</dt><dd>{% if sync.running %}実行中（{{ sync.progress[0] }} / {{ sync.progress[1] }}）{% elif sync.finished %}{{ sync.result.added if sync.result else 0 }} 件追加 · {{ sync.result.removed if sync.result else 0 }} 件削除{% else %}未実行{% endif %}</dd>
 {% if sync.error %}<dt>エラー</dt><dd class="tone-bad">{{ sync.error }}</dd>{% endif %}
 {% if sync.warning %}<dt>注意</dt><dd class="tone-warn">{{ sync.warning }}</dd>{% endif %}
+{% if library.synced %}<dt>収集後の更新</dt><dd>{{ library.synced|localtime }}{% if library.result %} · {{ library.result.added }} 件追加 · {{ library.result.updated }} 件再解析{% endif %}</dd>{% endif %}
 </dl></section>
+<section class="panel"><h2>読み比べ</h2>
+{% if not stories_info %}<p class="empty">まだ集計していません。次回の自動取得の後、または<a href="{{ url_for('stories_page') }}">読み比べ</a>の「今すぐ更新」で集計します。</p>
+{% else %}<dl class="facts">
+<dt>前回の集計</dt><dd>{{ stories_info.refreshed|localtime }}（{{ stories_ago }}）{% if stories_info.seconds is defined %} · {{ stories_info.seconds }} 秒{% endif %}</dd>
+<dt>グループ</dt><dd>{{ stories_info.groups }} 件（複数の媒体 {{ stories_info.multi_outlet }} 件）</dd>
+<dt>見出しの英訳</dt><dd>{% if not stories_info.enabled %}オフ（英語の見出しだけで照合）{% elif not stories_info.key_configured %}翻訳キー未設定（英語の見出しだけで照合）{% else %}本日 {{ "{:,}".format(stories_info.chars_today) }} / {{ "{:,}".format(stories_info.daily_limit) }} 文字{% endif %}{% if stories_info.pending %} · 英訳待ち {{ stories_info.pending }} 件{% endif %}</dd>
+{% if stories_info.error %}<dt>英訳エラー</dt><dd class="tone-bad">{{ stories_info.error }}</dd>{% endif %}
+</dl>{% endif %}</section>
 <section class="panel"><h2>翻訳の利用量（{{ usage.month }}）</h2>
 <dl class="facts"><dt>Azure</dt><dd>{{ "{:,}".format(usage.providers.azure.metered_chars) }} 文字 · {{ usage.providers.azure.requests }} 回</dd>
 <dt>DeepL</dt><dd>{{ "{:,}".format(usage.providers.deepl.source_chars) }} 文字 · {{ usage.providers.deepl.requests }} 回</dd></dl></section>

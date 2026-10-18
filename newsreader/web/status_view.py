@@ -6,7 +6,9 @@ queries and in-process sync state — never the article files.
 from __future__ import annotations
 
 import platform
+import re
 import time
+from datetime import datetime
 
 from flask import current_app, render_template
 
@@ -18,6 +20,19 @@ from newsreader.web.routing import Routes
 
 routes = Routes()
 _STARTED = time.time()
+
+
+def local_version(text: str) -> str:
+    """"phase-9 (abc1234) 2026-10-18 18:43 +0000" with the time shown in this PC's timezone
+    (the deployment tool may run in another timezone)."""
+    match = re.search(r"(\d{4}-\d{2}-\d{2} \d{2}:\d{2} [+-]\d{4})$", text or "")
+    if not match:
+        return text
+    try:
+        moment = datetime.strptime(match.group(1), "%Y-%m-%d %H:%M %z").astimezone()
+    except ValueError:
+        return text
+    return text[: match.start()] + moment.strftime("%Y-%m-%d %H:%M")
 
 
 def status_data() -> dict:
@@ -40,8 +55,9 @@ def status_page():
         "status.html",
         collector=collector, collector_ago=status.ago(collector.get("finished", "")), sites=sites,
         library=data.get("library") or {}, sources=index.source_stats(db), index_stats=index.index_stats(db),
+        stories_info=data.get("stories") or {}, stories_ago=status.ago((data.get("stories") or {}).get("refreshed", "")),
         sync=index.sync_state(db), usage=monthly_translation_usage(),
-        version=paths.deployed_version() or "（開発版）", python=platform.python_version(),
+        version=local_version(paths.deployed_version()) or "（開発版）", python=platform.python_version(),
         started=time.strftime("%Y-%m-%d %H:%M", time.localtime(_STARTED)),
     ))
     response.headers["Cache-Control"] = CACHE_LIST
