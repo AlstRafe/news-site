@@ -23,7 +23,36 @@
     }
   }, true);
 
-  // 2. Prefetch fallback for browsers without Speculation Rules (e.g. Safari on iPhone):
+  // 2. Theme: automatic (follow the OS) -> light -> dark -> automatic. The choice lives in
+  //    localStorage("theme"); the inline boot script in <head> applies it before first paint.
+  const THEMES = { auto: "自動（端末の設定に合わせる）", light: "ライト", dark: "ダーク" };
+  const toggle = document.getElementById("theme-toggle");
+  const root = document.documentElement;
+  const readTheme = () => { try { return localStorage.getItem("theme") || "auto"; } catch (_) { return root.dataset.theme || "auto"; } };
+  const applyTheme = theme => {
+    if (theme === "light" || theme === "dark") root.dataset.theme = theme; else delete root.dataset.theme;
+    // Phone browsers colour their toolbar from theme-color; follow a forced choice there too.
+    document.querySelectorAll('meta[name="theme-color"]').forEach(meta => {
+      const forDark = theme === "auto" ? meta.media.includes("dark") : theme === "dark";
+      meta.content = forDark ? "#1b1d22" : "#ffffff";
+    });
+    if (toggle) {
+      const label = THEMES[theme] || THEMES.auto;  // the icon follows data-theme via CSS
+      toggle.setAttribute("aria-label", `テーマ: ${label}`);
+      toggle.title = `テーマ: ${label}`;
+    }
+  };
+  applyTheme(readTheme());
+  if (toggle) {
+    toggle.addEventListener("click", () => {
+      const order = ["auto", "light", "dark"];
+      const next = order[(order.indexOf(readTheme()) + 1) % order.length];
+      try { if (next === "auto") localStorage.removeItem("theme"); else localStorage.setItem("theme", next); } catch (_) { /* private mode */ }
+      applyTheme(next);
+    });
+  }
+
+  // 3. Prefetch fallback for browsers without Speculation Rules (e.g. Safari on iPhone):
   //    warm the HTTP cache for an article / comparison page when a pointer rests on its link
   //    or a finger touches it. Those pages are "Cache-Control: private, max-age=60", so the
   //    navigation that follows is served from that cache.
