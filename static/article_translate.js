@@ -1,0 +1,408 @@
+(() => {
+  "use strict";
+  const controls = document.getElementById("translation-controls");
+  if (!controls) return;
+
+  const csrf = document.querySelector('meta[name="csrf-token"]')?.content || "";
+  const articleId = Number(controls.dataset.articleId || 0);
+  const targetSelect = document.getElementById("translation-target");
+  const status = document.getElementById("translation-status");
+  const reader = document.getElementById("reading-content");
+  const toolbar = document.getElementById("selection-toolbar");
+  const selectionResult = document.getElementById("selection-result");
+  const wholeResult = document.getElementById("whole-result");
+  const wholeButton = document.getElementById("translate-whole");
+  const selectionButton = document.getElementById("translate-selection");
+  let selectedText = "";
+  let activeWordHighlight = null;
+  let requestCounter = 0;
+  let lastPopoverPoint = { x: 24, y: 24 };
+  const targetNames = { ja: "日本語", "en-gb": "English (UK)", ko: "한국어", "zh-hant": "繁體中文" };
+
+  try {
+    const saved = localStorage.getItem("news-html-reader-translation-target");
+    if (saved && targetNames[saved] && !targetSelect.querySelector(`option[value="${saved}"]`)?.disabled) targetSelect.value = saved;
+  } catch (_) { /* local storage can be disabled */ }
+  targetSelect.addEventListener("change", () => {
+    try { localStorage.setItem("news-html-reader-translation-target", targetSelect.value); } catch (_) { /* optional */ }
+  });
+
+  async function postJson(url, data) {
+    const response = await fetch(url, {
+      method: "POST", credentials: "same-origin",
+      headers: { "Content-Type": "application/json", "X-CSRF-Token": csrf },
+      body: JSON.stringify(data)
+    });
+    const payload = await response.json().catch(() => ({}));
+    return { ok: response.ok, payload };
+  }
+
+  function makeParagraphs(target, text) {
+    target.replaceChildren();
+    for (const part of String(text || "").split(/\n{1,}/).filter(Boolean)) {
+      const p = document.createElement("p");
+      p.textContent = part;
+      target.appendChild(p);
+    }
+  }
+
+  async function copyText(text, button) {
+    const originalLabel = button.textContent;
+    const value = String(text || "").trim();
+    if (!value) { button.textContent = "コピーする内容なし"; window.setTimeout(() => { button.textContent = originalLabel; }, 1400); return; }
+    try {
+      if (navigator.clipboard?.writeText && window.isSecureContext) {
+        await navigator.clipboard.writeText(value);
+      } else {
+        const area = document.createElement("textarea");
+        area.value = value;
+        area.setAttribute("readonly", "");
+        area.style.position = "fixed";
+        area.style.opacity = "0";
+        document.body.appendChild(area);
+        area.select();
+        const copied = document.execCommand("copy");
+        area.remove();
+        if (!copied) throw new Error("copy failed");
+      }
+      button.textContent = "コピーしました";
+    } catch (_) {
+      button.textContent = "コピーできません";
+    }
+    window.setTimeout(() => { button.textContent = originalLabel; }, 1400);
+  }
+
+  function translationText(element) {
+    return [...element.querySelectorAll("p")].map(p => p.textContent || "").join("\n\n").trim();
+  }
+
+  function clearSelectionDetails() {
+    document.getElementById("selection-error").hidden = true;
+    document.getElementById("selection-error").textContent = "";
+    document.getElementById("selection-translation").replaceChildren();
+    document.getElementById("language-details").replaceChildren();
+  }
+
+  function clearWordHighlight() {
+    if (!activeWordHighlight?.isConnected) { activeWordHighlight = null; return; }
+    const parent = activeWordHighlight.parentNode;
+    activeWordHighlight.replaceWith(document.createTextNode(activeWordHighlight.textContent || ""));
+    if (parent) parent.normalize();
+    activeWordHighlight = null;
+  }
+
+  function highlightWord(range) {
+    clearWordHighlight();
+    if (!range || range.collapsed) return;
+    const marker = document.createElement("span");
+    marker.className = "word-highlight";
+    try {
+      marker.appendChild(range.extractContents());
+      range.insertNode(marker);
+      activeWordHighlight = marker;
+    } catch (_) {
+      activeWordHighlight = null;
+    }
+  }
+
+  function addDictionaryLink(container, url, label) {
+    if (!url || !/^https:\/\//i.test(url)) return;
+    const p = document.createElement("p");
+    p.className = "dictionary-source";
+    const a = document.createElement("a");
+    a.href = url;
+    a.target = "_blank";
+    a.rel = "noopener noreferrer";
+    a.textContent = `${label || "辞書で確認"} ↗`;
+    p.appendChild(a);
+    container.appendChild(p);
+  }
+
+  function addDetails(payload) {
+    const details = document.getElementById("language-details");
+    if (payload.ipa) {
+      const p = document.createElement("p");
+      const label = document.createElement("strong");
+      label.textContent = `${payload.ipa_label || "英国英語 IPA"}: `;
+      p.append(label, document.createTextNode(payload.ipa));
+      details.appendChild(p);
+    }
+    if (payload.hanja?.length) {
+      const box = document.createElement("div");
+      box.className = "dictionary-entries";
+      const heading = document.createElement("strong");
+      heading.textContent = "漢字語・辞書の語義";
+      box.appendChild(heading);
+      const list = document.createElement("ul");
+      for (const entry of payload.hanja) {
+        const li = document.createElement("li");
+        const reading = document.createElement("strong");
+        reading.textContent = `${entry.word} → ${entry.hanja}`;
+        li.appendChild(reading);
+        if (entry.meaning) li.appendChild(document.createTextNode(` · ${entry.meaning}`));
+        if (entry.source_url && /^https:\/\//i.test(entry.source_url)) {
+          li.appendChild(document.createTextNode(" "));
+          const a = document.createElement("a");
+          a.href = entry.source_url;
+          a.target = "_blank";
+          a.rel = "noopener noreferrer";
+          a.textContent = "出典";
+          li.appendChild(a);
+        }
+        list.appendChild(li);
+      }
+      box.appendChild(list);
+      details.appendChild(box);
+    } else if (payload.dictionary_configured === false) {
+      const p = document.createElement("p");
+      p.textContent = "韓国語の漢字語情報には国立国語院APIキーが必要です。";
+      const a = document.createElement("a");
+      a.href = "/translation-settings";
+      a.textContent = "翻訳設定を開く";
+      p.append(" ", a);
+      details.appendChild(p);
+    } else if (payload.dictionary_label && payload.dictionary_configured !== false && selectedText.match(/[\uac00-\ud7a3]/)) {
+      const p = document.createElement("p");
+      p.textContent = "辞書で一致する漢字語は見つかりませんでした。";
+      details.appendChild(p);
+    }
+    if (payload.zhuyin) {
+      const p = document.createElement("p");
+      const label = document.createElement("strong");
+      label.textContent = "注音符號: ";
+      p.append(label, document.createTextNode(payload.zhuyin));
+      details.appendChild(p);
+    } else if (payload.dictionary_label && selectedText.match(/[\u3400-\u4dbf\u4e00-\u9fff\uf900-\ufaff]/) && !selectedText.match(/[\uac00-\ud7a3]/)) {
+      const p = document.createElement("p");
+      p.textContent = "教育部辞典で完全一致する見出しが見つかりませんでした。";
+      details.appendChild(p);
+    }
+    if (payload.meaning) {
+      const p = document.createElement("p");
+      const label = document.createElement("strong");
+      label.textContent = `意味（${payload.meaning_language || "日本語"}）: `;
+      p.append(label, document.createTextNode(payload.meaning));
+      details.appendChild(p);
+    }
+    if (payload.dictionary_url) addDictionaryLink(details, payload.dictionary_url, payload.dictionary_label);
+  }
+
+  function positionPopover(x, y) {
+    lastPopoverPoint = { x, y };
+    selectionResult.hidden = false;
+    if (selectionResult.classList.contains("pinned")) return;
+    const margin = 12;
+    const rect = selectionResult.getBoundingClientRect();
+    const left = Math.max(margin, Math.min(x, window.innerWidth - rect.width - margin));
+    const top = Math.max(margin, Math.min(y + 12, window.innerHeight - rect.height - margin));
+    selectionResult.style.left = `${left}px`;
+    selectionResult.style.top = `${top}px`;
+  }
+
+  async function translateSelected(text, point) {
+    const normalized = text.trim();
+    if (!normalized) return;
+    selectedText = normalized;
+    const sequence = ++requestCounter;
+    document.getElementById("selected-original").textContent = normalized;
+    clearSelectionDetails();
+    makeParagraphs(document.getElementById("selection-translation"), "翻訳しています…");
+    positionPopover(point.x, point.y);
+    let payload;
+    let ok = true;
+    try {
+      ({ ok, payload } = await postJson("/api/translate", { text: normalized, target: targetSelect.value }));
+    } catch (_) {
+      payload = { translation_error: "アプリに接続できませんでした。サーバーが起動しているか確認してください。" };
+    }
+    if (sequence !== requestCounter) return;
+    if (!ok && !payload.translation_error && !payload.error) payload.translation_error = "翻訳要求に失敗しました。もう一度お試しください。";
+    makeParagraphs(document.getElementById("selection-translation"), payload.translation || "");
+    if (payload.translation_error || payload.error) {
+      const error = document.getElementById("selection-error");
+      error.textContent = payload.translation_error || payload.error;
+      error.hidden = false;
+      const details = document.getElementById("language-details");
+      const link = document.createElement("a");
+      link.href = "/translation-settings";
+      link.textContent = "翻訳設定を確認";
+      details.appendChild(link);
+    }
+    addDetails(payload);
+    positionPopover(point.x, point.y);
+  }
+
+  function wordAtPoint(x, y) {
+    let range = null;
+    if (document.caretPositionFromPoint) {
+      const pos = document.caretPositionFromPoint(x, y);
+      if (pos) { range = document.createRange(); range.setStart(pos.offsetNode, pos.offset); range.collapse(true); }
+    } else if (document.caretRangeFromPoint) {
+      range = document.caretRangeFromPoint(x, y);
+    }
+    if (!range || !reader.contains(range.startContainer) || range.startContainer.nodeType !== Node.TEXT_NODE) return "";
+    const nodeText = range.startContainer.textContent || "";
+    let offset = Math.min(range.startOffset, Math.max(0, nodeText.length - 1));
+    const korean = /[\uac00-\ud7a3]/.test(nodeText);
+    const chinese = /[\u3400-\u4dbf\u4e00-\u9fff\uf900-\ufaff]/.test(nodeText);
+    const locale = korean ? "ko" : chinese ? "zh-TW" : "en-GB";
+    if (typeof Intl.Segmenter === "function") {
+      const segments = [...new Intl.Segmenter(locale, { granularity: "word" }).segment(nodeText)];
+      let match = segments.find(item => item.isWordLike && item.index <= offset && offset < item.index + item.segment.length);
+      if (!match && offset > 0) match = segments.find(item => item.isWordLike && item.index < offset && offset <= item.index + item.segment.length);
+      if (!match) return null;
+      const wordRange = document.createRange();
+      wordRange.setStart(range.startContainer, match.index);
+      wordRange.setEnd(range.startContainer, match.index + match.segment.length);
+      return { word: match.segment, range: wordRange };
+    }
+    const before = nodeText.slice(0, offset + 1).match(/[\p{L}\p{N}]+$/u);
+    const after = before ? null : nodeText.slice(offset).match(/^[\p{L}\p{N}]+/u);
+    const word = before?.[0] || after?.[0] || "";
+    if (!word) return null;
+    const start = before ? offset + 1 - word.length : offset;
+    const wordRange = document.createRange();
+    wordRange.setStart(range.startContainer, start);
+    wordRange.setEnd(range.startContainer, start + word.length);
+    return { word, range: wordRange };
+  }
+
+  reader.addEventListener("mouseup", () => {
+    window.setTimeout(() => {
+      const selection = window.getSelection();
+      const text = selection?.toString().trim() || "";
+      const anchor = selection?.rangeCount ? selection.getRangeAt(0).commonAncestorContainer : null;
+      const inTranslation = !!(anchor && (anchor.nodeType === Node.TEXT_NODE ? anchor.parentElement : anchor)?.closest?.(".bi-tr"));
+      if (text && !inTranslation && selection?.rangeCount && reader.contains(selection.getRangeAt(0).commonAncestorContainer)) {
+        selectedText = text;
+        const rect = selection.getRangeAt(0).getBoundingClientRect();
+        toolbar.hidden = false;
+        toolbar.style.left = `${Math.max(8, Math.min(rect.left, window.innerWidth - 180))}px`;
+        toolbar.style.top = `${Math.max(8, rect.bottom + 8)}px`;
+      } else {
+        toolbar.hidden = true;
+      }
+    }, 0);
+  });
+
+  reader.addEventListener("click", event => {
+    if (event.target.closest?.(".bi-tr")) return; // translated text is not looked up again
+    if (window.getSelection()?.toString().trim()) return;
+    clearWordHighlight();
+    const selected = wordAtPoint(event.clientX, event.clientY);
+    if (selected) {
+      toolbar.hidden = true;
+      highlightWord(selected.range);
+      translateSelected(selected.word, { x: event.clientX, y: event.clientY });
+    }
+  });
+
+  selectionButton.addEventListener("mousedown", event => event.preventDefault());
+  selectionButton.addEventListener("click", () => {
+    const selection = window.getSelection()?.toString().trim() || selectedText;
+    const rect = toolbar.getBoundingClientRect();
+    toolbar.hidden = true;
+    clearWordHighlight();
+    translateSelected(selection, { x: rect.left, y: rect.bottom });
+  });
+
+
+  // ---- Side-by-side (対訳) view: each translated paragraph is inserted under its original ----
+  const biButton = document.getElementById("translate-bilingual");
+  const biTitle = document.getElementById("bi-title");
+  const langTags = { ja: "ja", "en-gb": "en-GB", ko: "ko", "zh-hant": "zh-Hant" };
+  let biTarget = "";
+
+  function clearBilingual() {
+    reader.querySelectorAll(".bi-tr").forEach(node => node.remove());
+    reader.classList.remove("bilingual");
+    biTitle.hidden = true;
+    biTitle.textContent = "";
+    biTarget = "";
+    biButton.textContent = "対訳で読む";
+    biButton.setAttribute("aria-pressed", "false");
+  }
+
+  targetSelect.addEventListener("change", () => { if (biTarget) { clearBilingual(); status.textContent = "翻訳先を変えたため対訳を閉じました。"; } });
+
+  biButton.addEventListener("click", async () => {
+    if (biTarget) { clearBilingual(); status.textContent = ""; return; }
+    const target = targetSelect.value;
+    biButton.disabled = true;
+    status.textContent = "対訳を作成しています…";
+    try {
+      const { ok, payload } = await postJson("/api/translate-paragraphs", { id: articleId, target });
+      if (!ok || payload.error) throw new Error(payload.error || "翻訳に失敗しました。");
+      const originals = [...reader.querySelectorAll(":scope > p:not(.bi-tr)")];
+      if (!Array.isArray(payload.paragraphs) || payload.paragraphs.length !== originals.length) {
+        throw new Error("段落の対応が取れませんでした。「全文を翻訳」をお試しください。");
+      }
+      originals.forEach((paragraph, index) => {
+        const text = payload.paragraphs[index];
+        if (!text) return;
+        const translated = document.createElement("p");
+        translated.className = "bi-tr";
+        translated.lang = langTags[target] || "";
+        translated.textContent = text;
+        paragraph.after(translated);
+      });
+      if (payload.title) { biTitle.textContent = payload.title; biTitle.lang = langTags[target] || ""; biTitle.hidden = false; }
+      reader.classList.add("bilingual");
+      biTarget = target;
+      biButton.textContent = "対訳を閉じる";
+      biButton.setAttribute("aria-pressed", "true");
+      status.textContent = `${targetNames[target]}の対訳を表示しました。`;
+    } catch (error) {
+      status.textContent = error.message || "翻訳に失敗しました。";
+    } finally {
+      biButton.disabled = false;
+    }
+  });
+
+  wholeButton.addEventListener("click", async () => {
+    const target = targetSelect.value;
+    wholeButton.disabled = true;
+    status.textContent = "全文を翻訳しています…";
+    wholeResult.hidden = false;
+    document.getElementById("whole-title").textContent = `全文翻訳 · ${targetNames[target]}`;
+    makeParagraphs(document.getElementById("whole-translation"), "翻訳しています…");
+    try {
+      const { ok, payload } = await postJson("/api/translate-article", { id: articleId, target });
+      if (!ok || payload.error) throw new Error(payload.error || "翻訳に失敗しました。");
+      makeParagraphs(document.getElementById("whole-translation"), payload.translation);
+      status.textContent = "翻訳しました。";
+    } catch (error) {
+      const output = document.getElementById("whole-translation");
+      makeParagraphs(output, error.message || "翻訳に失敗しました。");
+      const link = document.createElement("a");
+      link.href = "/translation-settings";
+      link.textContent = "翻訳設定を確認";
+      output.appendChild(link);
+      status.textContent = "翻訳に失敗しました。";
+    } finally {
+      wholeButton.disabled = false;
+    }
+  });
+
+  document.getElementById("close-selection").addEventListener("click", () => { selectionResult.hidden = true; clearWordHighlight(); });
+  document.getElementById("close-whole").addEventListener("click", () => { wholeResult.hidden = true; });
+  document.getElementById("copy-original").addEventListener("click", event => copyText(document.getElementById("selected-original").textContent, event.currentTarget));
+  document.getElementById("copy-selection").addEventListener("click", event => copyText(translationText(document.getElementById("selection-translation")), event.currentTarget));
+  document.getElementById("copy-whole").addEventListener("click", event => copyText(translationText(document.getElementById("whole-translation")), event.currentTarget));
+  document.getElementById("pin-selection").addEventListener("click", event => {
+    const button = event.currentTarget;
+    const pinned = selectionResult.classList.toggle("pinned");
+    button.setAttribute("aria-pressed", String(pinned));
+    button.textContent = pinned ? "固定を解除" : "画面端に固定";
+    if (pinned) {
+      selectionResult.style.left = "";
+      selectionResult.style.top = "";
+    } else {
+      positionPopover(lastPopoverPoint.x, lastPopoverPoint.y);
+    }
+  });
+  document.addEventListener("keydown", event => {
+    if (event.key === "Escape") { selectionResult.hidden = true; toolbar.hidden = true; clearWordHighlight(); }
+  });
+  window.addEventListener("scroll", () => { toolbar.hidden = true; }, { passive: true });
+})();

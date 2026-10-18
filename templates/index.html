@@ -1,0 +1,27 @@
+{% extends "base.html" %}
+{% block head %}<title>{% if source %}{{ source }} | {% endif %}News HTML Reader</title>{% endblock %}
+{% block content %}
+{% if error %}<div class="alert">{{ error }}</div>{% endif %}
+<form class="searchbar" method="get" action="{{ url_for('index') }}" role="search">
+{% if source %}<input type="hidden" name="source" value="{{ source }}">{% endif %}
+<input type="search" name="q" value="{{ query }}" placeholder="見出し・冒頭文から検索" aria-label="記事を検索" maxlength="100">
+<button type="submit">検索</button>
+</form>
+<nav class="chips" aria-label="ニュースソース">
+<a class="chip{% if not source %} active{% endif %}" href="{{ url_for('index', q=query or None) }}">すべて</a>
+{% for s in sources %}<a class="chip{% if source == s.name %} active{% endif %}" href="{{ url_for('index', source=s.name, q=query or None) }}">{{ s.name or '未分類' }}<span>{{ s.count }}</span></a>{% endfor %}
+</nav>
+<div class="list-head"><h1>{% if query %}「{{ query }}」の検索結果{% elif source %}{{ source }}{% else %}新着記事{% endif %}</h1><span class="count">{{ total }} 件</span></div>
+{% if items %}
+<div class="card-grid">{% for item in items %}
+<a class="card" href="{{ url_for('show_article', article_id=item.id) }}">
+<div class="card-thumb">{% if item.thumb %}<img src="{{ item.thumb }}" alt="" loading="lazy" referrerpolicy="no-referrer">{% else %}<span class="thumb-fallback">{{ (item.source or 'N')[:1] }}</span>{% endif %}</div>
+<div class="card-body"><div class="card-meta"><span class="badge">{{ item.source or '未分類' }}</span><span>{{ (item.published|localtime) if item.published else '' }}</span></div>
+<h2>{{ item.title }}</h2>{% if item.lead %}<p>{{ item.lead }}</p>{% endif %}</div></a>{% endfor %}</div>
+{% if pages > 1 %}<nav class="pager" aria-label="ページ送り">
+{% if page > 1 %}<a href="{{ url_for('index', source=source or None, q=query or None, page=page-1) }}">← 新しい記事</a>{% else %}<span></span>{% endif %}
+<span>{{ page }} / {{ pages }}</span>
+{% if page < pages %}<a href="{{ url_for('index', source=source or None, q=query or None, page=page+1) }}">過去の記事 →</a>{% else %}<span></span>{% endif %}
+</nav>{% endif %}
+{% elif not error %}<p class="empty">{% if query %}該当する記事がありません。検索語を変えてみてください。{% else %}記事がまだありません。<code>articles</code> フォルダの下にサイト名のフォルダを作ってHTMLを入れるか、自動取得の実行を待ってください。{% endif %}</p>{% endif %}
+{% endblock %}
