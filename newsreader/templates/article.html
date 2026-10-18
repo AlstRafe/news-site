@@ -5,22 +5,25 @@
 <div class="eyebrow">{{ article.kind }} · {{ article.paragraph_count }} 段落</div><h1>{{ article.title }}</h1>
 <p class="title-tr" id="bi-title" hidden></p>
 <div class="meta">{{ record.source }}{% if record.published %} · {{ record.published|localtime }}{% endif %}{% if related %} · <a class="related-jump" href="#related-head">同じニュースの他の記事 {{ related.members|length }} 本 ↓</a>{% endif %}</div>
-{% if article.url %}<p><a href="{{ article.url }}" target="_blank" rel="noopener noreferrer">元の記事を開く ↗</a></p>{% endif %}
-{% if article.images %}<div class="article-images">{% for image in article.images %}<figure><img src="{{ image.url }}" alt="{{ image.alt }}" loading="lazy" decoding="async">{% if image.alt %}<figcaption>{{ image.alt }}</figcaption>{% endif %}</figure>{% endfor %}</div>{% endif %}
+{% if article.url %}<p class="source-link"><a href="{{ article.url }}" target="_blank" rel="noopener noreferrer">元の記事を開く ↗</a></p>{% endif %}
+{# The first image leads the article; the rest follow the text, so the text starts on the first screen. #}
+{% if article.images %}<div class="article-images lead-image">{% with image = article.images[0] %}<figure><img src="{{ image.url }}" alt="{{ image.alt }}" decoding="async" fetchpriority="high">{% if image.alt %}<figcaption>{{ image.alt }}</figcaption>{% endif %}</figure>{% endwith %}</div>{% endif %}
 <section class="translation-controls" id="translation-controls" data-article-id="{{ article_id }}">
-<label for="translation-target">翻訳先</label>
-<select id="translation-target" aria-label="翻訳先"><option value="ja">日本語</option><option value="en-gb" {% if translation_provider == 'azure' %}disabled{% endif %}>English (UK){% if translation_provider == 'azure' %}（DeepL選択時のみ）{% endif %}</option><option value="ko">한국어</option><option value="zh-hant">繁體中文</option></select>
-{% if translation_provider == 'azure' %}<span class="hint">Azureは地域別英語を指定できません。English (UK)を使う場合は翻訳設定でDeepLを選んでください。</span>{% endif %}
-<button id="translate-bilingual" type="button" aria-pressed="false">対訳で読む</button>
-<button id="translate-whole" type="button" class="secondary">全文を翻訳</button>
+<div class="tc-row"><label for="translation-target">翻訳先</label>
+<select id="translation-target" aria-label="翻訳先"><option value="ja">日本語</option><option value="en-gb" {% if translation_provider == 'azure' %}disabled{% endif %}>English (UK){% if translation_provider == 'azure' %}（DeepL選択時のみ）{% endif %}</option><option value="ko">한국어</option><option value="zh-hant">繁體中文</option></select></div>
+<div class="tc-buttons"><button id="translate-bilingual" type="button" aria-pressed="false">対訳で読む</button>
+<button id="translate-whole" type="button" class="secondary">全文を翻訳</button></div>
 <span id="translation-status" role="status" aria-live="polite"></span>
+{% if translation_provider == 'azure' %}<p class="hint tc-note">English (UK) は翻訳サービスに DeepL を選んだときだけ使えます（Azure は地域別の英語を指定できません）。</p>{% endif %}
 </section>
 <section class="translation-result whole-result" id="whole-result" hidden aria-live="polite">
 <div class="translation-result-head"><h2 id="whole-title">全文翻訳</h2><div class="result-actions"><button class="close-result" id="copy-whole" type="button">訳文をコピー</button><button class="close-result" id="close-whole" type="button" aria-label="全文翻訳を閉じる">閉じる</button></div></div>
 <div id="whole-translation"></div>
 </section>
-<div class="reading" id="reading-content"><div class="reading-head"><h2>記事本文</h2><span>{{ article.paragraph_count }} 段落 · 単語クリックまたは文章をドラッグして翻訳</span></div>
+<div class="reading" id="reading-content"><div class="reading-head"><h2>記事本文</h2><span>{{ article.paragraph_count }} 段落 · 単語をタップ（クリック）または文章を選ぶと翻訳</span></div>
 {% for paragraph in article.paragraphs %}<p>{{ paragraph }}</p>{% endfor %}</div>
+{% if article.images|length > 1 %}<section class="more-images" aria-labelledby="images-head"><h2 id="images-head">この記事の画像 <span>{{ article.images|length - 1 }}</span></h2>
+<div class="article-images">{% for image in article.images[1:] %}<figure><img src="{{ image.url }}" alt="{{ image.alt }}" loading="lazy" decoding="async">{% if image.alt %}<figcaption>{{ image.alt }}</figcaption>{% endif %}</figure>{% endfor %}</div></section>{% endif %}
 <div class="selection-toolbar" id="selection-toolbar" hidden><button id="translate-selection" type="button">選択範囲を翻訳</button></div>
 <aside class="selection-result" id="selection-result" role="dialog" aria-label="翻訳" hidden>
 <div class="sheet-grip" aria-hidden="true"></div>
@@ -35,6 +38,6 @@
 <ul class="story-members">{% for m in related.members[:8] %}<li><a href="{{ url_for('show_article', article_id=m.id) }}"><span class="badge">{{ m.source or '未分類' }}</span><span class="story-title">{{ m.title }}</span><span class="story-time">{{ m.published|localtime }}</span></a></li>{% endfor %}</ul>
 <a class="story-more" href="{{ url_for('story_page', key=related.key) }}">媒体ごとに並べて読む →</a></section>{% endif %}
 <nav class="article-end" aria-label="記事の終わり"><a class="back" href="{{ url_for('index', source=record.source or None) }}">← {{ record.source or '記事' }}の一覧へ戻る</a><a class="to-top" href="#top">▲ 上へ</a></nav>
-<p class="hint endnote">単語をクリックすると単語単位、文章をドラッグすると選択範囲を翻訳します。翻訳時はその文章が設定中の翻訳サービスに送信されます。翻訳結果はこのPC内にキャッシュされます。</p>
+<p class="hint endnote">単語をタップ（クリック）すると単語を、文章を選ぶとその範囲をすぐに翻訳します。翻訳時はその文章が設定中の翻訳サービスに送信されます。翻訳結果はこのPC内にキャッシュされます。</p>
 {% endblock %}
 {% block scripts %}<script src="{{ asset('article_translate.js') }}" defer></script>{% endblock %}
