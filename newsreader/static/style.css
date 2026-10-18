@@ -450,3 +450,6 @@ html{-webkit-text-size-adjust:100%;text-size-adjust:100%;}
 @media(max-width:650px){.card .card-gloss{display:block;}}
 .gloss-error{margin:-8px 0 12px;}
 @media(max-width:650px){.gloss-toggle{min-height:36px;padding:8px 14px;}}
+.sentence-tr{margin-top:10px;padding:8px 10px;border-radius:8px;background:var(--bg-f8f9fb);border:1px solid var(--line-e8e9ed);}
+.sentence-original{margin:0;font-size:12px;line-height:1.6;color:var(--fg-878b93);overflow-wrap:anywhere;}
+.sentence-translation{margin:4px 0 0;font-size:15px;line-height:1.7;color:var(--fg-202124);overflow-wrap:anywhere;}

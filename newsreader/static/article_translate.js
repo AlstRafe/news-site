@@ -259,6 +259,60 @@
     anchor = () => null;
   }
 
+  // The sentence around what was looked up, so a word can be read in context ("文全体を訳す").
+  let currentSentence = "";
+  function sentenceAround(range) {
+    if (!range) return "";
+    const block = (range.startContainer.nodeType === Node.TEXT_NODE ? range.startContainer.parentElement : range.startContainer)?.closest?.("p");
+    if (!block || !reader.contains(block)) return "";
+    const before = document.createRange();
+    before.selectNodeContents(block);
+    before.setEnd(range.startContainer, range.startOffset);
+    const offset = before.toString().length;
+    const text = block.textContent || "";
+    if (typeof Intl.Segmenter === "function") {
+      const locale = /[\uac00-\ud7a3]/.test(text) ? "ko" : /[\u3400-\u9fff]/.test(text) ? "zh-TW" : "en-GB";
+      for (const part of new Intl.Segmenter(locale, { granularity: "sentence" }).segment(text)) {
+        if (part.index <= offset && offset < part.index + part.segment.length) return part.segment.trim();
+      }
+    }
+    const start = Math.max(text.lastIndexOf(". ", offset), text.lastIndexOf("。", offset), -1) + 1;
+    const ends = [". ", "。", "? ", "! "].map(mark => text.indexOf(mark, offset)).filter(i => i >= 0);
+    return text.slice(start, ends.length ? Math.min(...ends) + 1 : text.length).trim();
+  }
+
+  function resetSentence(sentence, looked) {
+    currentSentence = sentence && sentence.length <= 1200 && sentence !== looked ? sentence : "";
+    const button = document.getElementById("translate-sentence");
+    const box = document.getElementById("sentence-tr");
+    if (button) { button.hidden = !currentSentence; button.disabled = false; }
+    if (box) box.hidden = true;
+  }
+
+  async function translateSentence() {
+    const button = document.getElementById("translate-sentence");
+    const box = document.getElementById("sentence-tr");
+    if (!currentSentence || !box) return;
+    const sequence = requestCounter;
+    button.disabled = true;
+    document.getElementById("sentence-original").textContent = currentSentence;
+    document.getElementById("sentence-translation").textContent = "翻訳しています…";
+    box.hidden = false;
+    placePopup();
+    let text;
+    try {
+      const { ok, payload } = await postJson("/api/translate", { text: currentSentence, target: targetSelect.value, plain: true });
+      text = ok && payload.translation ? payload.translation : (payload.translation_error || payload.error || "翻訳できませんでした。");
+    } catch (_) {
+      text = "アプリに接続できませんでした。";
+    }
+    if (sequence !== requestCounter) return;
+    document.getElementById("sentence-translation").textContent = text;
+    button.hidden = true;
+    placePopup();
+  }
+  document.getElementById("translate-sentence")?.addEventListener("click", translateSentence);
+
   async function translateSelected(text, anchorFn) {
     const normalized = text.trim();
     if (!normalized) return;
@@ -355,6 +409,7 @@
     if (picked.text === lastSelectionText && !selectionResult.hidden) return; // already shown
     lastSelectionText = picked.text;
     clearWordHighlight();
+    resetSentence(sentenceAround(picked.range), picked.text);
     translateSelected(picked.text, () => {
       const rect = picked.range.getBoundingClientRect();
       return rect && (rect.width || rect.height) ? rect : null;
@@ -399,6 +454,7 @@
     if (selected) {
       toolbar.hidden = true;
       lastSelectionText = "";
+      resetSentence(sentenceAround(selected.range), selected.word);
       highlightWord(selected.range);
       translateSelected(selected.word, () => (activeWordHighlight?.isConnected ? activeWordHighlight.getBoundingClientRect() : null));
     }

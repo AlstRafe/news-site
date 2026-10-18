@@ -32,7 +32,8 @@
 <p class="translation-error" id="selection-error" hidden></p>
 <div class="selection-translation" id="selection-translation" aria-live="polite"></div>
 <div class="language-details" id="language-details"></div>
-<div class="tr-foot"><button class="text-button" id="copy-selection" type="button">訳をコピー</button><button class="text-button" id="copy-original" type="button">原文をコピー</button><span class="tr-target" id="selection-target"></span></div>
+<div class="sentence-tr" id="sentence-tr" hidden><p class="sentence-original" id="sentence-original"></p><p class="sentence-translation" id="sentence-translation"></p></div>
+<div class="tr-foot"><button class="text-button" id="translate-sentence" type="button" hidden>文全体を訳す</button><button class="text-button" id="copy-selection" type="button">訳をコピー</button><button class="text-button" id="copy-original" type="button">原文をコピー</button><span class="tr-target" id="selection-target"></span></div>
 </aside>
 {% if related %}<section class="related" aria-labelledby="related-head"><h2 id="related-head">同じニュースの他の記事</h2>
 <ul class="story-members">{% for m in related.members[:8] %}<li><a href="{{ url_for('show_article', article_id=m.id) }}"><span class="badge">{{ m.source or '未分類' }}</span><span class="story-title">{{ m.title }}</span><span class="story-time">{{ m.published|localtime }}</span></a></li>{% endfor %}</ul>

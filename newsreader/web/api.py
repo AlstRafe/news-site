@@ -60,6 +60,8 @@ def translate_selection():
         response["translation"] = translate_text(text, target, limit=MAX_SELECTION_CHARS)
     except TranslationError as exc:
         response["translation_error"] = str(exc)
+    if payload.get("plain") is True:  # a whole sentence for context: no dictionary lookups
+        return jsonify(response)
 
     hangul = len(re.findall(r"[가-힣]", text))
     han = len(re.findall(r"[㐀-䶿一-鿿豈-﫿]", text))
