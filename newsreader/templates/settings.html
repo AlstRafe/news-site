@@ -12,6 +12,8 @@
 <p>現在の接続先: <strong>{{ active_bind_host }}:{{ active_port }}</strong>。空欄にすると起動時にこのPCのTailscale IP、LANのプライベートIPを自動選択し、ポートも空いている番号から選びます。<code>start_config.bat</code>に同じ設定がある場合は、そちらの値が優先されます。</p>
 <label for="network_bind_host">待受けIPアドレス（任意）</label><input id="network_bind_host" name="network_bind_host" type="text" maxlength="45" value="{{ settings.network_bind_host }}" placeholder="自動選択">
 <p class="hint">指定できるのはloopback、プライベートIPv4、Tailscale IPv4です。Tailscale IPはそのPCで変わることがあるため、別PCへ移す場合は空欄にして自動検出するか、移動先で設定してください。</p>
+<label for="library_dir">記事フォルダ（任意）</label><input id="library_dir" name="library_dir" type="text" maxlength="400" value="{{ library_dir }}" placeholder="既定: アプリの articles フォルダ" spellcheck="false" autocapitalize="off">
+<p class="hint">現在表示している記事フォルダ: <code>{{ active_library }}</code>{% if html_directory_env %}（環境変数 HTML_DIRECTORY が優先されています）{% endif %}。別の場所の記事を表示・自動取得する場合に絶対パスで指定します。変更はアプリ再起動後に反映されます。</p>
 <label for="network_port">ポート番号（任意）</label><input id="network_port" name="network_port" type="text" inputmode="numeric" maxlength="5" value="{{ settings.network_port }}" placeholder="自動選択（5000–5100）">
 <p class="hint">IPまたはポートの変更を保存した後はアプリを再起動してください。現在のブラウザー接続は再起動まで維持されます。</p>
 </section>

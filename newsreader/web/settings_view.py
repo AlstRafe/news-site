@@ -12,8 +12,10 @@ from flask import current_app, render_template, request
 from newsreader.services.cache import monthly_translation_usage
 from newsreader.services.settings import (
     SECRET_NAMES, STORY_DAILY_RANGE, SecretStoreError, configured_secrets, delete_secret, get_settings,
-    get_story_settings, save_settings, save_story_settings, set_secret, validate_network_settings,
+    get_story_settings, save_library_dir, save_settings, save_story_settings, set_secret, validate_library_dir,
+    validate_network_settings,
 )
+from newsreader import paths
 from newsreader.web.routing import Routes
 from newsreader.web.security import DEFAULT_BIND_HOST, DEFAULT_PORT, csrf_token
 
@@ -47,6 +49,9 @@ def translation_settings():
             # Forms from before the same-news section (or scripts) omit it: leave those settings alone.
             stories_form = "stories_daily_chars" in request.form
             stories_daily = _story_daily(request.form["stories_daily_chars"]) if stories_form else 0
+            library_form = "library_dir" in request.form
+            if library_form:
+                validate_library_dir(request.form["library_dir"])
             secrets_to_save = {name: request.form.get(name, "").strip() for name in sorted(SECRET_NAMES)}
             for name, value in secrets_to_save.items():
                 if request.form.get("remove_" + name) == "1":
@@ -56,6 +61,8 @@ def translation_settings():
             save_settings(provider, deepl_endpoint, azure_region, network_bind_host, network_port, naver_search_query)
             if stories_form:
                 save_story_settings(request.form.get("stories_enabled") == "1", stories_daily)
+            if library_form:
+                save_library_dir(request.form["library_dir"])
             message = "設定を保存しました。APIキーはこのPCの資格情報ストアに保存されています。接続IPまたはポートの変更はアプリ再起動後に反映されます。"
         except Exception as exc:
             # Never log the exception text: it could echo a submitted key.
@@ -71,7 +78,8 @@ def translation_settings():
     azure = usage["providers"]["azure"]["metered_chars"]
     return render_template(
         "settings.html", settings=get_settings(), secrets=secret_status, story_settings=get_story_settings(),
-        story_range=STORY_DAILY_RANGE,
+        story_range=STORY_DAILY_RANGE, library_dir=paths.configured_library_dir(),
+        active_library=str(current_app.config["LIBRARY_ROOT"]), html_directory_env=bool(os.environ.get("HTML_DIRECTORY", "").strip()),
         secret_store_error=secret_store_error,
         csrf=csrf_token(), message=message, error=error,
         usage=usage, azure_free_limit=2_000_000, azure_used=min(azure, 2_000_000),

@@ -419,3 +419,4 @@ html{-webkit-text-size-adjust:100%;text-size-adjust:100%;}
  .text-button{padding:10px 10px;font-size:13px;}
  body.tr-sheet-open main{padding-bottom:50vh!important;}
 }
+.facts dd.path{overflow-wrap:anywhere;font-size:12px;font-family:Consolas,monospace;}

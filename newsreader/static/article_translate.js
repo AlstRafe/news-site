@@ -197,6 +197,7 @@
     selectionResult.classList.toggle("pinned", pinned);
     document.body.classList.toggle("tr-docked", pinned && !selectionResult.hidden);
     const button = document.getElementById("pin-selection");
+    if (!button) return;
     button.setAttribute("aria-pressed", String(pinned));
     button.title = pinned ? "固定を解除（単語の近くに表示）" : "右側に固定（本文を隠さない）";
     button.setAttribute("aria-label", pinned ? "固定を解除" : "右側に固定");
@@ -264,7 +265,8 @@
     anchor = anchorFn || (() => null);
     const sequence = ++requestCounter;
     document.getElementById("selected-original").textContent = normalized;
-    document.getElementById("selection-target").textContent = `→ ${targetNames[targetSelect.value] || ""}`;
+    const targetLabel = document.getElementById("selection-target");
+    if (targetLabel) targetLabel.textContent = `→ ${targetNames[targetSelect.value] || ""}`;
     clearSelectionDetails();
     const output = document.getElementById("selection-translation");
     output.classList.add("loading");
@@ -481,7 +483,7 @@
   document.getElementById("copy-original").addEventListener("click", event => copyText(document.getElementById("selected-original").textContent, event.currentTarget));
   document.getElementById("copy-selection").addEventListener("click", event => copyText(translationText(document.getElementById("selection-translation")), event.currentTarget));
   document.getElementById("copy-whole").addEventListener("click", event => copyText(translationText(document.getElementById("whole-translation")), event.currentTarget));
-  document.getElementById("pin-selection").addEventListener("click", () => {
+  document.getElementById("pin-selection")?.addEventListener("click", () => {
     const pinned = !selectionResult.classList.contains("pinned");
     setPinned(pinned);
     try { localStorage.setItem(PIN_KEY, pinned ? "1" : "0"); } catch (_) { /* optional */ }

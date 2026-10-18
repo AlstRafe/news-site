@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import json
+from pathlib import Path
 import ipaddress
 import os
 import tempfile
@@ -124,6 +125,23 @@ def get_story_settings() -> dict:
     if not isinstance(daily, int) or isinstance(daily, bool) or not low <= daily <= high:
         daily = STORY_DEFAULTS["stories_daily_chars"]
     return {"stories_enabled": enabled if isinstance(enabled, bool) else True, "stories_daily_chars": daily}
+
+
+def validate_library_dir(text: str) -> str:
+    """"" (use the default) or an existing folder given as an absolute path; never a symlink."""
+    text = text.strip().strip('"')
+    if not text:
+        return ""
+    path = Path(text).expanduser()
+    if not path.is_absolute():
+        raise ValueError("記事フォルダは絶対パス（例: C:\\Users\\…\\articles）で指定してください。")
+    if path.is_symlink() or not path.is_dir():
+        raise ValueError("記事フォルダが見つかりません（シンボリックリンクは使えません）。")
+    return str(path)
+
+
+def save_library_dir(value: str) -> None:
+    _write_merged({"library_dir": validate_library_dir(value)})
 
 
 def save_story_settings(enabled: bool, daily_chars: int) -> None:

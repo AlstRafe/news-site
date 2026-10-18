@@ -43,11 +43,22 @@ def deployed_version() -> str:
 DEFAULT_ARTICLES_DIR = PROJECT_ROOT / "articles"
 
 
+def configured_library_dir() -> str:
+    """The "記事フォルダ" saved on the settings page (instance/settings.json), or ""."""
+    import json
+    try:
+        value = json.loads(SETTINGS_PATH.read_text(encoding="utf-8")).get("library_dir", "")
+    except (OSError, ValueError, TypeError, AttributeError):
+        return ""
+    return value.strip() if isinstance(value, str) else ""
+
+
 def articles_dir() -> Path:
     """The saved-HTML library the web app serves.
 
     ``HTML_DIRECTORY`` wins so one checkout can read a library kept anywhere on
-    the PC. Not resolved here, matching the pre-Phase-1 web behaviour.
+    the PC; then the folder saved on the settings page; then ``articles/`` beside
+    the app. Not resolved here, matching the pre-Phase-1 web behaviour.
     """
-    configured = os.environ.get("HTML_DIRECTORY", "").strip()
+    configured = os.environ.get("HTML_DIRECTORY", "").strip() or configured_library_dir()
     return Path(configured).expanduser() if configured else DEFAULT_ARTICLES_DIR

@@ -42,14 +42,29 @@ class StaticEntry:
 
 
 class StaticFiles:
-    """Static files read once, hashed once and gzipped once per process (re-read if the file changes)."""
+    """Static files read once, hashed once and gzipped once per process.
 
-    def __init__(self, root: Path):
+    ``frozen`` (production): every file is loaded at start-up and never re-read, so a running
+    server always serves the CSS/JS that match the templates it compiled at start-up — a
+    deployment that replaces files under it cannot mix old pages with new scripts. The new
+    version arrives with the restart that the deployment triggers (VERSION, web/run.py).
+    Not frozen (NEWS_DEV=1, tests): re-read when a file changes.
+    """
+
+    def __init__(self, root: Path, frozen: bool = False):
         self.root = Path(root)
         self._entries: dict[str, StaticEntry] = {}
         self._lock = threading.Lock()
+        self.frozen = False
+        if frozen:
+            for path in sorted(self.root.rglob("*")):
+                if path.is_file() and not path.is_symlink():
+                    self.get(path.relative_to(self.root).as_posix())
+            self.frozen = True
 
     def get(self, filename: str) -> StaticEntry | None:
+        if self.frozen:
+            return self._entries.get(filename)
         joined = safe_join(str(self.root), filename)
         if joined is None:
             return None
@@ -96,7 +111,7 @@ def localtime_filter(iso_utc: str) -> str:
 
 
 def init_app(app: Flask, *, dev: bool) -> None:
-    static = StaticFiles(paths.STATIC_DIR)
+    static = StaticFiles(paths.STATIC_DIR, frozen=not dev)
     app.extensions["static_files"] = static
     # Templates are compiled once per process unless NEWS_DEV=1 (§6): no per-request stat of
     # every template file.

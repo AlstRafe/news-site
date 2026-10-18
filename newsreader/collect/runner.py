@@ -30,8 +30,9 @@ def get_library_root() -> Path:
         configured = settings.get("library_root", "") if isinstance(settings, dict) else ""
     except (OSError, ValueError, TypeError):
         configured = ""
-    # Unchanged on purpose: the collector takes its library root from collector.json,
-    # not from HTML_DIRECTORY (which only the web app reads).
+    # The collector takes its library root from collector.json (written by launcher.py), not
+    # from HTML_DIRECTORY (which only the web app reads); then the settings-page folder.
+    configured = configured or paths.configured_library_dir()
     return Path(configured).expanduser().resolve() if configured else paths.DEFAULT_ARTICLES_DIR.resolve()
 
 

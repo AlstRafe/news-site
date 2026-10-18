@@ -21,6 +21,7 @@
 {% for s in sources %}<tr><th scope="row">{{ s.name or '未分類' }}</th><td>{{ s.ok }}</td><td>{{ s.newest|localtime }}</td><td>{{ (s.bytes / 1048576)|round(1) }} MB</td><td>{{ s.errors }}</td></tr>{% else %}<tr><td colspan="5">記事はまだありません。</td></tr>{% endfor %}
 </tbody></table></div>
 <dl class="facts">
+<dt>記事フォルダ</dt><dd class="path">{{ library_root }}</dd>
 <dt>索引</dt><dd>{{ index_stats.total }} 件{% if index_stats.pending %}（本文の索引化待ち {{ index_stats.pending }} 件）{% endif %} · {{ (index_stats.bytes / 1024)|round|int }} KB</dd>
 <dt>索引の更新</dt><dd>{% if sync.running %}実行中（{{ sync.progress[0] }} / {{ sync.progress[1] }}）{% elif sync.finished %}{{ sync.result.added if sync.result else 0 }} 件追加 · {{ sync.result.removed if sync.result else 0 }} 件削除{% else %}未実行{% endif %}</dd>
 {% if sync.error %}<dt>エラー</dt><dd class="tone-bad">{{ sync.error }}</dd>{% endif %}

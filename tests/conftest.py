@@ -54,11 +54,14 @@ def isolated_instance():
     settings.keyring, translation._translate_batch = MemoryKeyring, provider_guard
     cache.CACHE_PATH = tmp / "translation_cache.sqlite3"
     settings.SETTINGS_PATH = tmp / "settings.json"
+    saved_paths_settings = paths.SETTINGS_PATH
+    paths.SETTINGS_PATH = settings.SETTINGS_PATH  # paths.articles_dir() reads the same file
     paths.SECRET_KEY_PATH = tmp / "secret_key"
     index.DEFAULT_DB_PATH = tmp / "library.sqlite3"
     status.STATUS_PATH = tmp / "status.json"
     yield tmp
     cache.CACHE_PATH, settings.SETTINGS_PATH, paths.SECRET_KEY_PATH, index.DEFAULT_DB_PATH, status.STATUS_PATH = saved
+    paths.SETTINGS_PATH = saved_paths_settings
     settings.keyring, translation._translate_batch = saved_keyring, saved_batch
     shutil.rmtree(tmp, ignore_errors=True)
     after = sorted(p.name for p in instance.iterdir()) if instance.is_dir() else None
