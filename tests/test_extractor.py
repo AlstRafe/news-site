@@ -4,9 +4,8 @@ import unittest
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
-from newsreader.sources import (
-    ReaderError, extract_article, list_html_files, resolve_html_file, validate_directory,
-)
+from newsreader.library.files import list_html_files, resolve_html_file, validate_directory
+from newsreader.sources import ReaderError, extract_article
 
 VIDEO = b'''<html><head><meta name="pagetype" content="Video Item"></head><body>
 <main id="bbc-main"><h1>Video Headline</h1>

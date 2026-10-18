@@ -1,4 +1,7 @@
-"""Extract article text from saved BBC, NAVER NEWS, and CNA HTML."""
+"""FROZEN ORACLE — v3 extractor.py, byte-for-byte except this docstring line.
+
+Do not edit. Equivalence tests compare newsreader.sources against this file.
+"""
 from __future__ import annotations
 
 import json

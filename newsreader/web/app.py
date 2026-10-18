@@ -24,7 +24,8 @@ from newsreader.services.dictionary import british_ipa, lookup_chinese, lookup_k
 from newsreader.services.images import _allowed_host as image_host_allowed, cache_article_images
 from newsreader.services.settings import SecretStoreError, configured_secrets, delete_secret, get_settings, save_settings, set_secret, validate_network_settings
 from newsreader.services.translation import MAX_ARTICLE_CHARS, MAX_SELECTION_CHARS, TARGETS, TranslationError, translate_paragraphs, translate_text
-from newsreader.sources import IMAGE_EXTENSIONS, ReaderError, extract_article, resolve_html_file, validate_directory
+from newsreader.library.files import resolve_html_file, validate_directory
+from newsreader.sources import IMAGE_EXTENSIONS, ReaderError, extract_article
 
 # These two stay module-level: the tests redirect them at an isolated fixture.
 LIBRARY_DB = library.DEFAULT_DB_PATH
