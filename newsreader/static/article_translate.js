@@ -251,6 +251,7 @@
   }
 
   function closePopup() {
+    lastSelectionText = "";
     selectionResult.hidden = true;
     selectionResult.style.transform = "";
     document.body.classList.remove("tr-docked", "tr-sheet-open");
@@ -332,38 +333,53 @@
     return { word, range: wordRange };
   }
 
-  function showToolbarForSelection() {
+  // Selecting text translates it directly — no extra button to hunt for. With a mouse that is
+  // the moment the button is released; on a touch screen, once the selection has stopped
+  // changing for a moment (the handles are being dragged until then).
+  let lastSelectionText = "";
+  function currentReaderSelection() {
     const selection = window.getSelection();
     const text = selection?.toString().trim() || "";
-    const anchor = selection?.rangeCount ? selection.getRangeAt(0).commonAncestorContainer : null;
-    const inTranslation = !!(anchor && (anchor.nodeType === Node.TEXT_NODE ? anchor.parentElement : anchor)?.closest?.(".bi-tr"));
-    if (text && !inTranslation && selection?.rangeCount && reader.contains(selection.getRangeAt(0).commonAncestorContainer)) {
-      selectedText = text;
-      const rect = selection.getRangeAt(0).getBoundingClientRect();
-      toolbar.hidden = false;
-      const width = toolbar.getBoundingClientRect().width || 170;
-      toolbar.style.left = `${Math.max(8, Math.min(rect.left + rect.width / 2 - width / 2, window.innerWidth - width - 8))}px`;
-      // Phones show their own copy/select menu above a selection: stay below it there.
-      const aboveTop = rect.top - 52;
-      toolbar.style.top = `${!isSheet() && aboveTop > 8 ? aboveTop : Math.min(rect.bottom + 10, window.innerHeight - 60)}px`;
-    } else {
-      toolbar.hidden = true;
-    }
+    if (!text || !selection.rangeCount) return null;
+    const range = selection.getRangeAt(0);
+    const node = range.commonAncestorContainer;
+    const element = node.nodeType === Node.TEXT_NODE ? node.parentElement : node;
+    if (!reader.contains(node) || element?.closest?.(".bi-tr")) return null;
+    return { text, range: range.cloneRange() };
   }
 
-  reader.addEventListener("mouseup", () => {
-    window.setTimeout(showToolbarForSelection, 0);
+  function translateCurrentSelection() {
+    const picked = currentReaderSelection();
+    if (!picked) return;
+    toolbar.hidden = true;
+    if (picked.text === lastSelectionText && !selectionResult.hidden) return; // already shown
+    lastSelectionText = picked.text;
+    clearWordHighlight();
+    translateSelected(picked.text, () => {
+      const rect = picked.range.getBoundingClientRect();
+      return rect && (rect.width || rect.height) ? rect : null;
+    });
+  }
+
+  reader.addEventListener("mouseup", event => {
+    if (event.button !== 0) return;
+    window.setTimeout(translateCurrentSelection, 0);
   });
 
-  // Touch screens: a long-press selection never produces mouseup, so the toolbar follows
-  // selectionchange instead. Only for touch, so mouse behaviour stays exactly as before.
   let lastPointer = "mouse";
+  let touching = false;
   document.addEventListener("pointerdown", event => { lastPointer = event.pointerType || "mouse"; }, { capture: true, passive: true });
+  document.addEventListener("touchstart", () => { touching = true; }, { capture: true, passive: true });
   let selectionTimer = 0;
+  const settleSelection = delay => {
+    window.clearTimeout(selectionTimer);
+    selectionTimer = window.setTimeout(() => { if (!touching) translateCurrentSelection(); }, delay);
+  };
+  document.addEventListener("touchend", () => { touching = false; if (currentReaderSelection()) settleSelection(350); }, { capture: true, passive: true });
+  document.addEventListener("touchcancel", () => { touching = false; }, { capture: true, passive: true });
   document.addEventListener("selectionchange", () => {
     if (lastPointer !== "touch") return;
-    window.clearTimeout(selectionTimer);
-    selectionTimer = window.setTimeout(showToolbarForSelection, 250);
+    settleSelection(700);
   });
   // Tapping / clicking outside the card (and outside the article text, where a tap looks up the
   // tapped word instead) closes it. A card docked to the side stays until closed.
@@ -382,6 +398,7 @@
     const selected = wordAtPoint(event.clientX, event.clientY);
     if (selected) {
       toolbar.hidden = true;
+      lastSelectionText = "";
       highlightWord(selected.range);
       translateSelected(selected.word, () => (activeWordHighlight?.isConnected ? activeWordHighlight.getBoundingClientRect() : null));
     }
