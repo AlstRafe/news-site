@@ -1,0 +1,28 @@
+{% extends "base.html" %}
+{% block head %}<title>読み比べ | News HTML Reader</title>{% endblock %}
+{% block content %}
+<div class="list-head"><h1>同じニュースの読み比べ</h1><span class="count">{{ result.total }} 件</span></div>
+<nav class="chips" aria-label="表示範囲">
+<a class="chip{% if result.scope == 'multi' %} active{% endif %}" href="{{ url_for('stories_page') }}">複数の媒体が報道</a>
+<a class="chip{% if result.scope == 'all' %} active{% endif %}" href="{{ url_for('stories_page', scope='all') }}">すべてのグループ</a>
+</nav>
+<p class="hint stories-note">{% if info.refreshed %}{{ refreshed_ago }}に更新{% else %}まだ集計していません{% endif %}{% if info.pending %} · 英訳待ちの見出し {{ info.pending }} 件{% endif %}{% if info.key_configured is defined and not info.key_configured %} · 翻訳キー未設定（英語の見出しのみで照合）{% endif %}
+<button type="button" class="link-button" data-action="stories-refresh">今すぐ更新</button><span class="refresh-state" role="status" aria-live="polite"></span></p>
+{% for story in result.stories %}
+<section class="story-card">
+<a class="story-head" href="{{ url_for('story_page', key=story.key) }}"><span class="story-count">{{ story.outlets }} 媒体 · {{ story.count }} 本</span><span class="story-time">{{ story.newest|localtime }}</span></a>
+<ul class="story-members">{% for m in story.members[:6] %}
+<li><a href="{{ url_for('show_article', article_id=m.id) }}"><span class="badge">{{ m.source or '未分類' }}</span><span class="story-title">{{ m.title }}</span>{% if m.lang != 'en' and m.pivot %}<span class="story-pivot" lang="en">{{ m.pivot }}</span>{% endif %}</a></li>
+{% endfor %}</ul>
+{% if story.count > 6 %}<a class="story-more" href="{{ url_for('story_page', key=story.key) }}">ほか {{ story.count - 6 }} 本を並べて読む →</a>{% else %}<a class="story-more" href="{{ url_for('story_page', key=story.key) }}">媒体ごとに並べて読む →</a>{% endif %}
+</section>
+{% else %}
+<p class="empty">{% if result.scope == 'multi' %}複数の媒体が報じたニュースはまだ見つかっていません。「すべてのグループ」も確認してください。{% else %}まだグループがありません。記事が増えると自動で集計されます。{% endif %}</p>
+{% endfor %}
+{% if result.pages > 1 %}<nav class="pager" aria-label="ページ送り">
+{% if result.page > 1 %}<a href="{{ url_for('stories_page', scope=result.scope if result.scope == 'all' else None, page=result.page-1) }}">← 新しい</a>{% else %}<span></span>{% endif %}
+<span>{{ result.page }} / {{ result.pages }}</span>
+{% if result.page < result.pages %}<a href="{{ url_for('stories_page', scope=result.scope if result.scope == 'all' else None, page=result.page+1) }}">過去 →</a>{% else %}<span></span>{% endif %}
+</nav>{% endif %}
+<p class="hint">見出しを英語にそろえて照合しています（英語以外の見出しは設定中の翻訳サービスで見出しだけを英訳、1日の上限あり）。無関係な記事を混ぜないことを優先しているため、同じニュースでも別グループになることがあります。</p>
+{% endblock %}

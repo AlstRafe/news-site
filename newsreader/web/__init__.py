@@ -39,7 +39,7 @@ def create_app(library_root: Path | str | None = None, db_path: Path | str | Non
     """
     from newsreader.library import index
     from newsreader.library.files import validate_directory
-    from newsreader.web import api, assets, pages, security, settings_view, status_view
+    from newsreader.web import api, assets, pages, security, settings_view, status_view, stories_view
 
     app = Flask("newsreader", template_folder=str(paths.TEMPLATES_DIR), static_folder=None)
     root = Path(library_root).expanduser() if library_root else paths.articles_dir()
@@ -58,11 +58,13 @@ def create_app(library_root: Path | str | None = None, db_path: Path | str | Non
     app.jinja_env.globals["theme_boot"] = security.register_inline_script("theme_boot", THEME_BOOT)
 
     status_view.init_app(app)
-    for module in (pages, api, settings_view, status_view):
+    for module in (pages, api, settings_view, status_view, stories_view):
         module.routes.register(app)
     pages.register_error_handlers(app)
 
     if start_background:
+        from newsreader.library import pipeline
         app.extensions["library_sync"] = index.start_background_sync(
-            lambda: validate_directory(app.config["LIBRARY_ROOT"]), app.config["LIBRARY_DB"], sync_interval)
+            lambda: validate_directory(app.config["LIBRARY_ROOT"]), app.config["LIBRARY_DB"], sync_interval,
+            after_change=lambda result: pipeline.refresh_stories(app.config["LIBRARY_DB"], app.config["STATUS_PATH"]))
     return app

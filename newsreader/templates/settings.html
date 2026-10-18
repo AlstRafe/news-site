@@ -32,6 +32,13 @@
 <label for="azure_region">Azure Translatorリソースのリージョン（地域リソースの場合）</label><input id="azure_region" name="azure_region" type="text" maxlength="80" value="{{ settings.azure_region }}" placeholder="例: japaneast"><p class="hint">Azure PortalのKeys and Endpointに表示される値を入力します。単一サービスのGlobalリソースでは空欄で構いません。F0（無料）リソースを選んでください。</p>
 <button type="submit">翻訳設定を保存</button>
 </section>
+<section class="panel settings-panel" id="stories-settings"><div class="step">02b · SAME NEWS</div><h2>読み比べ（同じニュースのまとめ）</h2>
+<p>BBC・NAVER・CNA の記事から同じニュースを探してまとめます。英語以外の見出しは、上で選んだ翻訳サービスで<strong>見出しだけ</strong>英訳して照合します（本文は送信しません）。英訳は1回きりで保存され、同じ見出しを再送信することはありません。</p>
+<label class="check-row"><input type="checkbox" name="stories_enabled" value="1" {% if story_settings.stories_enabled %}checked{% endif %}> 英語以外の見出しを英訳して照合する</label>
+<label for="stories_daily_chars">見出し英訳の1日の上限（文字）</label><input id="stories_daily_chars" name="stories_daily_chars" type="text" inputmode="numeric" maxlength="7" value="{{ story_settings.stories_daily_chars }}" required>
+<p class="hint">{{ "{:,}".format(story_range[0]) }}〜{{ "{:,}".format(story_range[1]) }}文字。見出しは1本あたり20〜60文字程度なので、既定の8,000文字で1日150本前後を英訳できます。上限に達した見出しは翌日に回り、英語の見出しはこの設定に関係なく照合されます。オフにした場合も、英訳済みの見出しはそのまま使います。</p>
+<button type="submit">設定を保存</button>
+</section>
 <section class="panel settings-panel usage-panel"><div class="step">MONTHLY USAGE</div><h2>{{ usage.month }} の翻訳利用量</h2>
 <p>このアプリから翻訳サービスへ送信した分の記録です。キャッシュから返した翻訳は含みません。他のアプリやAzureリソース利用者の使用量、請求画面の合計とは異なる場合があります。</p>
 <div class="usage-grid">

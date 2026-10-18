@@ -116,8 +116,10 @@ def show_article(article_id: int):
     except (ReaderError, OSError) as exc:
         return _error_page(str(exc) if isinstance(exc, ReaderError) else "記事ファイルを読み取れません。", 400)
     article = {**article, "images": image_entries(article_id, article)}
+    from newsreader.library import stories
     response = current_app.make_response(render_template(
         "article.html", article=article, record=record, article_id=article_id, csrf=csrf_token(),
+        related=stories.related(db_path(), article_id),
         translation_provider=get_settings()["provider"],
     ))
     response.headers["Cache-Control"] = CACHE_PAGE

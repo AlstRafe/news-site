@@ -15,6 +15,8 @@
       img.replaceWith(fallback);
       return;
     }
+    const item = img.closest(".story-item");
+    if (item) { item.classList.remove("with-thumb"); img.remove(); return; }
     const figure = img.closest(".article-images figure");
     if (figure) {
       const gallery = figure.parentElement;
@@ -52,7 +54,32 @@
     });
   }
 
-  // 3. Prefetch fallback for browsers without Speculation Rules (e.g. Safari on iPhone):
+  // 3. "今すぐ更新" on /stories: start a regrouping, poll its status, reload when done.
+  const refresh = document.querySelector('[data-action="stories-refresh"]');
+  if (refresh) {
+    const state = refresh.parentElement.querySelector(".refresh-state");
+    const csrf = document.querySelector('meta[name="csrf-token"]')?.content || "";
+    const say = text => { if (state) state.textContent = text; };
+    const poll = (tries) => {
+      fetch("/api/stories/status", { credentials: "same-origin", cache: "no-store" })
+        .then(r => r.json())
+        .then(info => {
+          if (info.running && tries < 90) { setTimeout(() => poll(tries + 1), 2000); return; }
+          if (info.error) { say("見出しの英訳に失敗しました（英語の見出しだけで集計）"); refresh.disabled = false; return; }
+          location.reload();
+        })
+        .catch(() => { say("状態を取得できませんでした"); refresh.disabled = false; });
+    };
+    refresh.addEventListener("click", () => {
+      refresh.disabled = true;
+      say("集計中…");
+      fetch("/api/stories/refresh", { method: "POST", credentials: "same-origin", headers: { "X-CSRF-Token": csrf } })
+        .then(r => { if (r.status !== 202) throw new Error(String(r.status)); setTimeout(() => poll(0), 1200); })
+        .catch(() => { say("開始できませんでした"); refresh.disabled = false; });
+    });
+  }
+
+  // 4. Prefetch fallback for browsers without Speculation Rules (e.g. Safari on iPhone):
   //    warm the HTTP cache for an article / comparison page when a pointer rests on its link
   //    or a finger touches it. Those pages are "Cache-Control: private, max-age=60", so the
   //    navigation that follows is served from that cache.

@@ -26,6 +26,32 @@ def isolated_instance():
     before = sorted(p.name for p in instance.iterdir()) if instance.is_dir() else None
     tmp = Path(tempfile.mkdtemp(prefix="newsreader-tests-"))
     saved = (cache.CACHE_PATH, settings.SETTINGS_PATH, paths.SECRET_KEY_PATH, index.DEFAULT_DB_PATH, status.STATUS_PATH)
+    # No test may read or write the real OS credential store, or reach a real translation
+    # provider: an in-memory keyring, and a provider call that fails loudly unless a test
+    # installs its own fake (the existing tests do, and restore this guard afterwards).
+    from newsreader.services import translation
+    import keyring as real_keyring
+
+    vault: dict[tuple[str, str], str] = {}
+
+    class MemoryKeyring:
+        @staticmethod
+        def get_password(service, name):
+            return vault.get((service, name))
+
+        @staticmethod
+        def set_password(service, name, value):
+            vault[(service, name)] = value
+
+        @staticmethod
+        def delete_password(service, name):
+            vault.pop((service, name), None)
+
+    def provider_guard(provider, texts, target):
+        raise AssertionError("a test reached the real translation provider")
+
+    saved_keyring, saved_batch = settings.keyring, translation._translate_batch
+    settings.keyring, translation._translate_batch = MemoryKeyring, provider_guard
     cache.CACHE_PATH = tmp / "translation_cache.sqlite3"
     settings.SETTINGS_PATH = tmp / "settings.json"
     paths.SECRET_KEY_PATH = tmp / "secret_key"
@@ -33,6 +59,7 @@ def isolated_instance():
     status.STATUS_PATH = tmp / "status.json"
     yield tmp
     cache.CACHE_PATH, settings.SETTINGS_PATH, paths.SECRET_KEY_PATH, index.DEFAULT_DB_PATH, status.STATUS_PATH = saved
+    settings.keyring, translation._translate_batch = saved_keyring, saved_batch
     shutil.rmtree(tmp, ignore_errors=True)
     after = sorted(p.name for p in instance.iterdir()) if instance.is_dir() else None
     assert after == before, f"tests created files in the real instance/: {after} (before: {before})"

@@ -1,10 +1,10 @@
 {% extends "base.html" %}
-{% block head %}<meta name="csrf-token" content="{{ csrf }}"><title>{{ article.title }} | News HTML Reader</title>{% endblock %}
+{% block head %}<title>{{ article.title }} | News HTML Reader</title>{% endblock %}
 {% block main_class %} article{% endblock %}
 {% block content %}<a class="back" href="{{ url_for('index', source=record.source or None) }}">← {{ record.source or '記事一覧' }}の一覧へ戻る</a>
 <div class="eyebrow">{{ article.kind }} · {{ article.paragraph_count }} 段落</div><h1>{{ article.title }}</h1>
 <p class="title-tr" id="bi-title" hidden></p>
-<div class="meta">{{ record.source }}{% if record.published %} · {{ record.published|localtime }}{% endif %}</div>
+<div class="meta">{{ record.source }}{% if record.published %} · {{ record.published|localtime }}{% endif %}{% if related %} · <a class="related-jump" href="#related-head">同じニュースの他の記事 {{ related.members|length }} 本 ↓</a>{% endif %}</div>
 {% if article.url %}<p><a href="{{ article.url }}" target="_blank" rel="noopener noreferrer">元の記事を開く ↗</a></p>{% endif %}
 {% if article.images %}<div class="article-images">{% for image in article.images %}<figure><img src="{{ image.url }}" alt="{{ image.alt }}" loading="lazy" decoding="async">{% if image.alt %}<figcaption>{{ image.alt }}</figcaption>{% endif %}</figure>{% endfor %}</div>{% endif %}
 <section class="translation-controls" id="translation-controls" data-article-id="{{ article_id }}">
@@ -27,6 +27,9 @@
 <p class="selected-original" id="selected-original"></p><p class="translation-error" id="selection-error" hidden></p><strong class="selection-translation-heading">翻訳／意味</strong>
 <div class="selection-translation" id="selection-translation"></div><div class="language-details" id="language-details"></div>
 </aside>
+{% if related %}<section class="related" aria-labelledby="related-head"><h2 id="related-head">同じニュースの他の記事</h2>
+<ul class="story-members">{% for m in related.members[:8] %}<li><a href="{{ url_for('show_article', article_id=m.id) }}"><span class="badge">{{ m.source or '未分類' }}</span><span class="story-title">{{ m.title }}</span><span class="story-time">{{ m.published|localtime }}</span></a></li>{% endfor %}</ul>
+<a class="story-more" href="{{ url_for('story_page', key=related.key) }}">媒体ごとに並べて読む →</a></section>{% endif %}
 <nav class="article-end" aria-label="記事の終わり"><a class="back" href="{{ url_for('index', source=record.source or None) }}">← {{ record.source or '記事' }}の一覧へ戻る</a><a class="to-top" href="#top">▲ 上へ</a></nav>
 <p class="hint endnote">単語をクリックすると単語単位、文章をドラッグすると選択範囲を翻訳します。翻訳時はその文章が設定中の翻訳サービスに送信されます。翻訳結果はこのPC内にキャッシュされます。</p>
 {% endblock %}

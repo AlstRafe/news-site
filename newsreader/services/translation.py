@@ -19,6 +19,9 @@ TARGETS = {
     "ko": {"deepl": "KO", "azure": "ko"},
     "zh-hant": {"deepl": "ZH-HANT", "azure": "zh-Hant"},
 }
+#: Targets the app uses internally but never offers in the UI (TARGETS above is the UI list).
+#: "en" is the pivot language for same-news grouping: DeepL EN-US, Azure en (§10).
+INTERNAL_TARGETS = {"en": {"deepl": "EN-US", "azure": "en"}}
 MAX_SELECTION_CHARS = 4_000
 MAX_ARTICLE_CHARS = 250_000
 MAX_BATCH_CHARS = 20_000
@@ -124,7 +127,7 @@ def _translate_batch(provider: str, texts: list[str], target: str) -> list[str]:
         is_free_key = key.rstrip().endswith(":fx")
         use_free = is_free_key if endpoint_mode == "auto" else endpoint_mode == "free"
         base = "https://api-free.deepl.com" if use_free else "https://api.deepl.com"
-        body = urllib.parse.urlencode([("text", text) for text in texts] + [("target_lang", TARGETS[target]["deepl"])]).encode()
+        body = urllib.parse.urlencode([("text", text) for text in texts] + [("target_lang", _codes(target)["deepl"])]).encode()
         payload, _ = _post_json(base + "/v2/translate", {"Authorization": f"DeepL-Auth-Key {key}", "Content-Type": "application/x-www-form-urlencoded"}, body, "deepl")
         results = payload.get("translations") if isinstance(payload, dict) else None
         if not isinstance(results, list) or len(results) != len(texts) or any(not isinstance(item, dict) or not isinstance(item.get("text"), str) for item in results):
@@ -138,10 +141,10 @@ def _translate_batch(provider: str, texts: list[str], target: str) -> list[str]:
             raise TranslationError(str(exc)) from None
         if not key:
             raise TranslationError("Azure Translatorのキーが未設定です。設定画面から登録してください。")
-        if target not in TARGETS or "azure" not in TARGETS[target]:
+        if "azure" not in _codes(target):
             raise TranslationError("Azure Translatorは英語の地域変種を指定できないため、English (UK)への翻訳にはDeepLを選んでください。")
         region = get_settings().get("azure_region", "").strip()
-        query = urllib.parse.urlencode({"api-version": "3.0", "to": TARGETS[target]["azure"]})
+        query = urllib.parse.urlencode({"api-version": "3.0", "to": _codes(target)["azure"]})
         body = json.dumps([{"Text": text} for text in texts], ensure_ascii=False).encode("utf-8")
         headers = {"Ocp-Apim-Subscription-Key": key, "Content-Type": "application/json; charset=utf-8"}
         if region:
@@ -169,6 +172,25 @@ def _translate_batch(provider: str, texts: list[str], target: str) -> list[str]:
         record_translation_usage("azure", target, estimated_chars, metered_chars)
         return results
     raise TranslationError("翻訳サービスの設定が不正です。")
+
+
+def _codes(target: str) -> dict[str, str]:
+    return TARGETS.get(target) or INTERNAL_TARGETS.get(target) or {}
+
+
+def translate_titles_to_english(titles: list[str]) -> list[str]:
+    """Headlines only, to English, one result per input (blank stays blank) — for same-news grouping.
+
+    Uses the same per-batch cache as the reader, so a headline is never paid for twice. Raises
+    TranslationError (no key, quota, network) for the caller to record; nothing is retried here.
+    """
+    cleaned = [title.strip() for title in titles]
+    pieces = [title[:1_000] for title in cleaned if title]
+    if not pieces:
+        return ["" for _ in cleaned]
+    provider = active_provider()
+    translated = iter(_run_batches(provider, "en", _batches(pieces)))
+    return [next(translated) if title else "" for title in cleaned]
 
 
 def _run_batches(provider: str, target: str, batches: list[list[str]]) -> list[str]:

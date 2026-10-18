@@ -18,6 +18,10 @@ SECRET_NAMES = {
     "deepl_api_key", "azure_api_key", "stdict_api_key",
     "naver_api_key_id", "naver_api_key_secret",
 }
+#: Same-news grouping (§10/§11). Kept in the same settings.json; every writer merges, so saving
+#: the main form never drops these keys (and saving these never drops the others).
+STORY_DEFAULTS = {"stories_enabled": True, "stories_daily_chars": 8_000}
+STORY_DAILY_RANGE = (500, 200_000)
 DEFAULTS = {
     "provider": "azure",
     "deepl_endpoint": "auto",
@@ -98,15 +102,47 @@ def save_settings(
     naver_search_query = naver_search_query.strip()
     if not naver_search_query or len(naver_search_query) > 100:
         raise ValueError("NAVERニュース検索語は1～100文字で指定してください。")
-    SETTINGS_PATH.parent.mkdir(parents=True, exist_ok=True)
-    payload = json.dumps({
+    _write_merged({
         "provider": provider,
         "deepl_endpoint": deepl_endpoint,
         "azure_region": azure_region,
         "network_bind_host": network_bind_host,
         "network_port": network_port,
         "naver_search_query": naver_search_query,
-    }, ensure_ascii=False)
+    })
+
+
+def get_story_settings() -> dict:
+    try:
+        value = json.loads(SETTINGS_PATH.read_text(encoding="utf-8"))
+    except (OSError, ValueError, TypeError):
+        value = {}
+    value = value if isinstance(value, dict) else {}
+    enabled = value.get("stories_enabled", STORY_DEFAULTS["stories_enabled"])
+    daily = value.get("stories_daily_chars", STORY_DEFAULTS["stories_daily_chars"])
+    low, high = STORY_DAILY_RANGE
+    if not isinstance(daily, int) or isinstance(daily, bool) or not low <= daily <= high:
+        daily = STORY_DEFAULTS["stories_daily_chars"]
+    return {"stories_enabled": enabled if isinstance(enabled, bool) else True, "stories_daily_chars": daily}
+
+
+def save_story_settings(enabled: bool, daily_chars: int) -> None:
+    low, high = STORY_DAILY_RANGE
+    if not isinstance(daily_chars, int) or not low <= daily_chars <= high:
+        raise ValueError(f"1日の翻訳上限は{low:,}〜{high:,}文字で指定してください。")
+    _write_merged({"stories_enabled": bool(enabled), "stories_daily_chars": daily_chars})
+
+
+def _write_merged(values: dict) -> None:
+    """Read-modify-write settings.json atomically, keeping every key this call does not set
+    (other forms' settings, keys written by launcher.py, keys from newer versions)."""
+    try:
+        current = json.loads(SETTINGS_PATH.read_text(encoding="utf-8"))
+        current = current if isinstance(current, dict) else {}
+    except (OSError, ValueError, TypeError):
+        current = {}
+    SETTINGS_PATH.parent.mkdir(parents=True, exist_ok=True)
+    payload = json.dumps({**current, **values}, ensure_ascii=False)
     fd, temporary = tempfile.mkstemp(prefix="settings-", suffix=".tmp", dir=SETTINGS_PATH.parent)
     try:
         with os.fdopen(fd, "w", encoding="utf-8") as stream:

@@ -1,0 +1,14 @@
+{% extends "base.html" %}
+{% block head %}<title>読み比べ | News HTML Reader</title>{% endblock %}
+{% block main_class %} story-page{% endblock %}
+{% block content %}<a class="back" href="{{ url_for('stories_page') }}">← 読み比べの一覧へ</a>
+<div class="eyebrow">SAME NEWS · {{ story.columns|length }} OUTLETS</div><h1>{{ story.lead_title }}</h1>
+<div class="story-columns">{% for source, members in story.columns %}
+<section class="story-column"><h2><span class="badge">{{ source }}</span> {{ members|length }} 本</h2>
+{% for m in members %}<a class="story-item{% if m.thumb %} with-thumb{% endif %}" href="{{ url_for('show_article', article_id=m.id) }}">
+{% if m.thumb %}<img src="{{ m.thumb }}" alt="" loading="lazy" decoding="async">{% endif %}
+<span class="story-time">{{ m.published|localtime }}</span><strong>{{ m.title }}</strong>
+{% if m.lang != 'en' and m.pivot %}<span class="story-pivot" lang="en">{{ m.pivot }}</span>{% endif %}
+{% if m.lead %}<span class="story-lead">{{ m.lead }}</span>{% endif %}</a>{% endfor %}
+</section>{% endfor %}</div>
+{% endblock %}

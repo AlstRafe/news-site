@@ -80,7 +80,26 @@ def _migration_1(db: sqlite3.Connection) -> None:
     db.execute("CREATE INDEX IF NOT EXISTS idx_articles_source ON articles(source, published DESC)")
 
 
-MIGRATIONS: list[Callable[[sqlite3.Connection], None]] = [_migration_1]
+def _migration_2(db: sqlite3.Connection) -> None:
+    """Phase 7: same-news grouping. Rows cascade away with their article."""
+    db.execute("""CREATE TABLE IF NOT EXISTS story_items (
+        article_id INTEGER PRIMARY KEY REFERENCES articles(id) ON DELETE CASCADE,
+        title TEXT NOT NULL,          -- the headline the pivot was made from (a changed title is re-pivoted)
+        lang TEXT NOT NULL,
+        pivot TEXT,                   -- English headline; NULL while waiting for translation
+        pivot_chars INTEGER NOT NULL DEFAULT 0,
+        pivot_at TEXT NOT NULL DEFAULT '')""")
+    db.execute("""CREATE TABLE IF NOT EXISTS story_members (
+        article_id INTEGER PRIMARY KEY REFERENCES articles(id) ON DELETE CASCADE,
+        story_key TEXT NOT NULL,
+        score REAL NOT NULL)""")
+    db.execute("CREATE INDEX IF NOT EXISTS idx_story_members_key ON story_members(story_key)")
+    db.execute("""CREATE TABLE IF NOT EXISTS story_usage (
+        day TEXT PRIMARY KEY,         -- local calendar day of the PC
+        chars INTEGER NOT NULL)""")
+
+
+MIGRATIONS: list[Callable[[sqlite3.Connection], None]] = [_migration_1, _migration_2]
 SCHEMA_VERSION = len(MIGRATIONS)
 _schema_lock = threading.Lock()
 _wal_checked: set[str] = set()
@@ -343,8 +362,11 @@ class BackgroundSync:
     appears after start-up (an external drive, say) is picked up without a restart.
     """
 
-    def __init__(self, root_provider: Callable[[], Path], db_path: Path, interval: float = 60.0):
+    def __init__(self, root_provider: Callable[[], Path], db_path: Path, interval: float = 60.0,
+                 after_change: Callable[[dict], None] | None = None):
         self.root_provider = root_provider
+        self.after_change = after_change
+        self._first = True
         self.db_path = Path(db_path)
         self.interval = interval
         self._wake = threading.Event()
@@ -367,7 +389,14 @@ class BackgroundSync:
     def _run(self) -> None:
         while not self._stop.is_set():
             try:
-                sync(self.root_provider(), self.db_path, force=True)
+                result = sync(self.root_provider(), self.db_path, force=True)
+                changed = result["added"] or result["updated"] or result["removed"]
+                if self.after_change is not None and (changed or self._first):
+                    self._first = False
+                    try:
+                        self.after_change(result)
+                    except Exception:
+                        log.exception("After-sync hook failed")
             except ReaderError as exc:  # e.g. the folder is missing: shown on the page, retried later
                 _set_state(self.db_path, running=False, error=str(exc), finished=time.time())
             except Exception:
@@ -376,8 +405,9 @@ class BackgroundSync:
             self._wake.clear()
 
 
-def start_background_sync(root_provider: Callable[[], Path], db_path: Path, interval: float = 60.0) -> BackgroundSync:
-    return BackgroundSync(root_provider, db_path, interval).start()
+def start_background_sync(root_provider: Callable[[], Path], db_path: Path, interval: float = 60.0,
+                          after_change: Callable[[dict], None] | None = None) -> BackgroundSync:
+    return BackgroundSync(root_provider, db_path, interval, after_change).start()
 
 
 # --------------------------------------------------------------- queries ----
