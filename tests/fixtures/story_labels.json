@@ -1,0 +1,286 @@
+{
+ "author": "Claude (Opus 5.5), 2026-10-19, labelled from headlines (+ body text for India / diesel / executions) BEFORE running the clustering, to replace the handover's lost TRUTH labels. Pending user review.",
+ "rule": "Same specific event or directly continuing story within 72 hours. Related-but-different events (e.g. the diesel deal vs. Trump's 'new president' remark) are separate groups.",
+ "groups": {
+  "trump-ukraine-new-president": [
+   {
+    "source": "BBC",
+    "filename": "'Time for Ukraine to get new president,' says Trump after Zelensky condemns diesel deal.html",
+    "title": "'Time for Ukraine to get new president,' says Trump after Zelensky condemns diesel deal"
+   },
+   {
+    "source": "CNA",
+    "filename": "cna_news_aopl_202610110166_aspx_470771320c.html",
+    "title": "川普籲烏換總統　澤倫斯基：願停攻俄煉油廠但須對等"
+   },
+   {
+    "source": "CNA",
+    "filename": "cna_news_aopl_202610110208_aspx_8c58dc28b8.html",
+    "title": "川普籲烏克蘭換總統　澤倫斯基：應由人民決定"
+   }
+  ],
+  "energy-ceasefire": [
+   {
+    "source": "CNA",
+    "filename": "cna_news_aopl_202610110210_aspx_da4b3a956f.html",
+    "title": "川普：俄烏同意停止攻擊彼此能源設施　即刻生效"
+   },
+   {
+    "source": "BBC",
+    "filename": "bbc_news_articles_c6pvg4jyz1m0o_908bf31632.html",
+    "title": "Trump's 'energy ceasefire' claim welcomed by Zelensky but Russia silent"
+   },
+   {
+    "source": "CNA",
+    "filename": "cna_news_aopl_202610110213_aspx_fafd5d23c7.html",
+    "title": "川普稱俄烏同意停止攻擊能源設施　澤倫斯基大感意外"
+   },
+   {
+    "source": "CNA",
+    "filename": "cna_news_aopl_202610120004_aspx_cc3bcbf18a.html",
+    "title": "川普宣布俄烏同意能源停火　澤倫斯基：俄續攻擊、烏等待細節"
+   },
+   {
+    "source": "CNA",
+    "filename": "cna_news_aopl_202610120013_aspx_d269d631ed.html",
+    "title": "川普提俄烏能源停火　英國、加拿大表態支持"
+   },
+   {
+    "source": "BBC",
+    "filename": "bbc_news_articles_cvlyd4pdlwkxo_2cd7dbcdd9.html",
+    "title": "Six Ukrainian energy sites hit by Russia since Trump announced ceasefire, Zelensky says"
+   },
+   {
+    "source": "CNA",
+    "filename": "cna_news_aopl_202610120240_aspx_79154b8bdf.html",
+    "title": "俄羅斯是否已與烏克蘭達成「能源停火」？克宮拒說明"
+   }
+  ],
+  "russia-diesel-deal": [
+   {
+    "source": "CNA",
+    "filename": "cna_news_aopl_202610120008_aspx_10f00848b8.html",
+    "title": "川普和普丁達成柴油協議　美國跨黨參議員批違法"
+   },
+   {
+    "source": "BBC",
+    "filename": "bbc_news_articles_cjn5v21py07vo_8607dfc216.html",
+    "title": "Trump faces growing backlash over plans to import diesel from Russia"
+   },
+   {
+    "source": "CNA",
+    "filename": "cna_news_aopl_202610130283_aspx_4ee57b65a6.html",
+    "title": "川普稱俄將對外供應柴油　俄估年底前月出口量上看350萬公噸"
+   }
+  ],
+  "riyadh-airport-attacks": [
+   {
+    "source": "CNA",
+    "filename": "cna_news_aopl_202610110160_aspx_9aee7b38be.html",
+    "title": "沙國首都機場遇襲暫未恢復運作　利雅德學校改遠距上課一週"
+   },
+   {
+    "source": "BBC",
+    "filename": "bbc_news_articles_cr4g1pwxxlq1o_a4800f9153.html",
+    "title": "Riyadh airport attacks another dangerous moment in already tense conflict"
+   },
+   {
+    "source": "BBC",
+    "filename": "bbc_news_articles_cr93znyk44e1o_1f26946a37.html",
+    "title": "Saudi Arabia's Riyadh airport hit by second Houthi strike in two days"
+   },
+   {
+    "source": "CNA",
+    "filename": "cna_news_aopl_202610120003_aspx_ad23a5f102.html",
+    "title": "利雅德機場致命襲擊隔天　青年運動再度攻擊致航廈起火"
+   },
+   {
+    "source": "CNA",
+    "filename": "cna_news_aopl_202610120021_aspx_7f9aab701c.html",
+    "title": "利雅德機場再遭襲釀1死11傷　英美發布安全警示"
+   },
+   {
+    "source": "CNA",
+    "filename": "cna_news_aopl_202610120032_aspx_cb17f4ce2f.html",
+    "title": "沙烏地阿拉伯機場頻遭葉門叛軍攻擊　歐亞空中關鍵走廊幾近瓦解"
+   },
+   {
+    "source": "CNA",
+    "filename": "cna_news_aopl_202610120112_aspx_303a7b8779.html",
+    "title": "沙烏地阿拉伯重金採購先進武器　青年運動攻擊暴露防空漏洞"
+   },
+   {
+    "source": "BBC",
+    "filename": "bbc_news_articles_cjly0zqq27e4o_2de171f17e.html",
+    "title": "Saudi minister vows 'serious response' to Houthi attacks on airports"
+   },
+   {
+    "source": "CNA",
+    "filename": "cna_news_aopl_202610120253_aspx_2dd95a8dc4.html",
+    "title": "沙烏地首都遭葉門叛軍襲擊　能源企業高層缺席世界石油大會"
+   }
+  ],
+  "djibouti-boat-capsize": [
+   {
+    "source": "CNA",
+    "filename": "cna_news_aopl_202610110174_aspx_b4c6c15e5d.html",
+    "title": "吉布地開往葉門移民船翻覆　至少109死逾116人失蹤"
+   },
+   {
+    "source": "BBC",
+    "filename": "bbc_news_articles_cwy7lxx60dg5o_fd20495faa.html",
+    "title": "Children among 139 dead after boat capsizes off Djibouti, UN says"
+   }
+  ],
+  "pope-lung-surgery": [
+   {
+    "source": "BBC",
+    "filename": "bbc_news_articles_c6m2dnngvw8xo_957bd7873c.html",
+    "title": "Pope Leo to have surgery after lump found on lung"
+   },
+   {
+    "source": "CNA",
+    "filename": "cna_news_aopl_202610110180_aspx_e75a54d68a.html",
+    "title": "教宗良十四世肺部發現小腫塊　日內將動刀切除"
+   },
+   {
+    "source": "CNA",
+    "filename": "cna_news_aopl_202610120146_aspx_00f8cb5e03.html",
+    "title": "教宗肺部腫塊手術在即　梵蒂岡估需休養一週"
+   }
+  ],
+  "poland-school-stabbings": [
+   {
+    "source": "BBC",
+    "filename": "bbc_news_articles_cv8ezd246z1wo_c3cf7ec6b6.html",
+    "title": "Woman injures three people in third Poland school knife attack in a week"
+   },
+   {
+    "source": "BBC",
+    "filename": "bbc_news_articles_ckp8gyd65z2go_a23b230d78.html",
+    "title": "Poland stabbings driven by online glorification of violence, Tusk says"
+   }
+  ],
+  "poland-pm-assassination-plot": [
+   {
+    "source": "CNA",
+    "filename": "cna_news_aopl_202610120002_aspx_6707e14963.html",
+    "title": "涉嫌策劃刺殺波蘭總理及國防部長　男子遭到逮捕"
+   },
+   {
+    "source": "BBC",
+    "filename": "bbc_news_articles_c6n9rvynl5p5o_45548f69d2.html",
+    "title": "Poland detains man suspected of planning assassination of PM Tusk"
+   }
+  ],
+  "us-tv-networks-doj": [
+   {
+    "source": "BBC",
+    "filename": "bbc_news_articles_c9vgregzk6gro_1583dafde2.html",
+    "title": "US justice department investigates TV networks over Trump pool coverage"
+   },
+   {
+    "source": "CNA",
+    "filename": "cna_news_aopl_202610110157_aspx_9d11c77e81.html",
+    "title": "美5大電視網共同抵制白宮採訪　司法部啟動反壟斷調查"
+   }
+  ],
+  "india-election-protests": [
+   {
+    "source": "BBC",
+    "filename": "bbc_news_articles_c84g179n2393o_28f83aeb5e.html",
+    "title": "Delhi sees more protests as freed 'cockroach' group's leaders vow to fight on"
+   },
+   {
+    "source": "BBC",
+    "filename": "bbc_news_articles_cwr5y2lgr4gdo_5de32f3221.html",
+    "title": "Indian opposition leaders march to top court to demand election chief resign"
+   },
+   {
+    "source": "CNA",
+    "filename": "cna_news_aopl_202610120138_aspx_047c88082c.html",
+    "title": "印度反對派持續示威　新德里關閉6地鐵站、實施交通管制"
+   },
+   {
+    "source": "CNA",
+    "filename": "cna_news_aopl_202610120184_aspx_d248a8d2c8.html",
+    "title": "印度蟑螂人民黨抗議　最高法院：不得非法拘留"
+   },
+   {
+    "source": "BBC",
+    "filename": "bbc_news_articles_cqz0v11n2vj5o_b5afb5c2f8.html",
+    "title": "India 'cockroach' leaders detained after entering barricaded protest site"
+   }
+  ],
+  "france-school-protests": [
+   {
+    "source": "BBC",
+    "filename": "Everyone_hates_the_police_what_Frances_school_protests_reveal_ab_crq5nlqnn184o.html",
+    "title": "'Everyone hates the police' – what France's school protests reveal about a divided nation"
+   },
+   {
+    "source": "CNA",
+    "filename": "cna_news_aopl_202610120292_aspx_63c4fcbf3c.html",
+    "title": "法國高中生示威關閉學校降至130所　總統馬克宏籲尊重以對"
+   }
+  ],
+  "nobel-economics": [
+   {
+    "source": "CNA",
+    "filename": "cna_news_aopl_202610120221_aspx_a7f43a7218.html",
+    "title": "諾貝爾經濟學獎　2美國學者獲殊榮"
+   },
+   {
+    "source": "CNA",
+    "filename": "cna_news_aopl_202610120256_aspx_bbefba50cf.html",
+    "title": "美2學者獲諾貝爾經濟學獎　發展新模型助平抑景氣盛衰"
+   },
+   {
+    "source": "CNA",
+    "filename": "cna_news_aopl_202610120297_aspx_3d030405e9.html",
+    "title": "諾貝爾經濟學獎得主研究催生央行前瞻指引　Fed主席華許未沿用"
+   }
+  ],
+  "north-korea-missiles": [
+   {
+    "source": "CNA",
+    "filename": "cna_news_aopl_202610120019_aspx_8aa1431b66.html",
+    "title": "南韓：北韓自東岸發射不明飛行物"
+   },
+   {
+    "source": "CNA",
+    "filename": "cna_news_aopl_202610120040_aspx_3dde2e2f67.html",
+    "title": "北韓朝東部海域發射多枚彈道飛彈　兩韓緊張升溫"
+   },
+   {
+    "source": "CNA",
+    "filename": "cna_news_aopl_202610120185_aspx_9490aca98c.html",
+    "title": "北韓發射多枚彈道飛彈　疑為反制南韓成功測試極音速武器"
+   }
+  ],
+  "christa-pike-execution": [
+   {
+    "source": "BBC",
+    "filename": "bbc_news_articles_cmlyle97pqd7o_562b42f356.html",
+    "title": "US murderer Christa Pike discharged from hospital 10 days after failed execution"
+   },
+   {
+    "source": "BBC",
+    "filename": "bbc_news_articles_ck1exg6qjdz3o_9456f3ef12.html",
+    "title": "US emergency call records reveal confusion after failed execution of Christa Pike"
+   }
+  ],
+  "us-public-executions": [
+   {
+    "source": "BBC",
+    "filename": "bbc_news_articles_c6kgq7rqdql7o_0f5efa48c4.html",
+    "title": "Public executions in the US stopped nearly a century ago -  why are they resuming now?"
+   },
+   {
+    "source": "CNA",
+    "filename": "cna_news_aopl_202610120007_aspx_dadd36d158.html",
+    "title": "直播處決構成安全威脅？美國土安全部長駁斥"
+   }
+  ]
+ }
+}
