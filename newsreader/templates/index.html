@@ -1,7 +1,8 @@
 {% extends "base.html" %}
-{% block head %}<title>{% if source %}{{ source }} | {% endif %}News HTML Reader</title>{% endblock %}
+{% block head %}<title>{% if source %}{{ source }} | {% endif %}News HTML Reader</title>{% if indexing %}<meta http-equiv="refresh" content="2">{% endif %}{% endblock %}
 {% block content %}
-{% if error %}<div class="alert">{{ error }}</div>{% endif %}
+{% if error %}<div class="alert" role="alert">{{ error }}</div>{% endif %}
+{% if warning %}<div class="alert" role="status">{{ warning }}</div>{% endif %}
 <form class="searchbar" method="get" action="{{ url_for('index') }}" role="search">
 {% if source %}<input type="hidden" name="source" value="{{ source }}">{% endif %}
 <input type="search" name="q" value="{{ query }}" placeholder="見出し・冒頭文から検索" aria-label="記事を検索" maxlength="100">
@@ -15,7 +16,7 @@
 {% if items %}
 <div class="card-grid">{% for item in items %}
 <a class="card" href="{{ url_for('show_article', article_id=item.id) }}">
-<div class="card-thumb">{% if item.thumb %}<img src="{{ item.thumb }}" alt="" loading="lazy" referrerpolicy="no-referrer">{% else %}<span class="thumb-fallback">{{ (item.source or 'N')[:1] }}</span>{% endif %}</div>
+<div class="card-thumb">{% if item.thumb %}<img src="{{ item.thumb }}" alt="" loading="lazy" decoding="async">{% else %}<span class="thumb-fallback">{{ (item.source or 'N')[:1] }}</span>{% endif %}</div>
 <div class="card-body"><div class="card-meta"><span class="badge">{{ item.source or '未分類' }}</span><span>{{ (item.published|localtime) if item.published else '' }}</span></div>
 <h2>{{ item.title }}</h2>{% if item.lead %}<p>{{ item.lead }}</p>{% endif %}</div></a>{% endfor %}</div>
 {% if pages > 1 %}<nav class="pager" aria-label="ページ送り">
@@ -23,5 +24,6 @@
 <span>{{ page }} / {{ pages }}</span>
 {% if page < pages %}<a href="{{ url_for('index', source=source or None, q=query or None, page=page+1) }}">過去の記事 →</a>{% else %}<span></span>{% endif %}
 </nav>{% endif %}
+{% elif indexing %}<p class="empty" role="status">記事の索引を作成しています（{{ progress[0] }} / {{ progress[1] }}）。このページは自動で更新されます。</p>
 {% elif not error %}<p class="empty">{% if query %}該当する記事がありません。検索語を変えてみてください。{% else %}記事がまだありません。<code>articles</code> フォルダの下にサイト名のフォルダを作ってHTMLを入れるか、自動取得の実行を待ってください。{% endif %}</p>{% endif %}
 {% endblock %}

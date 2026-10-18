@@ -5,7 +5,7 @@ import unittest
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
-from newsreader.web import app as app_module
+from newsreader.web import create_app
 from newsreader.library import index as library
 from test_extractor import CNA, NAVER, NORMAL
 
@@ -19,10 +19,9 @@ class LibraryAppTests(unittest.TestCase):
             (self.root / site / name).write_bytes(data)
         (self.root / "BBC" / "notes.txt").write_text("not html")
         self.db = self.tmp / "library.sqlite3"
-        app_module.DEFAULT_DIRECTORY = self.root
-        app_module.LIBRARY_DB = self.db
         library._last_sync.clear()
-        self.client = app_module.app.test_client()
+        # Phase 4: the app is built per test (no module globals); pages read the index only.
+        self.client = create_app(self.root, self.db, start_background=False, secret_key=b"k" * 32).test_client()
 
     def tearDown(self):
         shutil.rmtree(self.tmp, ignore_errors=True)
@@ -36,6 +35,7 @@ class LibraryAppTests(unittest.TestCase):
         self.assertEqual(library.sync(self.root, self.db, force=True)["removed"], 1)
 
     def test_home_lists_sources_and_filters(self):
+        library.sync(self.root, self.db, force=True)  # Phase 4 (D-04): indexing happens off the request path
         page = self.client.get("/", headers={"Host": "localhost"})
         self.assertEqual(page.status_code, 200)
         html = page.get_data(as_text=True)

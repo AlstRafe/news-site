@@ -5,7 +5,8 @@ import unittest
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
-from newsreader.web import app as app_module
+from newsreader.sources import extract_article
+from newsreader.web import create_app
 from newsreader.collect import runner as collector
 from newsreader.library import index as library
 from newsreader.services import cache as local_cache
@@ -83,11 +84,10 @@ class BilingualEndpointTests(FakeProviderMixin, unittest.TestCase):
         (self.root / "CNA").mkdir(parents=True)
         (self.root / "CNA" / "c.html").write_bytes(CNA)
         self.db = self.tmp / "library.sqlite3"
-        app_module.DEFAULT_DIRECTORY, app_module.LIBRARY_DB = self.root, self.db
         library._last_sync.clear()
         library.sync(self.root, self.db, force=True)
         self.rid = library.find_by_file(self.db, "CNA", "c.html")["id"]
-        self.client = app_module.app.test_client()
+        self.client = create_app(self.root, self.db, start_background=False, secret_key=b"k" * 32).test_client()
         with self.client.session_transaction() as s:
             s["csrf"] = "tok"
         self.hdr = {"Host": "localhost", "X-CSRF-Token": "tok"}
@@ -99,7 +99,7 @@ class BilingualEndpointTests(FakeProviderMixin, unittest.TestCase):
         r = self.client.post("/api/translate-paragraphs", json={"id": self.rid, "target": "ja"}, headers=self.hdr)
         self.assertEqual(r.status_code, 200)
         body = r.get_json()
-        article = app_module.extract_article((self.root / "CNA" / "c.html").read_bytes())
+        article = extract_article((self.root / "CNA" / "c.html").read_bytes())
         self.assertEqual(len(body["paragraphs"]), len(article["paragraphs"]))
         self.assertEqual(body["title"], "T:" + article["title"])
         self.assertEqual(body["paragraphs"][0], "T:" + article["paragraphs"][0])

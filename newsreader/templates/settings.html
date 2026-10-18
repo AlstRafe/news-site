@@ -1,8 +1,7 @@
-<!doctype html>
-<html lang="ja"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>アプリ設定 | News HTML Reader</title><link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}"></head>
-<body><header class="topbar"><div class="wrap brand"><span class="mark">N</span><span>News HTML Reader <small>ローカルHTML本文抽出</small></span><a class="settings-nav" href="{{ url_for('index') }}">記事一覧</a><span class="tag">LOCAL</span></div></header>
-<main class="wrap settings-page"><a class="back" href="{{ url_for('index') }}">← 記事一覧へ戻る</a>
+{% extends "base.html" %}
+{% block head %}<title>アプリ設定 | News HTML Reader</title>{% endblock %}
+{% block main_class %} settings-page{% endblock %}
+{% block content %}<a class="back" href="{{ url_for('index') }}">← 記事一覧へ戻る</a>
 <div class="eyebrow">APPLICATION SETTINGS</div><h1>アプリ設定</h1>
 <p class="lead">この画面からAPIキーや接続先をいつでも変更できます。APIキーは画面に再表示せず、このPCのWindows資格情報ストアに保存します。キー欄を空欄にすると現在の登録内容を維持します。</p>
 {% if first_run %}<div class="success" role="status"><strong>初回設定です。</strong> このPCのAPIキーはこの画面から登録してください。設定はこのPCに保存され、次回以降、起動時に初回案内は表示されません。あとから変更する場合も、記事一覧の「設定」からこの画面を開けます。</div>{% endif %}
@@ -36,7 +35,7 @@
 <section class="panel settings-panel usage-panel"><div class="step">MONTHLY USAGE</div><h2>{{ usage.month }} の翻訳利用量</h2>
 <p>このアプリから翻訳サービスへ送信した分の記録です。キャッシュから返した翻訳は含みません。他のアプリやAzureリソース利用者の使用量、請求画面の合計とは異なる場合があります。</p>
 <div class="usage-grid">
-<article><h3>Azure Translator</h3><p><strong>{{ "{:,}".format(usage.providers.azure.metered_chars) }}</strong> 文字（API計上値の記録）</p><p class="hint">送信文字数の推定: {{ "{:,}".format(usage.providers.azure.source_chars) }} · API要求 {{ usage.providers.azure.requests }} 回 · F0目安 2,000,000文字/月</p><div class="usage-meter" role="progressbar" aria-label="Azure F0の月間無料枠に対するアプリ内使用量" aria-valuemin="0" aria-valuemax="2000000" aria-valuenow="{{ [usage.providers.azure.metered_chars, 2000000]|min }}"><span style="width:{{ [usage.providers.azure.metered_chars / 2000000 * 100, 100]|min }}%"></span></div></article>
+<article><h3>Azure Translator</h3><p><strong>{{ "{:,}".format(usage.providers.azure.metered_chars) }}</strong> 文字（API計上値の記録）</p><p class="hint">送信文字数の推定: {{ "{:,}".format(usage.providers.azure.source_chars) }} · API要求 {{ usage.providers.azure.requests }} 回 · F0目安 2,000,000文字/月</p><progress class="usage-meter" max="{{ azure_free_limit }}" value="{{ azure_used }}" aria-label="Azure F0の月間無料枠に対するアプリ内使用量">{{ azure_used }} / {{ azure_free_limit }}</progress></article>
 <article><h3>DeepL API</h3><p><strong>{{ "{:,}".format(usage.providers.deepl.source_chars) }}</strong> 文字（送信文字数の推定）</p><p class="hint">API要求 {{ usage.providers.deepl.requests }} 回 · 契約プランの上限はDeepL管理画面で確認してください。</p></article>
 </div><p class="hint">月間の区切りはこのPCのローカル時刻の暦月です。Azureの応答に計上文字数がある場合はその値を記録し、ない場合は送信文字数を使います。DeepLの正確な請求量はDeepL管理画面を参照してください。</p>
 </section>
@@ -51,4 +50,4 @@
 <p class="hint">選択範囲または全文の本文は選択中の翻訳サービスへ送信されます。翻訳結果はローカルキャッシュに保存されます。Azureの英語指定は一般英語（en）です。English UKを明示する場合はDeepLを選んでください。eSpeak NGの英国英語IPAはこのPC内で生成します。中国語は教育部辞典の公開検索・項目ページを照会し、注音と語義を表示します。これは公式JSON APIではなくHTML検索ページを読み取る方式です。</p>
 <p><a href="https://dict.revised.moe.edu.tw/index.jsp" target="_blank" rel="noopener noreferrer">教育部《重編國語辭典修訂本》 ↗</a> · <a href="https://stdict.korean.go.kr/" target="_blank" rel="noopener noreferrer">標準国語大辞典 ↗</a></p>
 </section></form>
-</main></body></html>
+{% endblock %}

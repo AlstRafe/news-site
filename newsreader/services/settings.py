@@ -10,6 +10,7 @@ import keyring
 from keyring.errors import PasswordDeleteError
 
 from newsreader import paths
+from newsreader.netpolicy import is_allowed_bind_address
 
 SETTINGS_PATH = paths.SETTINGS_PATH
 SERVICE_NAME = "NewsHtmlReader"
@@ -67,8 +68,7 @@ def validate_bind_host(host: str) -> str:
         address = ipaddress.ip_address(host)
     except ValueError as exc:
         raise ValueError("待受けIPにはIPアドレスを入力してください。") from exc
-    tailscale_range = ipaddress.ip_network("100.64.0.0/10")
-    if address.version != 4 or not (address.is_loopback or address.is_private or address in tailscale_range):
+    if address.version != 4 or not is_allowed_bind_address(address):
         raise ValueError("待受けIPにはloopback、private IPv4、またはTailscale IPv4を指定してください。")
     return str(address)
 

@@ -40,3 +40,9 @@
 .reading p.bi-tr{font-size:15px;line-height:1.95;color:#3c4048;background:#f8f4f4;border-left:3px solid #b51d24;border-radius:0 8px 8px 0;padding:10px 14px;margin:0 0 28px}
 .reading p.bi-tr:last-child{margin-bottom:0}
 @media(max-width:650px){.reading p.bi-tr{font-size:14.5px;padding:9px 12px}}
+
+/* ---- Phase 4: navigation, usage meter as <progress> (no inline style attributes under CSP) ---- */
+.topnav{margin-left:auto;display:flex;align-items:center;gap:16px}.topnav a{font-size:13px;font-weight:700;color:#a41b22;text-decoration:none;white-space:nowrap}.topnav a:hover,.topnav a[aria-current="page"]{text-decoration:underline}.topnav .settings-nav{margin-left:0}
+progress.usage-meter{display:block;width:100%;height:9px;border:0;-webkit-appearance:none;appearance:none;background:#e7e9ed;border-radius:99px;overflow:hidden;margin-top:14px;color:#438b55}
+progress.usage-meter::-webkit-progress-bar{background:#e7e9ed;border-radius:99px}progress.usage-meter::-webkit-progress-value{background:#438b55;border-radius:99px}progress.usage-meter::-moz-progress-bar{background:#438b55;border-radius:99px}
+@media(max-width:650px){.topnav{gap:12px}.topnav a{font-size:12px}}

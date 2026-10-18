@@ -58,8 +58,14 @@ def validate_bind_host(value: str) -> str:
         address = ipaddress.ip_address(value.strip())
     except ValueError as exc:
         raise ValueError("待受けIPはIPv4アドレスで指定してください。") from exc
+    # Same rule as newsreader/netpolicy.py (kept inline: the launcher runs before the app's
+    # dependencies exist). ipaddress calls 0.0.0.0 "private", but binding to it listens on
+    # every interface including public ones, so unspecified/reserved/multicast are refused.
+    # tests/test_web.py checks that this copy and netpolicy agree.
     tailscale_range = ipaddress.ip_network("100.64.0.0/10")
-    if address.version != 4 or not (address.is_loopback or address.is_private or address in tailscale_range):
+    if (address.version != 4 or address.is_unspecified or address.is_multicast or address.is_reserved
+            or address in ipaddress.ip_network("0.0.0.0/8")
+            or not (address.is_loopback or address.is_private or address in tailscale_range)):
         raise ValueError("待受けIPにはloopback、private IPv4、またはTailscale IPv4を指定してください。")
     return str(address)
 
