@@ -86,11 +86,16 @@ def main() -> int:
 
 def _record_web_status(app, host: str, port: int) -> None:
     """Where this server listens and what it serves, for /status and for whoever maintains the PC."""
+    from pathlib import Path
+
     from newsreader.library import status
+    target = app.config.get("STATUS_PATH")
+    if not isinstance(target, Path):  # a stand-in app (tests) has nowhere real to write
+        return
     where = f"[{host}]" if ipaddress.ip_address(host).version == 6 else host
     try:
         status.update("web", {"url": f"http://{where}:{port}/", "started": status.now_iso(), "pid": os.getpid(),
                               "version": paths.deployed_version(), "library": str(app.config["LIBRARY_ROOT"]),
-                              "project": str(paths.PROJECT_ROOT)}, path=app.config["STATUS_PATH"])
+                              "project": str(paths.PROJECT_ROOT)}, path=target)
     except OSError:
         pass
