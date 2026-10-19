@@ -540,3 +540,14 @@ h1 .story-gloss{font-size:clamp(16px,2.4vw,20px);font-weight:600;margin-top:6px;
 .senses p{margin:3px 0;font-size:14px;line-height:1.6;color:var(--fg-202124);}
 .senses .pos{display:inline-block;min-width:3.2em;margin-right:8px;padding:0 6px;border-radius:5px;background:var(--bg-faebeb);color:var(--fg-a41b22);font-size:11px;font-weight:700;text-align:center;}
 .senses .senses-source{margin-top:4px;font-size:10px;color:var(--fg-878b93);}
+/* End of an article: the next (older) and previous (newer) article of the same outlet */
+.next-articles{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin:28px 0 0;}
+.next-card{display:flex;flex-direction:column;gap:4px;background:var(--bg-ffffff);border:1px solid var(--line-e3e6ec);border-radius:12px;padding:14px 16px;text-decoration:none;color:inherit;}
+.next-card:hover{border-color:var(--line-b51d24);}
+.article .next-card{color:var(--fg-202124);}
+.next-card.newer{order:-1;}
+.next-card .next-label{font-size:12px;font-weight:700;color:var(--fg-a41b22);}
+.next-card strong{font-size:15px;line-height:1.5;overflow-wrap:anywhere;display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden;}
+.next-card .story-time{font-size:11px;color:var(--fg-878b93);}
+.next-card:only-child{grid-column:1/-1;}
+@media(max-width:650px){.next-articles{grid-template-columns:1fr;gap:10px;margin-top:20px;}.next-card.newer{order:0;}}

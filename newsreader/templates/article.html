@@ -38,6 +38,10 @@
 {% if related %}<section class="related" aria-labelledby="related-head"><h2 id="related-head">同じニュースの他の記事</h2>
 <ul class="story-members">{% for m in related.members[:8] %}<li><a href="{{ url_for('show_article', article_id=m.id) }}"><span class="badge">{{ m.source or '未分類' }}</span><span class="story-title" data-gloss-id="{{ m.id }}">{{ m.title }}</span><span class="story-time">{{ m.published|localtime }}</span></a></li>{% endfor %}</ul>
 <a class="story-more" href="{{ url_for('story_page', key=related.key) }}">媒体ごとに並べて読む →</a></section>{% endif %}
+{% if neighbours.older or neighbours.newer %}<nav class="next-articles" aria-label="{{ record.source or '同じ一覧' }}の前後の記事">
+{% if neighbours.older %}<a class="next-card" href="{{ url_for('show_article', article_id=neighbours.older.id) }}" rel="next"><span class="next-label">次の記事 →</span><strong>{{ neighbours.older.title }}</strong>{% if neighbours.older.published %}<span class="story-time">{{ neighbours.older.published|localtime }}</span>{% endif %}</a>{% endif %}
+{% if neighbours.newer %}<a class="next-card newer" href="{{ url_for('show_article', article_id=neighbours.newer.id) }}" rel="prev"><span class="next-label">← 前の記事（新しい）</span><strong>{{ neighbours.newer.title }}</strong>{% if neighbours.newer.published %}<span class="story-time">{{ neighbours.newer.published|localtime }}</span>{% endif %}</a>{% endif %}
+</nav>{% endif %}
 <nav class="article-end" aria-label="記事の終わり"><a class="back" href="{{ url_for('index', source=record.source or None) }}">← {{ record.source or '記事' }}の一覧へ戻る</a><a class="to-top" href="#top">▲ 上へ</a></nav>
 <p class="hint endnote">単語をタップ（クリック）すると単語を、文章を選ぶとその範囲をすぐに翻訳します。翻訳時はその文章が設定中の翻訳サービスに送信されます。翻訳結果はこのPC内にキャッシュされます。</p>
 {% endblock %}

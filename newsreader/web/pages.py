@@ -122,7 +122,7 @@ def show_article(article_id: int):
     from newsreader.library import stories
     response = current_app.make_response(render_template(
         "article.html", article=article, record=record, article_id=article_id, csrf=csrf_token(),
-        related=stories.related(db_path(), article_id),
+        related=stories.related(db_path(), article_id), neighbours=index.neighbours(db_path(), article_id),
         translation_provider=get_settings()["provider"],
     ))
     response.headers["Cache-Control"] = CACHE_PAGE

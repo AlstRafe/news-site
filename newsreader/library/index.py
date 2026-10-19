@@ -457,6 +457,11 @@ def _like(text: str) -> str:
     return "%" + text.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_") + "%"
 
 
+#: The order of the article lists (newest first; undated articles last, by file time). The id
+#: only settles exact ties so that "next article" below follows the list exactly.
+_LIST_ORDER = "CASE WHEN published = '' THEN 1 ELSE 0 END, published DESC, mtime DESC, id DESC"
+
+
 def list_articles(db_path: Path, source: str = "", query: str = "", page: int = 1, per_page: int = 24) -> dict:
     """Newest first. Articles without a parsed date fall back to file time. Never loads bodies."""
     where, params = ["error = ''"], []
@@ -473,12 +478,29 @@ def list_articles(db_path: Path, source: str = "", query: str = "", page: int = 
         total = db.execute(f"SELECT COUNT(*) FROM articles WHERE {clause}", params).fetchone()[0]
         rows = db.execute(
             f"""SELECT {_LIST_COLUMNS} FROM articles WHERE {clause}
-                ORDER BY CASE WHEN published = '' THEN 1 ELSE 0 END, published DESC, mtime DESC
+                ORDER BY {_LIST_ORDER}
                 LIMIT ? OFFSET ?""",
             params + [per_page, (page - 1) * per_page],
         ).fetchall()
     return {"items": [dict(r) for r in rows], "total": total, "page": page,
             "pages": max(1, -(-total // per_page))}
+
+
+def neighbours(db_path: Path, article_id: int) -> dict:
+    """The articles just before ("newer") and after ("older") this one in its outlet's list."""
+    with closing(connect(db_path)) as db:
+        row = db.execute("SELECT source FROM articles WHERE id = ?", (article_id,)).fetchone()
+        if row is None:
+            return {"newer": None, "older": None}
+        ids = [r[0] for r in db.execute(
+            f"SELECT id FROM articles WHERE error = '' AND source = ? ORDER BY {_LIST_ORDER}", (row["source"],))]
+        if article_id not in ids:
+            return {"newer": None, "older": None}
+        at = ids.index(article_id)
+        wanted = {"newer": ids[at - 1] if at > 0 else None, "older": ids[at + 1] if at + 1 < len(ids) else None}
+        found = {r["id"]: dict(r) for r in db.execute(
+            f"SELECT {_LIST_COLUMNS} FROM articles WHERE id IN (?, ?)", (wanted["newer"] or 0, wanted["older"] or 0))}
+    return {side: found.get(i) if i else None for side, i in wanted.items()}
 
 
 def get(db_path: Path, article_id: int) -> dict | None:
