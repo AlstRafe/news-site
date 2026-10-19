@@ -77,8 +77,16 @@ def summary(categories: list[dict]) -> list[dict]:
     return out
 
 
+#: Bumped when the comparison itself changes, so every group is compared again (D-68: 24 hours).
+FACTS_VERSION = "2"
+
+
 def _signature(members: list[dict]) -> str:
-    return ",".join(str(i) for i in sorted(m["id"] for m in members))
+    return _ids_signature(m["id"] for m in members)
+
+
+def _ids_signature(ids) -> str:
+    return f"v{FACTS_VERSION}:" + ",".join(str(i) for i in sorted(ids))
 
 
 def store(db_path: Path, key: str, members: list[dict], categories: list[dict]) -> None:
@@ -142,7 +150,7 @@ def disputed(db_path: Path, keys: list[str]) -> dict[str, list[dict]]:
             ids = sorted(r[0] for r in db.execute("SELECT m.article_id FROM story_members m JOIN articles a ON a.id = m.article_id "
                                                    "WHERE m.story_key = ? AND a.error = '' ORDER BY a.published DESC LIMIT ?",
                                                    (key, MAX_MEMBERS)))
-            current[key] = ",".join(str(i) for i in ids)
+            current[key] = _ids_signature(ids)
     out = {}
     for key, members, raw in rows:
         if current.get(key) != members:

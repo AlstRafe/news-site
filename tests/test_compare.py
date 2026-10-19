@@ -57,6 +57,12 @@ class FactExtractionTests(unittest.TestCase):
         same = compare.compare([dict(m, english="Strike kills 50.") for m in members[:2]])
         self.assertFalse(same[0]["differs"])
 
+    def test_reports_days_apart_are_not_a_disagreement(self):
+        members = [{"id": 1, "source": "BBC", "published": "2026-10-16T00:31:00Z", "english": "Attack kills five."},
+                   {"id": 2, "source": "CNA", "published": "2026-10-18T17:57:00Z", "english": "Crash kills 2 officers."}]
+        dead = compare.compare(members)[0]
+        self.assertFalse(dead["differs"])
+
     def test_a_kind_one_outlet_reports_is_left_out(self):
         members = [{"id": 1, "source": "BBC", "published": "", "english": "50 dead."},
                    {"id": 2, "source": "BBC", "published": "", "english": "52 dead."},

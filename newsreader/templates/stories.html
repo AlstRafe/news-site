@@ -2,7 +2,7 @@
 {% block head %}<title>読み比べ | {{ app_name }}</title>{% endblock %}
 {% block main_class %} stories-page{% endblock %}
 {% block content %}
-<div class="list-head"><h1>同じニュースの読み比べ</h1><span class="count">{{ result.total }} 件</span><a class="list-head-link" href="{{ url_for('outlets_page') }}">媒体くらべ →</a></div>
+<div class="list-head"><h1>同じニュースの読み比べ</h1><span class="count">{{ result.total }} 件</span><a class="list-head-link" href="{{ url_for('digest_page') }}">今日の読み比べ →</a><a class="list-head-link" href="{{ url_for('outlets_page') }}">媒体くらべ →</a></div>
 <form class="searchbar" method="get" action="{{ url_for('stories_page') }}" role="search">
 {% if result.scope in ('all', 'disputes') %}<input type="hidden" name="scope" value="{{ result.scope }}">{% endif %}
 <input type="search" name="q" value="{{ result.query }}" placeholder="グループを検索（日本語も可）" aria-label="読み比べを検索" maxlength="100">

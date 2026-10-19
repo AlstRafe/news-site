@@ -84,6 +84,34 @@ def stories_page():
     return response
 
 
+@routes.get("/digest", "digest_page")
+def digest_page():
+    """今日の読み比べ (D-68): the last 24 hours across outlets and languages on one page — the news
+    several outlets reported (who first, how much later, disagreements on counts) and each
+    outlet's own news. Nothing is translated here; the headlines can be glossed on the page."""
+    from datetime import datetime, timedelta, timezone
+    from newsreader.library import facts_watch, outlets
+    try:
+        hours = min(72, max(6, int(request.args.get("hours", "24"))))
+    except ValueError:
+        hours = 24
+    since = (datetime.now(timezone.utc) - timedelta(hours=hours)).strftime("%Y-%m-%dT%H:%M:%SZ")
+    groups = [g for g in stories.list_stories(db_path(), scope="multi", per_page=60)["stories"] if (g["newest"] or "") >= since]
+    disputes = facts_watch.disputed(db_path(), [g["key"] for g in groups])
+    for group in groups:
+        group["disputes"] = disputes.get(group["key"], [])
+        firsts: dict[str, dict] = {}
+        for member in sorted(group["members"], key=lambda m: m["published"] or ""):
+            firsts.setdefault(member["source"] or "未分類", member)
+        group["firsts"] = sorted(firsts.values(), key=lambda m: m["published"] or "")
+    groups.sort(key=lambda g: g["newest"] or "", reverse=True)
+    groups.sort(key=lambda g: (-len(g["firsts"]), not g["disputes"]))  # stable: newest first within
+    stats = outlets.stats(db_path(), days=max(1, hours // 24))
+    response = current_app.make_response(render_template("digest.html", groups=groups, stats=stats, hours=hours))
+    response.headers["Cache-Control"] = "no-cache"
+    return response
+
+
 @routes.get("/outlets", "outlets_page")
 def outlets_page():
     """媒体くらべ (D-62): the outlets side by side over the last days."""

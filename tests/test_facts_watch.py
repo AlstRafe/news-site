@@ -133,6 +133,16 @@ class FactsWatchTests(unittest.TestCase):
         self.assertIn('class="article-dispute" href="/stories/s1#facts"', page)
         self.assertNotIn("article-dispute", other)
 
+    def test_digest_page(self):
+        facts_watch.refresh(self.db)
+        client = create_app(self.tmp / "articles", self.db, start_background=False, secret_key=b"f" * 32).test_client()
+        page = client.get("/digest", headers=H).get_data(as_text=True)
+        self.assertIn("今日の読み比べ", page)
+        self.assertLess(page.index("/stories/s1"), page.index("/stories/s3"))  # the disagreement first
+        self.assertIn('<span class="lag first">最初</span>', page)
+        self.assertIn("死者の数字が違う", page)
+        self.assertEqual(client.get("/digest?hours=x", headers=H).status_code, 200)
+
     def test_summary_keeps_compared_counts_only(self):
         facts_watch.refresh(self.db, self.to_english)
         with closing(index.connect(self.db)) as db:

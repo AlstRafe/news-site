@@ -264,6 +264,18 @@ def native_facts(text: str, lang: str) -> list[Fact]:
     return found
 
 
+#: Reports further apart than this are not called a disagreement (D-68).
+DISPUTE_HOURS = 24
+
+
+def _moment(stamp: str):
+    from datetime import datetime
+    try:
+        return datetime.strptime(stamp, "%Y-%m-%dT%H:%M:%SZ")
+    except (TypeError, ValueError):
+        return None
+
+
 def compare(members: list[dict]) -> list[dict]:
     """Group the facts of several articles by kind. ``members``: dicts with id, source, published,
     and ``english`` (headline + opening in English). Returns, in ORDER:
@@ -295,14 +307,16 @@ def compare(members: list[dict]) -> list[dict]:
         rows.sort(key=lambda r: (r["published"] or "", r["id"]))
         differs = False
         if kind in COMPARED:
-            # each outlet's largest exact figure; outlets that disagree on it are flagged
-            tops = {}
+            # Two outlets whose reports came out within DISPUTE_HOURS of each other give different
+            # largest figures. Reports days apart are more likely an update — or another event.
+            tops = []
             for row in rows:
                 values = [f["value"] for f in row["facts"] if f["value"] is not None]
-                if values:
-                    tops.setdefault(row["source"], set()).add(max(values))
-            distinct = {v for values in tops.values() for v in values}
-            differs = len(tops) >= 2 and len(distinct) > 1
+                moment = _moment(row["published"])
+                if values and moment:
+                    tops.append((row["source"], moment, max(values)))
+            differs = any(a[0] != b[0] and a[2] != b[2] and abs((a[1] - b[1]).total_seconds()) <= DISPUTE_HOURS * 3600
+                          for i, a in enumerate(tops) for b in tops[i + 1:])
         out.append({"kind": kind, "label": LABELS[kind], "compared": kind in COMPARED, "differs": differs,
                     "rows": rows})
     return out
