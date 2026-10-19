@@ -63,6 +63,7 @@ def create_app(library_root: Path | str | None = None, db_path: Path | str | Non
     from newsreader.services.settings import get_settings
     app.jinja_env.globals.update(app_name=branding.APP_NAME, app_name_ja=branding.APP_NAME_JA,
                                  app_tagline=branding.APP_TAGLINE)
+    app.add_template_filter(branding.source_language, "src_lang")
 
     @app.context_processor
     def _translation_targets():

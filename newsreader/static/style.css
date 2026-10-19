@@ -3,6 +3,12 @@
    Edit colours here, not as literals in rules: verify/tools/check_theme.py rejects literals. */
 :root {
   color-scheme: light dark;
+  --lang-en-bg: #e8eefb;
+  --lang-en-fg: #284e9c;
+  --lang-zh-bg: #e2f3eb;
+  --lang-zh-fg: #1d6a4b;
+  --lang-ko-bg: #efe9fb;
+  --lang-ko-fg: #5a389e;
   --bg-3f9a5a: #3f9a5a;
   --bg-438b55: #438b55;
   --bg-5867ba: #5867ba;
@@ -86,6 +92,12 @@
 :root[data-theme="light"] { color-scheme: light; }
 @media (prefers-color-scheme: dark) {
 :root:not([data-theme="light"]) {
+  --lang-en-bg: #1e2a44;
+  --lang-en-fg: #a3bdff;
+  --lang-zh-bg: #163128;
+  --lang-zh-fg: #84d6b0;
+  --lang-ko-bg: #2a2142;
+  --lang-ko-fg: #c6aeff;
   --bg-3f9a5a: #3a8e53;
   --bg-438b55: #3e804e;
   --bg-5867ba: #4a5ab2;
@@ -169,6 +181,12 @@
 }
 :root[data-theme="dark"] {
   color-scheme: dark;
+  --lang-en-bg: #1e2a44;
+  --lang-en-fg: #a3bdff;
+  --lang-zh-bg: #163128;
+  --lang-zh-fg: #84d6b0;
+  --lang-ko-bg: #2a2142;
+  --lang-ko-fg: #c6aeff;
   --bg-3f9a5a: #3a8e53;
   --bg-438b55: #3e804e;
   --bg-5867ba: #4a5ab2;
@@ -369,7 +387,7 @@ html{-webkit-text-size-adjust:100%;text-size-adjust:100%;}
 .related h2{font-size:16px;margin:0 0 6px;}
 .card-meta{flex-wrap:wrap;row-gap:4px;}.card-meta>span{white-space:nowrap;}
 .story-chip{margin-left:auto;font-size:10px;font-weight:800;color:var(--fg-a31b23);white-space:nowrap;}
-@media(max-width:430px){.brand-link>span:last-child{display:none;}}
+@media(max-width:430px){.brand-link small{display:none;}}
 .related-jump{font-weight:700;text-decoration:none;white-space:nowrap;}
 .check-row{display:flex;align-items:center;gap:10px;font-weight:600;margin:6px 0 16px;}
 .check-row input{flex:none;width:20px;height:20px;margin:0;}
@@ -580,3 +598,23 @@ h1 .story-gloss{font-size:clamp(16px,2.4vw,20px);font-weight:600;margin-top:6px;
 .cmp-full{font-size:12px;font-weight:700;text-decoration:none;color:var(--fg-a41b22);}
 /* The hidden attribute always wins over a component display rule. */
 [hidden]{display:none!important;}
+/* Outlet badges coloured by language (English / 繁體中文 / 한국어): the same colour in lists,
+   groups and comparisons, so the language of a headline is seen before it is read. */
+.badge[data-lang="en"]{background:var(--lang-en-bg);color:var(--lang-en-fg);}
+.badge[data-lang="zh"]{background:var(--lang-zh-bg);color:var(--lang-zh-fg);}
+.badge[data-lang="ko"]{background:var(--lang-ko-bg);color:var(--lang-ko-fg);}
+/* Brand mark: a bridge between languages */
+.mark svg{width:26px;height:26px;color:var(--fg-ffffff);}
+/* Phones: the main menu moves to a tab bar at the bottom, within reach of the thumb; the header
+   keeps the name, the collection status and the theme switch. */
+.tabbar{display:none;}
+@media(max-width:650px){
+ .topnav .nav-text{display:none;}
+ .tabbar{display:grid;grid-template-columns:repeat(4,1fr);position:fixed;z-index:18;left:0;right:0;bottom:0;padding:0 6px env(safe-area-inset-bottom);background:var(--bg-ffffff);border-top:1px solid var(--line-e6e7ec);box-shadow:0 -4px 18px var(--shadow-2021242e);}
+ .tabbar a{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;min-height:56px;font-size:10.5px;font-weight:700;color:var(--fg-777777);text-decoration:none;}
+ .tabbar svg{width:23px;height:23px;}
+ .tabbar a[aria-current="page"]{color:var(--fg-a41b22);}
+ main{padding-bottom:calc(96px + env(safe-area-inset-bottom))!important;}
+ .bi-float{bottom:calc(70px + env(safe-area-inset-bottom));}
+ body.tr-sheet-open .tabbar{display:none;}
+}

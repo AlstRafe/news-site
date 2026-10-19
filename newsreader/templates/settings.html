@@ -2,13 +2,42 @@
 {% block head %}<title>アプリ設定 | {{ app_name }}</title>{% endblock %}
 {% block main_class %} settings-page{% endblock %}
 {% block content %}<a class="back" href="{{ url_for('index') }}">← 記事一覧へ戻る</a>
-<div class="eyebrow">APPLICATION SETTINGS</div><h1>アプリ設定</h1>
+<h1>アプリ設定</h1>
 <p class="lead">この画面からAPIキーや接続先をいつでも変更できます。APIキーは画面に再表示せず、このPCのWindows資格情報ストアに保存します。キー欄を空欄にすると現在の登録内容を維持します。</p>
 {% if first_run %}<div class="success" role="status"><strong>初回設定です。</strong> このPCのAPIキーはこの画面から登録してください。設定はこのPCに保存され、次回以降、起動時に初回案内は表示されません。あとから変更する場合も、記事一覧の「設定」からこの画面を開けます。</div>{% endif %}
 {% if message %}<div class="success" role="status">{{ message }}</div>{% endif %}{% if error %}<div class="alert" role="alert">{{ error }}</div>{% endif %}{% if secret_store_error %}<div class="alert" role="alert">{{ secret_store_error }}</div>{% endif %}
 <form method="post" action="{{ url_for('translation_settings') }}" autocomplete="off">
 <input type="hidden" name="csrf" value="{{ csrf }}">
-<section class="panel settings-panel"><div class="step">00 · CONNECTION</div><h2>接続先</h2>
+<section class="panel settings-panel"><h2>翻訳サービス（Azure Translator）</h2>
+<p>本文・見出し・単語の翻訳と英単語の辞書に Azure Translator を使います。キーはこのPCの資格情報ストアに保存され、配布ZIPには含まれません。</p>
+<div class="credential-row"><div><label for="azure_api_key">Azure Translatorキー <span class="configured">{% if secrets.azure_api_key %}設定済み{% else %}未設定{% endif %}</span></label><input id="azure_api_key" name="azure_api_key" type="password" autocomplete="new-password" placeholder="設定済みの場合は空欄のままで構いません"><a href="https://portal.azure.com/" target="_blank" rel="noopener noreferrer">Azure Portal ↗</a></div><label class="remove-key"><input type="checkbox" name="remove_azure_api_key" value="1"> Azureキーを削除</label></div>
+<label for="azure_region">Azure Translatorリソースのリージョン（地域リソースの場合）</label><input id="azure_region" name="azure_region" type="text" maxlength="80" value="{{ settings.azure_region }}" placeholder="例: japaneast"><p class="hint">Azure PortalのKeys and Endpointに表示される値を入力します。単一サービスのGlobalリソースでは空欄で構いません。F0（無料）リソースを選んでください。</p>
+<button type="submit">翻訳設定を保存</button>
+</section>
+<section class="panel settings-panel" id="stories-settings"><h2>読み比べ（同じニュースのまとめ）</h2>
+<p>BBC・NAVER・CNA の記事から同じニュースを探してまとめます。英語以外の見出しは、上で選んだ翻訳サービスで<strong>見出しだけ</strong>英訳して照合します（本文は送信しません）。英訳は1回きりで保存され、同じ見出しを再送信することはありません。</p>
+<label class="check-row"><input type="checkbox" name="stories_enabled" value="1" {% if story_settings.stories_enabled %}checked{% endif %}> 英語以外の見出しを英訳して照合する</label>
+<label for="stories_daily_chars">見出し英訳の1日の上限（文字）</label><input id="stories_daily_chars" name="stories_daily_chars" type="text" inputmode="numeric" maxlength="7" value="{{ story_settings.stories_daily_chars }}" required>
+<p class="hint">{{ "{:,}".format(story_range[0]) }}〜{{ "{:,}".format(story_range[1]) }}文字。見出しは1本あたり20〜60文字程度なので、既定の8,000文字で1日150本前後を英訳できます。上限に達した見出しは翌日に回り、英語の見出しはこの設定に関係なく照合されます。オフにした場合も、英訳済みの見出しはそのまま使います。</p>
+<button type="submit">設定を保存</button>
+</section>
+<section class="panel settings-panel usage-panel"><h2>{{ usage.month }} の翻訳利用量</h2>
+<p>このアプリから翻訳サービスへ送信した分の記録です。キャッシュから返した翻訳は含みません。他のアプリやAzureリソース利用者の使用量、請求画面の合計とは異なる場合があります。</p>
+<div class="usage-grid">
+<article><h3>Azure Translator</h3><p><strong>{{ "{:,}".format(usage.providers.azure.metered_chars) }}</strong> 文字（API計上値の記録）</p><p class="hint">送信文字数の推定: {{ "{:,}".format(usage.providers.azure.source_chars) }} · API要求 {{ usage.providers.azure.requests }} 回 · F0目安 2,000,000文字/月</p><progress class="usage-meter" max="{{ azure_free_limit }}" value="{{ azure_used }}" aria-label="Azure F0の月間無料枠に対するアプリ内使用量">{{ azure_used }} / {{ azure_free_limit }}</progress></article>
+</div><p class="hint">月間の区切りはこのPCのローカル時刻の暦月です。Azureの応答に計上文字数がある場合はその値を記録し、ない場合は送信文字数を使います。</p>
+</section>
+<section class="panel settings-panel"><h2>料金・上限</h2>
+<div class="provider-notes"><article><h3>Azure Translator</h3><p>F0には毎月200万文字の無料枠があります。上限を超えた場合はF0でエラーとなり、自動で有料のS1に切り替わりません。AzureアカウントとTranslatorリソースの作成が必要です。英単語をタップしたときは、品詞ごとの意味も同じリソースの辞書機能で表示します（送るのはその語だけ。一度引いた語は再送信しません）。</p><a href="https://azure.microsoft.com/en-us/pricing/details/translator/" target="_blank" rel="noopener noreferrer">Azure Translator料金 ↗</a> · <a href="https://learn.microsoft.com/en-us/azure/ai-services/translator/language-support" target="_blank" rel="noopener noreferrer">対応言語 ↗</a></article>
+<p class="hint">選択範囲または全文の本文は選択中の翻訳サービスへ送信されます。翻訳結果はローカルキャッシュに保存されます。英語への翻訳は一般英語（en）です。eSpeak NGの英国英語IPAはこのPC内で生成します。中国語は教育部辞典の公開検索・項目ページを照会し、注音と語義を表示します。これは公式JSON APIではなくHTML検索ページを読み取る方式です。</p>
+<p><a href="https://dict.revised.moe.edu.tw/index.jsp" target="_blank" rel="noopener noreferrer">教育部《重編國語辭典修訂本》 ↗</a> · <a href="https://stdict.korean.go.kr/" target="_blank" rel="noopener noreferrer">標準国語大辞典 ↗</a></p>
+</section>
+<section class="panel settings-panel"><h2>韓国語の漢字語辞書</h2>
+<p>国立国語院「標準国語大辞典」APIから漢字表記と語義を取得します。無料の利用申請が必要です。キーなしでも翻訳は使えますが、漢字語情報は表示されません。</p>
+<div class="credential-row"><div><label for="stdict_api_key">国立国語院 Open APIキー <span class="configured">{% if secrets.stdict_api_key %}設定済み{% else %}未設定{% endif %}</span></label><input id="stdict_api_key" name="stdict_api_key" type="password" autocomplete="new-password" placeholder="設定済みの場合は空欄のままで構いません"></div><label class="remove-key"><input type="checkbox" name="remove_stdict_api_key" value="1"> 辞書キーを削除</label></div>
+<p><a href="https://stdict.korean.go.kr/openapi/openApiInfo.do" target="_blank" rel="noopener noreferrer">国立国語院 APIの案内・利用申請 ↗</a></p>
+</section>
+<section class="panel settings-panel"><h2>接続先</h2>
 <p>現在の接続先: <strong>{{ active_bind_host }}:{{ active_port }}</strong>。空欄にすると起動時にこのPCのTailscale IP、LANのプライベートIPを自動選択し、ポートも空いている番号から選びます。<code>start_config.bat</code>に同じ設定がある場合は、そちらの値が優先されます。</p>
 <label for="network_bind_host">待受けIPアドレス（任意）</label><input id="network_bind_host" name="network_bind_host" type="text" maxlength="45" value="{{ settings.network_bind_host }}" placeholder="自動選択">
 <p class="hint">指定できるのはloopback、プライベートIPv4、Tailscale IPv4です。Tailscale IPはそのPCで変わることがあるため、別PCへ移す場合は空欄にして自動検出するか、移動先で設定してください。</p>
@@ -17,7 +46,8 @@
 <label for="network_port">ポート番号（任意）</label><input id="network_port" name="network_port" type="text" inputmode="numeric" maxlength="5" value="{{ settings.network_port }}" placeholder="自動選択（5000–5100）">
 <p class="hint">IPまたはポートの変更を保存した後はアプリを再起動してください。現在のブラウザー接続は再起動まで維持されます。</p>
 </section>
-<section class="panel settings-panel"><div class="step">01 · NAVER COLLECTION</div><h2>NAVER NEWSの自動取得</h2>
+<section class="panel settings-panel"><h2>NAVER NEWSの自動取得</h2>
+<p class="hint">キーを取得できない場合は未設定のままで構いません（NAVER の自動取得だけが止まり、ほかの機能はそのまま使えます）。</p>
 <p>NAVER API HUBのニュース検索で新着記事を見つけ、NAVER記事ページを保存します。APIキーはWindows資格情報ストアに保存され、配布ZIPには含まれません。</p>
 <label for="naver_search_query">ニュース検索語</label><input id="naver_search_query" name="naver_search_query" type="text" maxlength="100" value="{{ settings.naver_search_query }}" required>
 <div class="credential-row"><div><label for="naver_api_key_id">NAVER API HUB Client ID <span class="configured">{% if secrets.naver_api_key_id %}設定済み{% else %}未設定{% endif %}</span></label><input id="naver_api_key_id" name="naver_api_key_id" type="password" autocomplete="new-password" placeholder="設定済みの場合は空欄のままで構いません"></div><label class="remove-key"><input type="checkbox" name="remove_naver_api_key_id" value="1"> IDを削除</label></div>
@@ -26,33 +56,5 @@
 <p class="hint">NAVER Cloudコンソールでアプリケーションを登録し、「ニュース検索」APIを追加して認証情報を入力してください。APIキーが未設定の場合、NAVERの自動取得はスキップされます。毎時、指定した検索語の新着順から最大3件のNAVERニュース記事HTMLを保存します。</p>
 <button type="submit">設定を保存</button>
 </section>
-<section class="panel settings-panel"><div class="step">02 · TRANSLATION</div><h2>翻訳サービス（Azure Translator）</h2>
-<p>本文・見出し・単語の翻訳と英単語の辞書に Azure Translator を使います。キーはこのPCの資格情報ストアに保存され、配布ZIPには含まれません。</p>
-<div class="credential-row"><div><label for="azure_api_key">Azure Translatorキー <span class="configured">{% if secrets.azure_api_key %}設定済み{% else %}未設定{% endif %}</span></label><input id="azure_api_key" name="azure_api_key" type="password" autocomplete="new-password" placeholder="設定済みの場合は空欄のままで構いません"><a href="https://portal.azure.com/" target="_blank" rel="noopener noreferrer">Azure Portal ↗</a></div><label class="remove-key"><input type="checkbox" name="remove_azure_api_key" value="1"> Azureキーを削除</label></div>
-<label for="azure_region">Azure Translatorリソースのリージョン（地域リソースの場合）</label><input id="azure_region" name="azure_region" type="text" maxlength="80" value="{{ settings.azure_region }}" placeholder="例: japaneast"><p class="hint">Azure PortalのKeys and Endpointに表示される値を入力します。単一サービスのGlobalリソースでは空欄で構いません。F0（無料）リソースを選んでください。</p>
-<button type="submit">翻訳設定を保存</button>
-</section>
-<section class="panel settings-panel" id="stories-settings"><div class="step">02b · SAME NEWS</div><h2>読み比べ（同じニュースのまとめ）</h2>
-<p>BBC・NAVER・CNA の記事から同じニュースを探してまとめます。英語以外の見出しは、上で選んだ翻訳サービスで<strong>見出しだけ</strong>英訳して照合します（本文は送信しません）。英訳は1回きりで保存され、同じ見出しを再送信することはありません。</p>
-<label class="check-row"><input type="checkbox" name="stories_enabled" value="1" {% if story_settings.stories_enabled %}checked{% endif %}> 英語以外の見出しを英訳して照合する</label>
-<label for="stories_daily_chars">見出し英訳の1日の上限（文字）</label><input id="stories_daily_chars" name="stories_daily_chars" type="text" inputmode="numeric" maxlength="7" value="{{ story_settings.stories_daily_chars }}" required>
-<p class="hint">{{ "{:,}".format(story_range[0]) }}〜{{ "{:,}".format(story_range[1]) }}文字。見出しは1本あたり20〜60文字程度なので、既定の8,000文字で1日150本前後を英訳できます。上限に達した見出しは翌日に回り、英語の見出しはこの設定に関係なく照合されます。オフにした場合も、英訳済みの見出しはそのまま使います。</p>
-<button type="submit">設定を保存</button>
-</section>
-<section class="panel settings-panel usage-panel"><div class="step">MONTHLY USAGE</div><h2>{{ usage.month }} の翻訳利用量</h2>
-<p>このアプリから翻訳サービスへ送信した分の記録です。キャッシュから返した翻訳は含みません。他のアプリやAzureリソース利用者の使用量、請求画面の合計とは異なる場合があります。</p>
-<div class="usage-grid">
-<article><h3>Azure Translator</h3><p><strong>{{ "{:,}".format(usage.providers.azure.metered_chars) }}</strong> 文字（API計上値の記録）</p><p class="hint">送信文字数の推定: {{ "{:,}".format(usage.providers.azure.source_chars) }} · API要求 {{ usage.providers.azure.requests }} 回 · F0目安 2,000,000文字/月</p><progress class="usage-meter" max="{{ azure_free_limit }}" value="{{ azure_used }}" aria-label="Azure F0の月間無料枠に対するアプリ内使用量">{{ azure_used }} / {{ azure_free_limit }}</progress></article>
-</div><p class="hint">月間の区切りはこのPCのローカル時刻の暦月です。Azureの応答に計上文字数がある場合はその値を記録し、ない場合は送信文字数を使います。</p>
-</section>
-<section class="panel settings-panel"><div class="step">03 · KOREAN DICTIONARY</div><h2>韓国語の漢字語辞書</h2>
-<p>国立国語院「標準国語大辞典」APIから漢字表記と語義を取得します。無料の利用申請が必要です。キーなしでも翻訳は使えますが、漢字語情報は表示されません。</p>
-<div class="credential-row"><div><label for="stdict_api_key">国立国語院 Open APIキー <span class="configured">{% if secrets.stdict_api_key %}設定済み{% else %}未設定{% endif %}</span></label><input id="stdict_api_key" name="stdict_api_key" type="password" autocomplete="new-password" placeholder="設定済みの場合は空欄のままで構いません"></div><label class="remove-key"><input type="checkbox" name="remove_stdict_api_key" value="1"> 辞書キーを削除</label></div>
-<p><a href="https://stdict.korean.go.kr/openapi/openApiInfo.do" target="_blank" rel="noopener noreferrer">国立国語院 APIの案内・利用申請 ↗</a></p>
-</section>
-<section class="panel settings-panel"><div class="step">04 · PLAN NOTES</div><h2>料金・上限</h2>
-<div class="provider-notes"><article><h3>Azure Translator</h3><p>F0には毎月200万文字の無料枠があります。上限を超えた場合はF0でエラーとなり、自動で有料のS1に切り替わりません。AzureアカウントとTranslatorリソースの作成が必要です。英単語をタップしたときは、品詞ごとの意味も同じリソースの辞書機能で表示します（送るのはその語だけ。一度引いた語は再送信しません）。</p><a href="https://azure.microsoft.com/en-us/pricing/details/translator/" target="_blank" rel="noopener noreferrer">Azure Translator料金 ↗</a> · <a href="https://learn.microsoft.com/en-us/azure/ai-services/translator/language-support" target="_blank" rel="noopener noreferrer">対応言語 ↗</a></article>
-<p class="hint">選択範囲または全文の本文は選択中の翻訳サービスへ送信されます。翻訳結果はローカルキャッシュに保存されます。英語への翻訳は一般英語（en）です。eSpeak NGの英国英語IPAはこのPC内で生成します。中国語は教育部辞典の公開検索・項目ページを照会し、注音と語義を表示します。これは公式JSON APIではなくHTML検索ページを読み取る方式です。</p>
-<p><a href="https://dict.revised.moe.edu.tw/index.jsp" target="_blank" rel="noopener noreferrer">教育部《重編國語辭典修訂本》 ↗</a> · <a href="https://stdict.korean.go.kr/" target="_blank" rel="noopener noreferrer">標準国語大辞典 ↗</a></p>
-</section></form>
+</form>
 {% endblock %}

@@ -1,7 +1,7 @@
 {% extends "base.html" %}
 {% block head %}<title>状態 | {{ app_name }}</title>{% endblock %}
 {% block main_class %} status-page{% endblock %}
-{% block content %}<div class="eyebrow">STATUS</div><h1>状態</h1>
+{% block content %}<h1>状態</h1>
 <section class="panel"><h2>自動取得</h2>
 {% if not collector %}<p class="empty">まだ記録がありません。次回の自動取得（毎時）の後に表示されます。</p>
 {% else %}

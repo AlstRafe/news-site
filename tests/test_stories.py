@@ -252,7 +252,7 @@ class WebTests(StoryTestCase):
         page = self.client.get("/stories", headers=H)
         self.assertEqual(page.status_code, 200)
         html = page.get_data(as_text=True)
-        self.assertIn('<span class="badge">BBC ×2</span><span class="badge">CNA</span>', html)
+        self.assertIn('<span class="badge" data-lang="en">BBC ×2</span><span class="badge" data-lang="zh">CNA</span>', html)
         self.assertIn("3 本を並べて読む", html)
         self.assertIn(NOBEL_ZH, html)
         self.assertEqual(html.count("data-gloss-id="), 3)  # headline + the two other members
