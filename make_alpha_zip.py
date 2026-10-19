@@ -36,6 +36,8 @@ DEFAULT_ARTICLES = 5
 DEFAULT_DAILY_CHARS = 100_000
 #: Mean similarity every member of the sample's 読み比べ group should reach (stories_core scores).
 COHESIVE_SCORE = 0.3
+#: Articles of the sample's 読み比べ group (one per outlet first).
+STORY_ARTICLES = 3
 
 README = """NewsBridge テスト版（{version}）
 
@@ -82,22 +84,30 @@ def choose_articles(db_path: Path, count: int, sources: set[str] | None = None) 
         readable = "a.error = '' AND a.paragraph_count >= 3"
         if sources:  # only outlets that are still collected (saved NAVER pages are not)
             readable += " AND a.source IN (" + ",".join("'" + s.replace("'", "''") + "'" for s in sorted(sources)) + ")"
-        # A clearly matched group if there is one (every member close to the rest), so the sample
-        # shows 読み比べ at its best; otherwise any group of the most outlets.
+        # A clearly matched group if there is one (every member close to the rest), preferring
+        # more outlets, then one whose outlets disagree on a figure (数字を比べる has something to
+        # show), then the most closely matched; otherwise any group of the most outlets.
+        has_facts = db.execute("SELECT 1 FROM sqlite_master WHERE name = 'story_facts'").fetchone() is not None
+        disputed = ("(SELECT COUNT(*) FROM story_facts f WHERE f.story_key = m.story_key AND f.differs = 1)"
+                    if has_facts else "0")
         story = None
         for cohesion in (COHESIVE_SCORE, -1.0):
             story = story or db.execute(f"""SELECT m.story_key FROM story_members m JOIN articles a ON a.id = m.article_id
                                          WHERE {readable} GROUP BY m.story_key
                                          HAVING COUNT(DISTINCT a.source) > 1 AND MIN(m.score) >= ?
-                                         ORDER BY COUNT(DISTINCT a.source) DESC, MAX(a.published) DESC LIMIT 1""",
+                                         ORDER BY COUNT(DISTINCT a.source) DESC, MAX({disputed}) DESC,
+                                                  AVG(m.score) DESC, MAX(a.published) DESC LIMIT 1""",
                                         (cohesion,)).fetchone()
         chosen: list[dict] = []
         if story:
-            for row in db.execute(f"""SELECT a.id, a.source, a.filename, a.title FROM story_members m
-                                      JOIN articles a ON a.id = m.article_id WHERE m.story_key = ? AND {readable}
-                                      ORDER BY m.score DESC, a.published DESC""", (story[0],)):
+            members = [dict(row) for row in db.execute(
+                f"""SELECT a.id, a.source, a.filename, a.title FROM story_members m
+                    JOIN articles a ON a.id = m.article_id WHERE m.story_key = ? AND {readable}
+                    ORDER BY m.score DESC, a.published DESC""", (story[0],))]
+            for row in members:  # one per outlet, then the group's other reports (an update, say)
                 if row["source"] not in {c["source"] for c in chosen}:
-                    chosen.append(dict(row))
+                    chosen.append(row)
+            chosen += [row for row in members if row not in chosen][:max(0, STORY_ARTICLES - len(chosen))]
         rest = [dict(r) for r in db.execute(f"SELECT a.id, a.source, a.filename, a.title FROM articles a WHERE {readable}"
                                             " ORDER BY a.published DESC, a.id DESC LIMIT 400")]
     taken = {c["id"] for c in chosen}

@@ -55,6 +55,22 @@ class ChooseArticlesTests(unittest.TestCase):
         chosen = make_alpha_zip.choose_articles(self.db, 5)
         self.assertEqual([c["id"] for c in chosen][:2], [5, 6])  # s2: two outlets, all members close
 
+    def test_a_group_with_a_figure_disagreement_shows_off_best(self):
+        with closing(index.connect(self.db)) as db:
+            db.execute("UPDATE story_members SET score = 0.5")
+            db.execute("DELETE FROM story_members WHERE story_key = 's1' AND article_id IN (1, 4)")  # s1: CNA + Yonhap
+            db.execute("INSERT INTO story_facts(story_key, members, differs) VALUES('s1', '2,3', 1)")
+        chosen = [c["id"] for c in make_alpha_zip.choose_articles(self.db, 5)]
+        self.assertEqual(sorted(chosen[:2]), [2, 3])  # s1, not the newer s2
+
+    def test_the_groups_update_comes_along(self):
+        with closing(index.connect(self.db)) as db:
+            db.execute("UPDATE story_members SET score = 0.5")
+            db.execute("DELETE FROM story_members WHERE story_key = 's1' AND article_id = 3")  # s1: BBC x2 + CNA
+            db.execute("DELETE FROM story_members WHERE story_key = 's2'")
+        chosen = [c["id"] for c in make_alpha_zip.choose_articles(self.db, 5)]
+        self.assertEqual(sorted(chosen[:3]), [1, 2, 4])  # both BBC reports of the news, and CNA's
+
     def test_only_outlets_still_collected(self):
         chosen = make_alpha_zip.choose_articles(self.db, 5, {"BBC", "Yonhap"})
         self.assertEqual({c["source"] for c in chosen}, {"BBC", "Yonhap"})
