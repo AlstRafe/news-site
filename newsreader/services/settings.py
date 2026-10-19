@@ -161,6 +161,15 @@ def library_limit() -> int:
     return value if isinstance(value, int) and not isinstance(value, bool) and value > 0 else 0
 
 
+def build_channel() -> str:
+    """"alpha" / "beta" for a test build made by make_alpha_zip.py, else ""."""
+    try:
+        value = json.loads(SETTINGS_PATH.read_text(encoding="utf-8")).get("build_channel", "")
+    except (OSError, ValueError, TypeError, AttributeError):
+        return ""
+    return value if value in ("alpha", "beta") else ""
+
+
 def save_start_at_logon(enabled: bool) -> None:
     _write_merged({"start_at_logon": bool(enabled)})
 

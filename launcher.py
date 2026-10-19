@@ -40,6 +40,12 @@ PROJECT_ID = hashlib.sha256(str(PROJECT_ROOT).casefold().encode("utf-8")).hexdig
 LOGON_TASK_NAME = f"{APP_CONFIG['name']}-WebServer-{PROJECT_ID}"
 LEGACY_LOGON_TASK_NAME = f"{APP_CONFIG['name']}-WebServer"
 LOGON_REGISTRATION_PATH = INSTANCE_DIRECTORY / "server-task.json"
+#: A test build made by make_alpha_zip.py carries preset/settings.json (same code, preset values).
+PRESET_SETTINGS_PATH = PROJECT_ROOT / "preset" / "settings.json"
+PRESET_RECORD_PATH = INSTANCE_DIRECTORY / "preset-applied.json"
+#: The only settings a preset may set; anything else in the file is ignored.
+PRESET_KEYS = frozenset({"translation_source", "relay_url", "network_bind_host", "network_port", "library_limit",
+                         "start_at_logon", "build_channel", "stories_enabled", "stories_daily_chars"})
 CREATE_NO_WINDOW = 0x08000000
 
 
@@ -59,6 +65,32 @@ def write_settings(settings: dict[str, object]) -> None:
         os.replace(temporary, SETTINGS_PATH)
     finally:
         temporary.unlink(missing_ok=True)
+
+
+def apply_preset() -> bool:
+    """Apply a test build's preset settings once per preset (changes made later on the settings
+    page are kept). Returns whether this copy is a preset build (then no first-run questions)."""
+    try:
+        preset = json.loads(PRESET_SETTINGS_PATH.read_text(encoding="utf-8"))
+    except (OSError, ValueError, TypeError):
+        return False
+    if not isinstance(preset, dict):
+        return False
+    preset_id = str(preset.get("preset_id", ""))
+    try:
+        applied = json.loads(PRESET_RECORD_PATH.read_text(encoding="utf-8")).get("preset_id")
+    except (OSError, ValueError, TypeError, AttributeError):
+        applied = None
+    if applied != preset_id:
+        values = {key: value for key, value in preset.items() if key in PRESET_KEYS}
+        if values.get("network_bind_host"):
+            values["network_bind_host"] = validate_bind_host(str(values["network_bind_host"]))
+        settings = read_settings()
+        settings.update(values)
+        write_settings(settings)
+        PRESET_RECORD_PATH.write_text(json.dumps({"preset_id": preset_id}, ensure_ascii=False), encoding="utf-8")
+        print("テスト版の設定を適用しました（翻訳は配布元の NewsBridge が中継します）。")
+    return True
 
 
 def validate_bind_host(value: str) -> str:
@@ -184,8 +216,8 @@ def select_connection(settings: dict[str, object]) -> tuple[str, int, set[str]]:
     return bind_host, port, allowed_hosts
 
 
-def prepare_first_run(settings: dict[str, object], marker: Path) -> bool:
-    if marker.exists():
+def prepare_first_run(settings: dict[str, object], marker: Path, interactive: bool = True) -> bool:
+    if marker.exists() or not interactive:
         return False
     print("初回設定: APIキーは起動後にブラウザーで登録できます。キーをこの画面へ入力しないでください。")
     custom_host = input("このPCの待受けIPを固定しますか (Tailscale / private IPv4、空欄なら自動検出): ").strip()
@@ -561,6 +593,7 @@ def main(argv: list[str] | None = None) -> int:
     if not is_supported_python():
         print(f"Python 3.10 or newer is required; found {platform.python_version()}.", file=sys.stderr)
         return 1
+    preset_build = apply_preset()
     settings = read_settings()
     if background:
         if background_port_taken(settings):
@@ -570,7 +603,8 @@ def main(argv: list[str] | None = None) -> int:
     profile_root = Path(os.environ.get("LOCALAPPDATA", Path.home() / "AppData" / "Local")) / APP_CONFIG["name"]
     first_run_marker = profile_root / "first-run-complete"
     first_run = not first_run_marker.exists()
-    open_first_run_settings = prepare_first_run(settings, first_run_marker) if first_run else False
+    open_first_run_settings = (prepare_first_run(settings, first_run_marker, interactive=not preset_build)
+                               if first_run else False)
     select_connection(settings)
     runtime_python = find_runtime_python()
     update_dependencies(runtime_python)

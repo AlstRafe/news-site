@@ -32,6 +32,10 @@ LOGON_TASK_RECORD = INSTANCE_DIR / "server-task.json"
 #: Written last by a deployment. A supervised server that sees it change restarts
 #: itself into the new code (see web/run.py and launcher.py).
 VERSION_PATH = PROJECT_ROOT / "VERSION"
+#: A test build's preset (make_alpha_zip.py): settings applied once by launcher.py and a relay
+#: token moved into the credential store on first start (services/preset.py). Absent normally.
+PRESET_DIR = PROJECT_ROOT / "preset"
+PRESET_TOKEN_PATH = PRESET_DIR / "relay_token"
 
 
 def deployed_version() -> str:

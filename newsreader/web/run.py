@@ -71,8 +71,10 @@ def main() -> int:
     except RuntimeError as exc:
         print(f"起動できませんでした: {exc}", file=sys.stderr)
         return 2
+    from newsreader.services.preset import import_relay_token
     from newsreader.web import create_app
 
+    import_relay_token()
     if _dev_mode():
         # Flask's reloader runs the app in a child process; only that child serves requests,
         # so only it starts the background index sync.
