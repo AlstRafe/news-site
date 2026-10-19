@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import json
+import re
 from pathlib import Path
 import ipaddress
 import os
@@ -196,6 +197,54 @@ def save_topic(topic: str, follow: bool) -> list[str]:
             raise ValueError(f"追える話題は{MAX_TOPICS}件までです。どれかを外してください。")
         current.insert(0, topic)
     _write_merged({"topics": current})
+    return current
+
+
+#: 訳語の指定 (D-63): fixed translations of names, applied by the translator (Azure dynamic
+#: dictionary). Characters that would break its markup are refused.
+MAX_GLOSSARY = 200
+MAX_GLOSSARY_CHARS = 40
+GLOSSARY_LANGS = ("ja", "en", "ko", "zh-hant")
+_GLOSSARY_BAD = re.compile(r'[<>"&\r\n\t]')
+
+
+def _glossary_entry(source, target, lang) -> dict | None:
+    if not (isinstance(source, str) and isinstance(target, str) and lang in GLOSSARY_LANGS):
+        return None
+    source, target = " ".join(source.split()), " ".join(target.split())
+    if not (0 < len(source) <= MAX_GLOSSARY_CHARS and 0 < len(target) <= MAX_GLOSSARY_CHARS):
+        return None
+    if _GLOSSARY_BAD.search(source) or _GLOSSARY_BAD.search(target):
+        return None
+    return {"source": source, "target": target, "lang": lang}
+
+
+def glossary() -> list[dict]:
+    try:
+        value = json.loads(SETTINGS_PATH.read_text(encoding="utf-8")).get("glossary", [])
+    except (OSError, ValueError, TypeError, AttributeError):
+        return []
+    entries = [_glossary_entry(e.get("source"), e.get("target"), e.get("lang")) for e in value if isinstance(e, dict)] \
+        if isinstance(value, list) else []
+    return [e for e in entries if e][:MAX_GLOSSARY]
+
+
+def save_glossary_entry(source: str, target: str, lang: str) -> list[dict]:
+    entry = _glossary_entry(source, target, lang)
+    if entry is None:
+        raise ValueError(f"原語と訳語は1〜{MAX_GLOSSARY_CHARS}文字（< > \" & は使えません）、翻訳先は一覧から選んでください。")
+    current = [e for e in glossary() if not (e["source"] == entry["source"] and e["lang"] == entry["lang"])]
+    if len(current) >= MAX_GLOSSARY:
+        raise ValueError(f"訳語の指定は{MAX_GLOSSARY}件までです。")
+    _write_merged({"glossary": [entry] + current})
+    return [entry] + current
+
+
+def remove_glossary_entry(index: int) -> list[dict]:
+    current = glossary()
+    if 0 <= index < len(current):
+        del current[index]
+        _write_merged({"glossary": current})
     return current
 
 

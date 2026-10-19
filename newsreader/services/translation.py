@@ -1,6 +1,7 @@
 """Translation provider adapters with bounded inputs and a local response cache."""
 from __future__ import annotations
 
+import contextvars
 import hashlib
 import json
 import re
@@ -41,6 +42,40 @@ _SSL_CONTEXT = truststore.SSLContext(ssl.PROTOCOL_TLS_CLIENT)
 
 class TranslationError(Exception):
     """A safe-to-display provider or configuration error."""
+
+
+# ---- 訳語の指定 (D-63) ------------------------------------------------------------
+#: A relay request translates with the client's own glossary (or none), not the 本体's.
+_GLOSSARY_OVERRIDE: contextvars.ContextVar = contextvars.ContextVar("glossary_override", default=None)
+
+
+def glossary_for(target: str) -> list[tuple[str, str]]:
+    """(name, fixed translation) pairs for a target, longest name first."""
+    override = _GLOSSARY_OVERRIDE.get()
+    if override is not None:
+        entries = list(override)
+    else:
+        from newsreader.services.settings import glossary
+        entries = [(e["source"], e["target"]) for e in glossary() if e["lang"] == target]
+    return sorted(dict(entries).items(), key=lambda pair: (-len(pair[0]), pair[0]))
+
+
+def _key_prefix(provider: str, target: str) -> str:
+    """Cache keys change with the glossary (and stay as before without one)."""
+    entries = glossary_for(target)
+    if not entries:
+        return provider
+    return provider + "\0g" + hashlib.sha256(json.dumps(entries, ensure_ascii=False).encode("utf-8")).hexdigest()[:16]
+
+
+def apply_glossary(text: str, entries: list[tuple[str, str]]) -> str:
+    """Mark each name with its fixed translation (Azure dynamic dictionary markup)."""
+    if not entries:
+        return text
+    fixed = dict(entries)
+    pattern = re.compile("|".join(re.escape(name) for name, _ in entries))
+    return pattern.sub(lambda m: f'<mstrans:dictionary translation="{fixed[m.group(0)]}">{m.group(0)}</mstrans:dictionary>',
+                       text)
 
 
 def active_provider() -> str:
@@ -144,7 +179,9 @@ def _translate_batch(provider: str, texts: list[str], target: str) -> list[str]:
         # Sentence lengths cost nothing extra; kept for sentence-by-sentence pairing (sentences.py).
         query = urllib.parse.urlencode({"api-version": "3.0", "to": _codes(target)["azure"],
                                         "includeSentenceLength": "true"})
-        body = json.dumps([{"Text": text} for text in texts], ensure_ascii=False).encode("utf-8")
+        entries = glossary_for(target)
+        sent = [apply_glossary(text, entries) for text in texts]
+        body = json.dumps([{"Text": text} for text in sent], ensure_ascii=False).encode("utf-8")
         headers = {"Ocp-Apim-Subscription-Key": key, "Content-Type": "application/json; charset=utf-8"}
         if region:
             headers["Ocp-Apim-Subscription-Region"] = region
@@ -157,13 +194,13 @@ def _translate_batch(provider: str, texts: list[str], target: str) -> list[str]:
             raise TranslationError("Azure Translatorから予期しない形式の応答がありました。")
         results = []
         from newsreader.services import sentences
-        for source, item in zip(texts, payload):
+        for source, marked, item in zip(texts, sent, payload):
             translations = item.get("translations") if isinstance(item, dict) else None
             translated = translations[0].get("text") if isinstance(translations, list) and translations and isinstance(translations[0], dict) else None
             if not isinstance(translated, str):
                 raise TranslationError("Azure Translatorから予期しない形式の応答がありました。")
             lengths = translations[0].get("sentLen")
-            if isinstance(lengths, dict):
+            if isinstance(lengths, dict) and marked == source:  # lengths of marked-up text would not fit
                 sentences.remember(target, source, translated, lengths.get("srcSentLen"), lengths.get("transSentLen"))
             results.append(translated)
         estimated_chars = sum(len(text) for text in texts)
@@ -284,7 +321,8 @@ def translate_titles(titles: list[str], target: str, *, kind: str = "title", max
         raise TranslationError("翻訳先の指定が不正です。")
     provider = active_provider()
     cleaned = [title.strip()[:max_chars] for title in titles]
-    keys = [hashlib.sha256((provider + "\0" + target + "\0" + title).encode("utf-8")).hexdigest() for title in cleaned]
+    prefix = _key_prefix(provider, target)
+    keys = [hashlib.sha256((prefix + "\0" + target + "\0" + title).encode("utf-8")).hexdigest() for title in cleaned]
     results = [cache_get(kind, key) if title else "" for title, key in zip(cleaned, keys)]
     missing = [i for i, value in enumerate(results) if not isinstance(value, str)]
     if missing:
@@ -301,7 +339,8 @@ def _run_batches(provider: str, target: str, batches: list[list[str]]) -> list[s
     """Translate batches in order, reusing the per-batch cache; returns one result per input piece."""
     translated: list[str] = []
     for batch in batches:
-        part_digest = hashlib.sha256((provider + "\0" + target + "\0" + json.dumps(batch, ensure_ascii=False)).encode("utf-8")).hexdigest()
+        part_digest = hashlib.sha256((_key_prefix(provider, target) + "\0" + target + "\0"
+                                      + json.dumps(batch, ensure_ascii=False)).encode("utf-8")).hexdigest()
         part_cached = cache_get("translation_part", part_digest)
         if isinstance(part_cached, list) and len(part_cached) == len(batch) and all(isinstance(item, str) for item in part_cached):
             translated.extend(part_cached)
@@ -321,7 +360,7 @@ def translate_text(text: str, target: str, *, limit: int) -> str:
     if len(text) > limit:
         raise TranslationError(f"翻訳できる文字数を超えています（上限 {limit:,} 文字）。")
     provider = active_provider()
-    digest = hashlib.sha256((provider + "\0" + target + "\0" + text).encode("utf-8")).hexdigest()
+    digest = hashlib.sha256((_key_prefix(provider, target) + "\0" + target + "\0" + text).encode("utf-8")).hexdigest()
     cached = cache_get("translation", digest)
     if isinstance(cached, str):
         return cached

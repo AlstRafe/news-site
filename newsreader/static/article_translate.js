@@ -82,7 +82,19 @@
     return [...element.querySelectorAll("p")].map(p => p.textContent || "").join("\n\n").trim();
   }
 
+  // 訳語の指定 (D-63): a short selection (a name) can be given a fixed translation.
+  function offerFixedTerm(original, translation, target) {
+    const link = document.getElementById("fix-term");
+    if (!link) return;
+    const short = text => text && text.length <= 40 && !/[\n<>"&]/.test(text);
+    link.hidden = !(short(original) && short(translation));
+    if (!link.hidden) {
+      link.href = `/translation-settings?${new URLSearchParams({ gsrc: original, gdst: translation, glang: target })}#glossary`;
+    }
+  }
+
   function clearSelectionDetails() {
+    offerFixedTerm("", "", "");
     document.getElementById("selection-error").hidden = true;
     document.getElementById("selection-error").textContent = "";
     document.getElementById("selection-translation").replaceChildren();
@@ -408,6 +420,7 @@
       details.appendChild(link);
     }
     addDetails(payload);
+    if (payload.translation && !payload.translation_error) offerFixedTerm(normalized, String(payload.translation).trim(), targetSelect.value);
     placePopup({ reveal: true });
     if (payload.dictionary && payload.translation) loadSenses(normalized, targetSelect.value, sequence);
   }

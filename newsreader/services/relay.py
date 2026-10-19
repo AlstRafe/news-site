@@ -193,7 +193,12 @@ def translate(texts: list[str], target: str) -> list[str]:
 
 
 def _translate_batch(texts: list[str], target: str) -> list[str]:
-    payload = _post("/relay/v1/translate", {"texts": texts, "target": target})
+    from newsreader.services.translation import glossary_for
+    body = {"texts": texts, "target": target}
+    entries = glossary_for(target)
+    if entries:
+        body["glossary"] = [list(pair) for pair in entries[:200]]  # this PC's 訳語の指定 (D-63)
+    payload = _post("/relay/v1/translate", body)
     out = payload.get("translations")
     if not isinstance(out, list) or len(out) != len(texts) or not all(isinstance(t, str) for t in out):
         raise RelayError("中継先から予期しない応答がありました。")

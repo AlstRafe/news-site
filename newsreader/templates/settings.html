@@ -32,6 +32,15 @@
 {% if issued_token %}<div class="success" role="status"><strong>新しい合言葉（この画面を閉じると二度と表示されません）:</strong><br><code class="token">{{ issued_token }}</code></div>{% endif %}
 <div class="button-row"><button type="submit" name="action" value="issue_relay_token" class="secondary">合言葉を発行</button>{% if relay_tokens %}<button type="submit" name="action" value="revoke_relay_tokens" class="secondary">すべて無効にする</button>{% endif %}</div>
 </section>{% endif %}
+<section class="panel settings-panel" id="glossary"><h2>訳語の指定（人名・地名など）</h2>
+<p>翻訳のたびに同じ訳になるよう、名前の訳を決めておけます（例: 다카이치 → 高市、賴清德 → 頼清徳、Starmer → スターマー）。翻訳サービスの「辞書指定」で渡すので、文の中でも指定どおりに訳されます。人名・地名・組織名など固有名詞向けです。</p>
+{% if glossary %}<ul class="glossary-list">{% for g in glossary %}<li><span><span class="glossary-src">{{ g.source }}</span> → <strong>{{ g.target }}</strong> <small>{{ translation_targets[g.lang].label }}</small></span><button type="submit" name="action" value="remove_glossary:{{ loop.index0 }}" class="secondary">外す</button></li>{% endfor %}</ul>{% else %}<p class="hint">まだ登録していません。記事で語を選んで出る「訳語を決める」からも登録できます。</p>{% endif %}
+<div class="glossary-add"><div><label for="glossary_source">原語（記事の中の表記）</label><input id="glossary_source" name="glossary_source" type="text" maxlength="40" value="{{ glossary_prefill.gsrc }}" spellcheck="false"></div>
+<div><label for="glossary_target">訳語</label><input id="glossary_target" name="glossary_target" type="text" maxlength="40" value="{{ glossary_prefill.gdst }}" spellcheck="false"></div>
+<div><label for="glossary_lang">翻訳先</label><select id="glossary_lang" name="glossary_lang">{% for code, t in translation_targets.items() %}<option value="{{ code }}"{% if (glossary_prefill.glang or 'ja') == code %} selected{% endif %}>{{ t.label }}</option>{% endfor %}</select></div>
+<button type="submit" name="action" value="add_glossary" class="secondary">登録</button></div>
+<p class="hint">登録すると、その翻訳先への翻訳はキャッシュとは別に訳し直します（登録前の訳は残りません）。テスト版で中継を使う場合も、テスト版で決めた訳語が使われます。</p>
+</section>
 <section class="panel settings-panel" id="stories-settings"><h2>読み比べ（同じニュースのまとめ）</h2>
 <p>BBC・CNA・聯合ニュースの記事から同じニュースを探してまとめます。英語以外の見出しは、上で選んだ翻訳サービスで<strong>見出しだけ</strong>英訳して照合します（本文は送信しません）。英訳は1回きりで保存され、同じ見出しを再送信することはありません。</p>
 <label class="check-row"><input type="checkbox" name="stories_enabled" value="1" {% if story_settings.stories_enabled %}checked{% endif %}> 英語以外の見出しを英訳して照合する</label>

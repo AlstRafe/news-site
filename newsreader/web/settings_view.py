@@ -33,6 +33,11 @@ def _story_daily(raw: str) -> int:
     return int(text)
 
 
+def _glossary() -> list[dict]:
+    from newsreader.services.settings import glossary
+    return glossary()
+
+
 @routes.route("/translation-settings", "translation_settings", methods=("GET", "POST"))
 def translation_settings():
     message = ""
@@ -49,6 +54,18 @@ def translation_settings():
             message = "合言葉を発行しました。テスト版の設定画面（または配布物）に入れてください。"
         else:
             message = f"合言葉 {relay.revoke_all()} 件を無効にしました。"
+    elif action == "add_glossary" or action.startswith("remove_glossary:"):  # 訳語の指定 (D-63)
+        from newsreader.services.settings import remove_glossary_entry, save_glossary_entry
+        try:
+            if action == "add_glossary":
+                save_glossary_entry(request.form.get("glossary_source", ""), request.form.get("glossary_target", ""),
+                                    request.form.get("glossary_lang", ""))
+                message = "訳語を登録しました。これからの翻訳で使います（訳し済みの文章は次に訳すときから）。"
+            else:
+                remove_glossary_entry(int(action.split(":", 1)[1]))
+                message = "訳語の指定を外しました。"
+        except ValueError as exc:
+            error = str(exc)
     elif request.method == "POST":  # CSRF already verified centrally
         azure_region = request.form.get("azure_region", "").strip()
         network_bind_host = request.form.get("network_bind_host", "")
@@ -76,6 +93,10 @@ def translation_settings():
                 save_library_dir(request.form["library_dir"])
             if "start_at_logon_form" in request.form:
                 save_start_at_logon(request.form.get("start_at_logon") == "1")
+            if request.form.get("glossary_source", "").strip() and request.form.get("glossary_target", "").strip():
+                from newsreader.services.settings import save_glossary_entry  # Enter in the 訳語 fields
+                save_glossary_entry(request.form["glossary_source"], request.form["glossary_target"],
+                                    request.form.get("glossary_lang", ""))
             message = "設定を保存しました。APIキーはこのPCの資格情報ストアに保存されています。接続IPまたはポートの変更はアプリ再起動後に反映されます。"
             if action == "check_relay":
                 from newsreader.services import relay
@@ -101,6 +122,7 @@ def translation_settings():
         "settings.html", settings=get_settings(), secrets=secret_status, story_settings=get_story_settings(),
         story_range=STORY_DAILY_RANGE, library_dir=paths.configured_library_dir(), start_at_logon=start_at_logon(),
         relay_tokens=_relay_tokens(), relay_usage=_relay_usage(), issued_token=issued_token,
+        glossary=_glossary(), glossary_prefill={key: request.args.get(key, "")[:40] for key in ("gsrc", "gdst", "glang")},
         active_library=str(current_app.config["LIBRARY_ROOT"]), html_directory_env=bool(os.environ.get("HTML_DIRECTORY", "").strip()),
         secret_store_error=secret_store_error,
         csrf=csrf_token(), message=message, error=error,
