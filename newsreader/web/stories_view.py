@@ -78,6 +78,19 @@ def stories_page():
     return response
 
 
+@routes.get("/outlets", "outlets_page")
+def outlets_page():
+    """媒体くらべ (D-62): the outlets side by side over the last days."""
+    from newsreader.library import outlets
+    try:
+        days = min(30, max(1, int(request.args.get("days", "7"))))
+    except ValueError:
+        days = 7
+    response = current_app.make_response(render_template("outlets.html", stats=outlets.stats(db_path(), days=days)))
+    response.headers["Cache-Control"] = "no-cache"
+    return response
+
+
 @routes.get("/stories/<key>", "story_page")
 def story_page(key: str):
     story = stories.get_story(db_path(), key[:32])

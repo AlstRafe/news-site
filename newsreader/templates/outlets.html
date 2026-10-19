@@ -1,0 +1,22 @@
+{% extends "base.html" %}
+{% block head %}<title>媒体くらべ | {{ app_name }}</title>{% endblock %}
+{% block main_class %} outlets-page{% endblock %}
+{% block content %}<a class="back" href="{{ url_for('stories_page') }}">← 読み比べへ</a>
+<div class="list-head"><h1>媒体くらべ</h1><span class="count">直近 {{ stats.days }} 日</span></div>
+<nav class="chips" aria-label="期間">{% for d in (1, 7, 30) %}<a class="chip{% if stats.days == d %} active{% endif %}" href="{{ url_for('outlets_page', days=d) }}">{{ d }} 日</a>{% endfor %}</nav>
+{% if not stats.outlets %}<p class="empty">この期間の記事はまだありません。</p>{% else %}
+<p class="hint">集めた記事と読み比べのグループから集計しています（翻訳は使いません）。複数の媒体が報じたニュース: {{ stats.shared_news }} 件。</p>
+<div class="outlet-grid">{% for o in stats.outlets %}<section class="outlet-card">
+<h2><span class="badge" data-lang="{{ o.source|src_lang }}">{{ o.source }}</span></h2>
+<dl class="outlet-facts">
+<dt>記事</dt><dd><strong>{{ o.articles }}</strong> 本</dd>
+<dt>他社も報じた</dt><dd><strong>{{ o.shared }}</strong> 本 <small>（{{ o.shared_ratio }}%）</small><meter min="0" max="100" value="{{ o.shared_ratio }}" aria-label="他社も報じた割合">{{ o.shared_ratio }}%</meter></dd>
+<dt>この媒体だけ</dt><dd><strong>{{ o.scoops }}</strong> 本</dd>
+<dt>最初に報じた</dt><dd>{% if o.races %}<strong>{{ o.first }}</strong> / {{ o.races }} 件{% else %}—{% endif %}</dd>
+<dt>遅れの中央値</dt><dd>{% if o.median_lag_hours is not none %}<strong>{{ o.median_lag_hours }}</strong> 時間{% else %}—{% endif %}</dd>
+<dt>数字の食い違い</dt><dd>{% if o.disputes %}<strong>{{ o.disputes }}</strong> 件{% else %}—{% endif %}</dd>
+</dl></section>{% endfor %}</div>
+{% if stats.pairs %}<section class="outlet-pairs" aria-labelledby="pairs-head"><h2 id="pairs-head">一緒に報じたニュース</h2>
+<ul>{% for p in stats.pairs %}<li><span class="badge" data-lang="{{ p.a|src_lang }}">{{ p.a }}</span> × <span class="badge" data-lang="{{ p.b|src_lang }}">{{ p.b }}</span> <strong>{{ p.news }}</strong> 件</li>{% endfor %}</ul></section>{% endif %}
+<p class="hint">「最初に報じた」は複数の媒体が報じたニュースのうち、その媒体の記事がいちばん早かった件数（その媒体が報じた件数のうち）。「遅れの中央値」は最初の報道から、その媒体の最初の記事までの時間。「数字の食い違い」はホームに出した食い違い（よく一致したグループのみ）に関わった件数です。媒体ごとに収集を始めた時期が違う間は、遅れが大きく出ることがあります。</p>
+{% endif %}{% endblock %}
