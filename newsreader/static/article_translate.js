@@ -704,7 +704,14 @@
     placePopup();
   });
   document.addEventListener("keydown", event => {
-    if (event.key === "Escape") { closePopup(); toolbar.hidden = true; }
+    if (event.key === "Escape") { closePopup(); toolbar.hidden = true; return; }
+    // Keyboard (PC): J / K = next / previous article of the outlet, B = 対訳 on/off.
+    if (event.ctrlKey || event.metaKey || event.altKey || event.isComposing) return;
+    if (event.target.closest?.("input, select, textarea, [contenteditable]")) return;
+    const key = event.key.toLowerCase();
+    const link = key === "j" ? document.querySelector('a[rel="next"]') : key === "k" ? document.querySelector('a[rel="prev"]') : null;
+    if (link) { event.preventDefault(); link.click(); }
+    else if (key === "b" && !biButton.disabled) { event.preventDefault(); biButton.click(); }
   });
   // The card moves with its word while the page scrolls (desktop); the toolbar just goes away.
   let placing = 0;

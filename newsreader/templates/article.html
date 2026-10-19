@@ -11,7 +11,7 @@
 <section class="translation-controls" id="translation-controls" data-article-id="{{ article_id }}">
 <div class="tc-row"><label for="translation-target">翻訳先</label>
 <select id="translation-target" aria-label="翻訳先"><option value="ja">日本語</option><option value="en-gb" {% if translation_provider == 'azure' %}disabled{% endif %}>English (UK){% if translation_provider == 'azure' %}（DeepL選択時のみ）{% endif %}</option><option value="ko">한국어</option><option value="zh-hant">繁體中文</option></select></div>
-<div class="tc-buttons"><button id="translate-bilingual" type="button" aria-pressed="false">対訳で読む</button>
+<div class="tc-buttons"><button id="translate-bilingual" type="button" aria-pressed="false" title="キーボード: B">対訳で読む</button>
 <button id="translate-whole" type="button" class="secondary">全文を翻訳</button></div>
 <label class="bi-auto"><input type="checkbox" id="bi-auto"> 記事を開いたら対訳で表示する</label>
 <span id="translation-status" role="status" aria-live="polite"></span>
@@ -40,8 +40,8 @@
 <ul class="story-members">{% for m in related.members[:8] %}<li><a href="{{ url_for('show_article', article_id=m.id) }}"><span class="badge">{{ m.source or '未分類' }}</span><span class="story-title" data-gloss-id="{{ m.id }}">{{ m.title }}</span><span class="story-time">{{ m.published|localtime }}</span></a></li>{% endfor %}</ul>
 <a class="story-more" href="{{ url_for('story_page', key=related.key) }}">媒体ごとに並べて読む →</a></section>{% endif %}
 {% if neighbours.older or neighbours.newer %}<nav class="next-articles" aria-label="{{ record.source or '同じ一覧' }}の前後の記事">
-{% if neighbours.older %}<a class="next-card" href="{{ url_for('show_article', article_id=neighbours.older.id) }}" rel="next"><span class="next-label">次の記事 →</span><strong>{{ neighbours.older.title }}</strong>{% if neighbours.older.published %}<span class="story-time">{{ neighbours.older.published|localtime }}</span>{% endif %}</a>{% endif %}
-{% if neighbours.newer %}<a class="next-card newer" href="{{ url_for('show_article', article_id=neighbours.newer.id) }}" rel="prev"><span class="next-label">← 前の記事（新しい）</span><strong>{{ neighbours.newer.title }}</strong>{% if neighbours.newer.published %}<span class="story-time">{{ neighbours.newer.published|localtime }}</span>{% endif %}</a>{% endif %}
+{% if neighbours.older %}<a class="next-card" href="{{ url_for('show_article', article_id=neighbours.older.id) }}" rel="next" title="キーボード: J"><span class="next-label">次の記事 →</span><strong>{{ neighbours.older.title }}</strong>{% if neighbours.older.published %}<span class="story-time">{{ neighbours.older.published|localtime }}</span>{% endif %}</a>{% endif %}
+{% if neighbours.newer %}<a class="next-card newer" href="{{ url_for('show_article', article_id=neighbours.newer.id) }}" rel="prev" title="キーボード: K"><span class="next-label">← 前の記事（新しい）</span><strong>{{ neighbours.newer.title }}</strong>{% if neighbours.newer.published %}<span class="story-time">{{ neighbours.newer.published|localtime }}</span>{% endif %}</a>{% endif %}
 </nav>{% endif %}
 <nav class="article-end" aria-label="記事の終わり"><a class="back" href="{{ url_for('index', source=record.source or None) }}">← {{ record.source or '記事' }}の一覧へ戻る</a><a class="to-top" href="#top">▲ 上へ</a></nav>
 <p class="hint endnote">単語をタップ（クリック）すると単語を、文章を選ぶとその範囲をすぐに翻訳します。翻訳時はその文章が設定中の翻訳サービスに送信されます。翻訳結果はこのPC内にキャッシュされます。</p>
