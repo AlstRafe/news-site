@@ -683,6 +683,7 @@
       reader.querySelectorAll(".bi-tr").forEach(node => node.remove()); // single-paragraph ones
       unwrapSentences();
       let paired = 0;
+      let doubtful = 0;
       originals.forEach((paragraph, index) => {
         const text = payload.paragraphs[index];
         if (!text) return;
@@ -691,6 +692,16 @@
         translated.lang = langTags[target] || "";
         translated.textContent = text;
         paragraph.after(translated);
+        // 訳文の数字チェック (D-69): figures of the original that the translation does not carry
+        const lost = window.NumberCheck ? window.NumberCheck.missing(paragraph.textContent, text) : [];
+        if (lost.length) {
+          const note = document.createElement("p");
+          note.className = "bi-tr num-check";
+          note.setAttribute("role", "note");
+          note.textContent = `訳文に見当たらない数字: ${lost.join("・")}（原文の数字を確かめてください）`;
+          translated.after(note);
+          doubtful += 1;
+        }
         const spans = payload.sentences?.[index];
         if (spans && fitsSentences(paragraph, spans.src) && fitsSentences(translated, spans.tr)
             && spans.src.length === spans.tr.length) {
@@ -706,7 +717,8 @@
       biButton.textContent = "対訳を閉じる";
       biButton.setAttribute("aria-pressed", "true");
       status.textContent = `${targetNames[target]}の対訳を表示しました。` +
-        (reader.classList.contains("paired") ? "文にカーソルを合わせる（タップする）と、対応する訳文が光ります。" : "");
+        (reader.classList.contains("paired") ? "文にカーソルを合わせる（タップする）と、対応する訳文が光ります。" : "") +
+        (doubtful ? `${doubtful} 段落で、原文の数字が訳文に見当たりません。` : "");
     } catch (error) {
       status.textContent = error.message || "翻訳に失敗しました。";
     } finally {

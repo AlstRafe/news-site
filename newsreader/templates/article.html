@@ -49,4 +49,4 @@
 <nav class="article-end" aria-label="記事の終わり"><a class="back" href="{{ url_for('index', source=record.source or None) }}">← {{ record.source or '記事' }}の一覧へ戻る</a><a class="to-top" href="#top">▲ 上へ</a></nav>
 <p class="hint endnote">単語をタップ（クリック）すると単語を、文章を選ぶとその範囲をすぐに翻訳します。翻訳時はその文章が設定中の翻訳サービスに送信されます。翻訳結果はこのPC内にキャッシュされます。</p>
 {% endblock %}
-{% block scripts %}<script src="{{ asset('article_translate.js') }}" defer></script>{% if related %}<script src="{{ asset('stories.js') }}" defer></script>{% endif %}{% endblock %}
+{% block scripts %}<script src="{{ asset('numcheck.js') }}" defer></script><script src="{{ asset('article_translate.js') }}" defer></script>{% if related %}<script src="{{ asset('stories.js') }}" defer></script>{% endif %}{% endblock %}
