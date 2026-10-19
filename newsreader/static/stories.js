@@ -265,7 +265,7 @@
       const copy = el("button", "text-button copy-facts", "数字の比較をコピー");
       copy.type = "button";
       copy.addEventListener("click", async () => {
-        const title = document.querySelector("h1")?.textContent.trim() || "";
+        const title = document.querySelector("h1 [data-gloss-id]")?.textContent.trim() || "";
         const lines = compared.map(c => `【${c.label}】` + c.rows.map(row => {
           const top = row.facts.reduce((best, f) => (f.value ?? -1) > (best?.value ?? -1) ? f : best, row.facts[0]);
           return `${row.source} ${top?.text || ""}（${when(row.published)}）`;
