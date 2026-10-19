@@ -11,7 +11,7 @@ import re
 from flask import jsonify
 
 from newsreader import branding
-from newsreader.library import compare, index, stories
+from newsreader.library import compare, facts_watch, stories
 from newsreader.services import sentences
 from newsreader.services.translation import TARGETS, TranslationError, translate_titles
 from newsreader.web.api import _json_request
@@ -20,12 +20,6 @@ from newsreader.web.routing import Routes
 
 routes = Routes()
 
-#: The newest articles of a group that are compared (the group page lists them all).
-MAX_MEMBERS = 12
-#: Opening read for figures, per article: the first paragraphs carry the main figures; later
-#: ones often report side events (another attack, last year's toll).
-FACT_PARAGRAPHS = 3
-FACT_CHARS = 1_000
 FACTS_PER_ROW = 3
 _KEY = re.compile(r"s\d{1,9}")
 
@@ -40,14 +34,8 @@ def _story(payload: dict):
     return (story, target), None
 
 
-def _opening(content: dict | None) -> str:
-    text = ""
-    taken = [p.strip() for p in (content or {}).get("paragraphs", []) if p.strip()][:FACT_PARAGRAPHS]
-    for paragraph in taken:
-        if text and len(text) + len(paragraph) > FACT_CHARS:
-            break
-        text = f"{text}\n{paragraph}" if text else paragraph
-    return text[:FACT_CHARS]
+def _to_english(texts: list[str]) -> list[str]:
+    return translate_titles(texts, "en", kind="facts_src", max_chars=facts_watch.FACT_CHARS)
 
 
 def _same(a: str, b: str) -> bool:
@@ -63,28 +51,20 @@ def story_facts():
     if error:
         return error
     story, target = found
-    members = sorted(story["members"], key=lambda m: m["published"] or "", reverse=True)[:MAX_MEMBERS]
-    english_of: dict[int, str] = {}
-    originals: dict[int, list[tuple[str, str]]] = {}  # id -> [(own sentence, English sentence)]
-    foreign = []
-    for member in members:
-        opening = _opening(index.get_content(db_path(), member["id"]))
-        if member.get("lang") == "en":
-            english_of[member["id"]] = f"{opening}\n{member['title']}"  # body first: fuller sentences win
-        elif member.get("pivot"):
-            foreign.append((member, opening))
+    members = facts_watch.newest_members(story)
     try:
-        translated = translate_titles([opening for _, opening in foreign], "en", kind="facts_src", max_chars=FACT_CHARS)
+        english_of, foreign = facts_watch.english_of(db_path(), members, _to_english)
     except TranslationError as exc:
         return jsonify({"error": str(exc)}), 503
-    for (member, opening), english in zip(foreign, translated):
-        english_of[member["id"]] = f"{english}\n{member['pivot']}"
-        pairs = [(member["title"], member["pivot"])]
-        pairs += sentences.pairs("en", opening.strip()[:FACT_CHARS], english) or []
-        originals[member["id"]] = pairs
+    originals: dict[int, list[tuple[str, str]]] = {}  # id -> [(own sentence, English sentence)]
+    for member in members:
+        if member["id"] in foreign:
+            own, english = foreign[member["id"]]
+            originals[member["id"]] = [(member["title"], member["pivot"])] + (sentences.pairs("en", own, english) or [])
     by_id = {member["id"]: member for member in members}
     categories = compare.compare([dict(member, english=english_of[member["id"]])
                                   for member in members if member["id"] in english_of])
+    facts_watch.store(db_path(), story["key"], members, categories)  # the home page's 数字の食い違い
     # The sentences to show, each translated once into the reader's language: an outlet's own
     # sentence when known (one translation step), else the English one.
     wanted: dict[str, str] = {}

@@ -68,6 +68,19 @@ class OriginalLanguageTests(unittest.TestCase):
         self.assertIn('<html lang="ja">', page)  # the interface itself stays Japanese
 
 
+
+class LagTests(unittest.TestCase):
+    def test_time_after_the_first_report(self):
+        from newsreader.web.assets import lag_filter
+        first = "2026-10-19T12:00:00Z"
+        self.assertEqual(lag_filter(first, first), "")
+        self.assertEqual(lag_filter("2026-10-19T12:45:00Z", first), "+45分")
+        self.assertEqual(lag_filter("2026-10-19T16:20:00Z", first), "+4時間20分")
+        self.assertEqual(lag_filter("2026-10-20T06:20:00Z", first), "+18時間")
+        self.assertEqual(lag_filter("2026-10-22T12:00:00Z", first), "+3日")
+        self.assertEqual(lag_filter("", first), "")
+
+
 if __name__ == "__main__":
     unittest.main()
 

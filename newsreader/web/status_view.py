@@ -98,6 +98,7 @@ def status_page():
         collector=collector, collector_ago=status.ago(collector.get("finished", "")), sites=sites,
         library=data.get("library") or {}, sources=index.source_stats(db), index_stats=index.index_stats(db),
         library_root=str(current_app.config["LIBRARY_ROOT"]), stories_info=data.get("stories") or {},
+        facts_info=data.get("facts") or {},
         story_exclusions=stories.exclusion_count(db), stories_ago=status.ago((data.get("stories") or {}).get("refreshed", "")),
         sync=index.sync_state(db), usage=monthly_translation_usage(),
         version=local_version(paths.deployed_version()) or "（開発版）", python=platform.python_version(),

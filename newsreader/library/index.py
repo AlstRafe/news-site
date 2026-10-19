@@ -109,7 +109,21 @@ def _migration_3(db: sqlite3.Connection) -> None:
         PRIMARY KEY (a, b))""")
 
 
-MIGRATIONS: list[Callable[[sqlite3.Connection], None]] = [_migration_1, _migration_2, _migration_3]
+def _migration_4(db: sqlite3.Connection) -> None:
+    """読み比べの数字 (D-59): per news group, the figures compared across its outlets."""
+    db.execute("""CREATE TABLE IF NOT EXISTS story_facts (
+        story_key TEXT PRIMARY KEY,
+        members TEXT NOT NULL,        -- the article ids compared, sorted, comma-separated
+        newest TEXT NOT NULL DEFAULT '',
+        differs INTEGER NOT NULL DEFAULT 0,
+        summary TEXT NOT NULL DEFAULT '[]',
+        computed TEXT NOT NULL DEFAULT '')""")
+    db.execute("""CREATE TABLE IF NOT EXISTS facts_usage (
+        day TEXT PRIMARY KEY,
+        chars INTEGER NOT NULL)""")
+
+
+MIGRATIONS: list[Callable[[sqlite3.Connection], None]] = [_migration_1, _migration_2, _migration_3, _migration_4]
 SCHEMA_VERSION = len(MIGRATIONS)
 _schema_lock = threading.Lock()
 _wal_checked: set[str] = set()

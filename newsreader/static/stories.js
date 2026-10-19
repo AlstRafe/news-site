@@ -371,4 +371,11 @@
        { show: "数字を比べる", hide: "数字を隠す", loading: "記事の数字を集めています…", failed: "数字を比べられませんでした" });
   wire("compare-words", "words-panel", "/api/story-words", renderWords,
        { show: "言葉の違い", hide: "言葉の違いを隠す", loading: "見出しの言葉を比べています…", failed: "言葉を比べられませんでした" });
+  // Arriving from an article's "各社の数字を比べる →" (#facts) or a link to #words: open that panel.
+  const wanted = { "#facts": "compare-facts", "#words": "compare-words" }[location.hash];
+  if (wanted) {
+    const button = document.getElementById(wanted);
+    button?.click();
+    button?.closest(".insights")?.scrollIntoView({ block: "start" });
+  }
 })();

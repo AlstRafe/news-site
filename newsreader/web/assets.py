@@ -110,6 +110,25 @@ def localtime_filter(iso_utc: str) -> str:
         return ""
 
 
+def lag_filter(iso_utc: str, first_iso: str) -> str:
+    """How long after the first report of a news group an article came out: "+45分", "+3時間10分",
+    "+2日"; "" for the first one itself or without both times."""
+    try:
+        moment = datetime.strptime(iso_utc, "%Y-%m-%dT%H:%M:%SZ")
+        first = datetime.strptime(first_iso, "%Y-%m-%dT%H:%M:%SZ")
+    except (ValueError, TypeError):
+        return ""
+    minutes = int((moment - first).total_seconds() // 60)
+    if minutes < 1:
+        return ""
+    if minutes < 60:
+        return f"+{minutes}分"
+    if minutes < 48 * 60:
+        hours, rest = divmod(minutes, 60)
+        return f"+{hours}時間{rest}分" if rest and hours < 6 else f"+{hours}時間"
+    return f"+{minutes // (24 * 60)}日"
+
+
 def localtime_short_filter(iso_utc: str) -> str:
     """"10/13 21:00" in the server's timezone (lists where the year is obvious)."""
     try:
@@ -176,6 +195,7 @@ def init_app(app: Flask, *, dev: bool) -> None:
     app.jinja_env.globals["asset"] = asset
     app.add_template_filter(localtime_filter, "localtime")
     app.add_template_filter(localtime_short_filter, "localtime_short")
+    app.add_template_filter(lag_filter, "lag")
     app.add_template_filter(localday_filter, "localday")
     app.add_template_filter(localclock_filter, "localclock")
 

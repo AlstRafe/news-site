@@ -115,13 +115,16 @@ def index_page():
         item["story"] = marks.get(item["id"])
     # The newest stories several outlets reported, on the first page of the plain list only.
     highlights = [] if (source or query or result["page"] > 1) else stories.list_stories(db, per_page=6)["stories"]
+    # ...and those whose outlets disagree on a count (D-59), computed in the background.
+    from newsreader.library import facts_watch
+    disputes = [] if (source or query or result["page"] > 1) else facts_watch.differing(db, limit=3)
     state = index.sync_state(db)
     indexing = bool(state.get("running")) and not result["total"] and not source and not query
     response = current_app.make_response(render_template(
         "index.html", error=state.get("error", ""), warning=state.get("warning", ""), indexing=indexing,
         progress=state.get("progress") or [0, 0], items=result["items"], sources=index.sources(db),
         source=source, query=query, english_query=english, page=result["page"], pages=result["pages"],
-        total=result["total"], csrf=csrf_token(), highlights=highlights,
+        total=result["total"], csrf=csrf_token(), highlights=highlights, disputes=disputes,
     ))
     response.headers["Cache-Control"] = CACHE_LIST
     return response

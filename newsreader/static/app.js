@@ -138,7 +138,7 @@
     const clear = () => document.querySelectorAll(".card-gloss, .gloss-error").forEach(node => node.remove());
     const show = async () => {
       clear();
-      const highlights = [...document.querySelectorAll(".highlight [data-gloss-id]")];
+      const highlights = [...document.querySelectorAll(".highlight [data-gloss-id], .dispute [data-gloss-id]")];
       const ids = [...new Set([...cards().map(card => Number(card.dataset.id)),
                                ...highlights.map(el => Number(el.dataset.glossId))].filter(Boolean))].slice(0, 40);
       if (!ids.length) return;

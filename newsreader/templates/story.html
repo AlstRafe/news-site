@@ -4,7 +4,7 @@
 {% macro item(m, show_source) %}<article class="story-item{% if m.thumb %} with-thumb{% endif %}" data-article-id="{{ m.id }}" data-lang-target="{{ m.lang_target }}">
 <a class="story-link" href="{{ url_for('show_article', article_id=m.id) }}">
 {% if m.thumb %}<img src="{{ m.thumb }}" alt="" loading="lazy" decoding="async">{% endif %}
-<span class="story-time">{% if show_source %}<span class="badge" data-lang="{{ m.source|src_lang }}">{{ m.source or '未分類' }}</span> {% endif %}{{ m.published|localtime }}</span>
+<span class="story-time">{% if show_source %}<span class="badge" data-lang="{{ m.source|src_lang }}">{{ m.source or '未分類' }}</span> {% endif %}{{ m.published|localtime }}{% set lag = m.published|lag(story.oldest) %}{% if lag %} <span class="lag" title="最初の報道から">{{ lag }}</span>{% elif story.oldest and m.published == story.oldest and story.members|length > 1 %} <span class="lag first">最初の報道</span>{% endif %}</span>
 <strong data-gloss-id="{{ m.id }}"{{ m.source|lang_attr }}>{{ m.title }}</strong></a>
 {% if m.lead %}<p class="story-lead" data-lead-for="{{ m.id }}"{{ m.source|lang_attr }}>{{ m.lead }}</p>{% endif %}
 <p class="lead-tr" data-lead-tr-for="{{ m.id }}" hidden></p>

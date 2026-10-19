@@ -163,6 +163,8 @@ class CompareApiTests(unittest.TestCase):
         page = self.client.get("/stories/s1", headers=H).get_data(as_text=True)
         self.assertIn('id="compare-facts"', page)
         self.assertIn('id="compare-words"', page)
+        self.assertIn('<span class="lag first">最初の報道</span>', page)  # Yonhap 12:00
+        self.assertIn('<span class="lag" title="最初の報道から">+4時間20分</span>', page)  # BBC 16:20
 
 
 if __name__ == "__main__":
