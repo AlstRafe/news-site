@@ -52,6 +52,18 @@ class LibraryLimitTests(unittest.TestCase):
         self.assertIn("上限（3 本）", report["B"]["error"])
         self.assertTrue((self.root / "Old" / "kept.html").exists())  # nothing is ever removed
 
+    def test_header_badge_explains_the_limit(self):
+        from newsreader.library import status
+        report = {}
+        (self.root / "A").mkdir()
+        for i in range(3):
+            (self.root / "A" / f"{i}.html").write_text("x", encoding="utf-8")
+        autofetch.fetch_cycle(self.root, report=report, limit=3)
+        badge = status.badge({"collector": {"finished": status.now_iso(), "ok": True, "sites": report}})
+        self.assertEqual(badge["label"], "記事数の上限")
+        normal = status.badge({"collector": {"finished": status.now_iso(), "ok": True, "sites": {"A": {"saved": 2}}}})
+        self.assertTrue(normal["label"].startswith("取得"))
+
     def test_limit_setting(self):
         path = self.root / "settings.json"
         with mock.patch.object(settings, "SETTINGS_PATH", path):

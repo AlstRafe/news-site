@@ -16,6 +16,7 @@
 <div class="relay-client">
 <label for="relay_url">中継先の NewsBridge のアドレス</label><input id="relay_url" name="relay_url" type="text" maxlength="200" value="{{ settings.relay_url }}" placeholder="例: http://100.x.x.x:5000" spellcheck="false" autocapitalize="off">
 <div class="credential-row"><div><label for="relay_token">合言葉（配布元が発行） <span class="configured">{% if secrets.relay_token %}設定済み{% else %}未設定{% endif %}</span></label><input id="relay_token" name="relay_token" type="password" autocomplete="new-password" placeholder="設定済みの場合は空欄のままで構いません"></div><label class="remove-key"><input type="checkbox" name="remove_relay_token" value="1"> 合言葉を削除</label></div>
+<div class="button-row"><button type="submit" name="action" value="check_relay" class="secondary">保存して接続を確認</button></div>
 </div>
 <p class="hint">「配布元に頼む」を選ぶと、翻訳する文章は中継先の NewsBridge に送られ、そこで翻訳されます（このPCに翻訳キーは要りません）。</p>
 <h3 class="settings-sub">Azure Translator（このPCのキー）</h3>

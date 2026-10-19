@@ -65,7 +65,7 @@ def library_root() -> Path:
     return Path(configured) if configured else PROJECT_ROOT / "articles"
 
 
-def choose_articles(db_path: Path, count: int) -> list[dict]:
+def choose_articles(db_path: Path, count: int, sources: set[str] | None = None) -> list[dict]:
     """``count`` readable articles: first the newest story reported by the most outlets (one
     article per outlet), then the newest article of each outlet not yet included, then newest."""
     if not db_path.is_file():
@@ -74,6 +74,8 @@ def choose_articles(db_path: Path, count: int) -> list[dict]:
     with closing(sqlite3.connect(uri, uri=True)) as db:
         db.row_factory = sqlite3.Row
         readable = "a.error = '' AND a.paragraph_count >= 3"
+        if sources:  # only outlets that are still collected (saved NAVER pages are not)
+            readable += " AND a.source IN (" + ",".join("'" + s.replace("'", "''") + "'" for s in sorted(sources)) + ")"
         story = db.execute(f"""SELECT m.story_key FROM story_members m JOIN articles a ON a.id = m.article_id
                               WHERE {readable} GROUP BY m.story_key
                               ORDER BY COUNT(DISTINCT a.source) DESC, MAX(a.published) DESC LIMIT 1""").fetchone()
@@ -153,7 +155,8 @@ def main(argv: list[str] | None = None) -> int:
         print("--articles は 1〜50 で指定してください。", file=sys.stderr)
         return 2
     root = Path(args.library) if args.library else library_root()
-    chosen = choose_articles(paths.DEFAULT_LIBRARY_DB, args.articles)
+    from newsreader.collect.autofetch import SOURCES
+    chosen = choose_articles(paths.DEFAULT_LIBRARY_DB, args.articles, {source["directory"] for source in SOURCES})
     files = []
     for row in chosen:
         path = (root / row["source"] / row["filename"]).resolve()  # index: (site folder, file name)

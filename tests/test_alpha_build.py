@@ -49,6 +49,11 @@ class ChooseArticlesTests(unittest.TestCase):
         self.assertNotIn(8, ids)  # too short to read
         self.assertEqual(ids[3:], [10, 6])  # then simply the newest (ties: higher id)
 
+    def test_only_outlets_still_collected(self):
+        chosen = make_alpha_zip.choose_articles(self.db, 5, {"BBC", "Yonhap"})
+        self.assertEqual({c["source"] for c in chosen}, {"BBC", "Yonhap"})
+        self.assertEqual([c["id"] for c in chosen][:2], [1, 3])
+
     def test_the_index_is_only_read(self):
         before = self.db.read_bytes()
         make_alpha_zip.choose_articles(self.db, 3)

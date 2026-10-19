@@ -27,6 +27,17 @@ def _authorised():
     return (entry, payload), None
 
 
+@routes.route("/relay/v1/ping", "relay_ping", methods=("POST",))
+def relay_ping():
+    """For a test build's 「接続を確認」: the token is valid; today's allowance and use. Not charged."""
+    found, error = _authorised()
+    if error:
+        return error
+    entry, _payload = found
+    used = relay.usage_today().get(entry["hash"][:16], 0)
+    return jsonify({"ok": True, "daily_chars": int(entry.get("daily_chars", relay.DEFAULT_DAILY_CHARS)), "used_today": used})
+
+
 @routes.route("/relay/v1/translate", "relay_translate", methods=("POST",))
 def relay_translate():
     found, error = _authorised()

@@ -101,6 +101,33 @@ class ServerTests(RelayTestCase):
         self.assertEqual(relay.tokens(), [])
 
 
+class PingTests(RelayTestCase):
+    def test_ping_reports_the_allowance_without_charging(self):
+        token = relay.issue_token("テスト版", daily_chars=500)
+        self.post("/relay/v1/translate", {"texts": ["abcd"], "target": "ja"}, token)
+        reply = self.post("/relay/v1/ping", {}, token)
+        self.assertEqual(reply.get_json(), {"ok": True, "daily_chars": 500, "used_today": 4})
+        self.post("/relay/v1/ping", {}, token)
+        self.assertEqual(self.post("/relay/v1/ping", {}, token).get_json()["used_today"], 4)
+        self.assertEqual(self.post("/relay/v1/ping", {}, "nbr_wrong").status_code, 401)
+
+    def test_settings_check_saves_then_reports(self):
+        self.client.get("/", headers=H)
+        with self.client.session_transaction() as session:
+            csrf = session["csrf"]
+        form = {"csrf": csrf, "action": "check_relay", "translation_source": "relay", "relay_url": "http://100.64.0.1:5000",
+                "relay_token": "nbr_typed", "azure_region": "", "network_bind_host": "", "network_port": ""}
+        with mock.patch.object(relay, "_post", return_value={"ok": True, "daily_chars": 1000, "used_today": 250}) as post:
+            html = self.client.post("/translation-settings", headers=H, data=form).get_data(as_text=True)
+        post.assert_called_once_with("/relay/v1/ping", {})
+        self.assertIn("あと 750 文字", html)
+        self.assertEqual(settings.get_secret("relay_token"), "nbr_typed")
+        with mock.patch.object(relay, "_post", side_effect=relay.RelayError("翻訳の中継先に接続できませんでした。")):
+            html = self.client.post("/translation-settings", headers=H, data=dict(form, relay_token="")).get_data(as_text=True)
+        self.assertIn("設定は保存しました。ただし翻訳の中継先に接続できませんでした。", html)
+        self.assertNotIn("nbr_typed", html)
+
+
 class ClientTests(RelayTestCase):
     def test_a_build_without_a_key_translates_through_the_relay(self):
         settings.save_translation_source("relay", "http://100.64.0.1:5000/")

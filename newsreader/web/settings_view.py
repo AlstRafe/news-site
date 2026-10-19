@@ -74,6 +74,14 @@ def translation_settings():
             if "start_at_logon_form" in request.form:
                 save_start_at_logon(request.form.get("start_at_logon") == "1")
             message = "設定を保存しました。APIキーはこのPCの資格情報ストアに保存されています。接続IPまたはポートの変更はアプリ再起動後に反映されます。"
+            if action == "check_relay":
+                from newsreader.services import relay
+                try:
+                    allowance = relay.ping()
+                    left = max(0, allowance["daily_chars"] - allowance["used_today"])
+                    message = f"設定を保存し、中継先に接続できました（今日あと {left:,} 文字まで翻訳できます）。"
+                except relay.RelayError as exc:
+                    error = f"設定は保存しました。ただし{exc}"
         except Exception as exc:
             # Never log the exception text: it could echo a submitted key.
             current_app.logger.warning("Could not save translation settings (%s)", type(exc).__name__)

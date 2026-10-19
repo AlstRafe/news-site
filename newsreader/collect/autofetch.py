@@ -331,6 +331,7 @@ def fetch_cycle(
             report[source["name"]] = site
         if limit and held >= limit:
             site["error"] = f"記事数の上限（{limit} 本）に達しているため取得していません"
+            site["limited"] = True
             totals[source["name"]] = 0
             continue
         existing = _existing_article_urls(directory)

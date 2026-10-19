@@ -145,6 +145,15 @@ def _post(path: str, body: dict) -> dict:
     return payload
 
 
+def ping() -> dict:
+    """{"daily_chars", "used_today"} from the 本体, or RelayError with a message to show."""
+    payload = _post("/relay/v1/ping", {})
+    daily, used = payload.get("daily_chars"), payload.get("used_today")
+    if payload.get("ok") is not True or not isinstance(daily, int) or not isinstance(used, int):
+        raise RelayError("中継先から予期しない応答がありました（NewsBridge の版が古い可能性があります）。")
+    return {"daily_chars": daily, "used_today": used}
+
+
 def translate(texts: list[str], target: str) -> list[str]:
     """One translation per text, through the 本体 (split into requests within its limits)."""
     results: list[str] = []

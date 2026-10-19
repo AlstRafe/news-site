@@ -120,6 +120,9 @@ def badge(data: dict | None = None) -> dict:
         return {"label": f"取得失敗 · {ago(finished)}", "tone": "bad", "title": collector.get("error", "")}
     # The task runs hourly; three missed hours means the PC slept or the task stopped.
     tone = "warn" if since is not None and since > 3 * 60 else "ok"
-    saved = sum(int(site.get("saved", 0)) for site in (collector.get("sites") or {}).values())
+    sites = (collector.get("sites") or {}).values()
+    saved = sum(int(site.get("saved", 0)) for site in sites)
+    if sites and all(site.get("limited") for site in sites):  # a test build at its article limit
+        return {"label": "記事数の上限", "tone": "idle", "title": "テスト版の記事数の上限に達しているため、新しい記事は追加していません"}
     return {"label": f"取得 {ago(finished)}", "tone": tone,
             "title": f"前回の自動取得で {saved} 件保存" + ("（3時間以上更新がありません）" if tone == "warn" else "")}
