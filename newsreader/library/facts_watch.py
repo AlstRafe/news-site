@@ -2,13 +2,14 @@
 figures once in the background and keep a summary, so the home page can point at the news whose
 outlets disagree on a count ("聯合 20人 → 53人 · BBC 50人超").
 
-The same summary is written when someone opens 「数字を比べる」 on a group page. Translation is
-injected (``translate_en``: texts -> English texts, cached by the caller) and capped per day.
+The same summary is written when someone opens 「数字を比べる」 on a group page. In the
+background nothing is translated: counts of people are read in English, Korean and Chinese as
+written (D-65). ``english_of`` (with an injected, cached translator) serves the group page, which
+also compares money, shares and quotes.
 """
 from __future__ import annotations
 
 import json
-import time
 from contextlib import closing
 from datetime import datetime, timedelta, timezone
 from pathlib import Path

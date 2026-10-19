@@ -1,7 +1,6 @@
 """Test build (D-53): one ZIP with the same code, a preset, sample articles and a relay token."""
 import json
 import shutil
-import sqlite3
 import sys
 import tempfile
 import unittest

@@ -40,7 +40,6 @@ def get_settings() -> dict[str, str]:
         value = json.loads(SETTINGS_PATH.read_text(encoding="utf-8"))
     except (OSError, ValueError, TypeError):
         value = {}
-    provider = value.get("provider") if isinstance(value, dict) else None
     region = value.get("azure_region") if isinstance(value, dict) else None
     bind_host = value.get("network_bind_host") if isinstance(value, dict) else None
     port = value.get("network_port") if isinstance(value, dict) else None
