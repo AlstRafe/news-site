@@ -311,6 +311,7 @@ def fetch_cycle(
     library_root: Path,
     report: dict | None = None,
     skip_memory_path: Path | None = None,
+    limit: int = 0,
 ) -> dict[str, int]:
     """Fetch up to a few new articles per source, preserving original HTML.
 
@@ -320,13 +321,19 @@ def fetch_cycle(
     """
     totals = {}
     remembered = SkipMemory(skip_memory_path)
+    # With a limit (test builds), stop adding once the library holds that many articles.
+    held = sum(1 for _ in library_root.rglob("*.html")) if limit and library_root.is_dir() else 0
     for source in SOURCES:
         directory = library_root / source["directory"]
-        existing = _existing_article_urls(directory)
         saved = duplicates = skipped = failed = 0
         site = {"saved": 0, "duplicates": 0, "skipped": 0, "failed": 0, "error": ""}
         if report is not None:
             report[source["name"]] = site
+        if limit and held >= limit:
+            site["error"] = f"記事数の上限（{limit} 本）に達しているため取得していません"
+            totals[source["name"]] = 0
+            continue
+        existing = _existing_article_urls(directory)
         try:
             links = _article_links(source)
         except (HTTPError, URLError, OSError, TimeoutError, ValueError) as exc:
@@ -357,8 +364,9 @@ def fetch_cycle(
             else:
                 existing.add(result)
                 saved += 1
+                held += 1
                 _log.info("Saved %s: %s", source["name"], result)
-            if saved >= MAX_NEW_PER_SOURCE_PER_CYCLE:
+            if saved >= MAX_NEW_PER_SOURCE_PER_CYCLE or (limit and held >= limit):
                 break
         totals[source["name"]] = saved
         site.update(saved=saved, duplicates=duplicates, skipped=skipped, failed=failed)

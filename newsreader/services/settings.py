@@ -151,6 +151,16 @@ def start_at_logon() -> bool:
     return not (isinstance(value, dict) and value.get("start_at_logon") is False)
 
 
+def library_limit() -> int:
+    """Most articles the collector keeps adding up to (settings "library_limit"); 0 = no limit.
+    Test builds ship with a few sample articles and a small limit (D-53)."""
+    try:
+        value = json.loads(SETTINGS_PATH.read_text(encoding="utf-8")).get("library_limit", 0)
+    except (OSError, ValueError, TypeError, AttributeError):
+        return 0
+    return value if isinstance(value, int) and not isinstance(value, bool) and value > 0 else 0
+
+
 def save_start_at_logon(enabled: bool) -> None:
     _write_merged({"start_at_logon": bool(enabled)})
 

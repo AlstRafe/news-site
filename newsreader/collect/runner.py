@@ -125,8 +125,9 @@ def main() -> int:
             return 0
         log.info("Standalone scheduled collection started: %s", library_root)
         report: dict = {}
+        from newsreader.services.settings import library_limit  # late: keyring only when needed
         totals = fetch_cycle(library_root, report=report,
-                             skip_memory_path=INSTANCE_DIRECTORY / "collector_skipped.json")
+                             skip_memory_path=INSTANCE_DIRECTORY / "collector_skipped.json", limit=library_limit())
         log.info("Standalone scheduled collection complete: %s", totals)
         status.update("collector", {"running": False, "finished": status.now_iso(), "ok": True, "error": "",
                                     "seconds": round(time.perf_counter() - started, 1), "sites": report,
