@@ -113,13 +113,15 @@ def index_page():
         thumb = item.get("thumb_src", "")
         item["thumb"] = image_url(item["id"], 0, thumb) if image_service.allowed_image_url(thumb) else ""
         item["story"] = marks.get(item["id"])
+    # The newest stories several outlets reported, on the first page of the plain list only.
+    highlights = [] if (source or query or result["page"] > 1) else stories.list_stories(db, per_page=6)["stories"]
     state = index.sync_state(db)
     indexing = bool(state.get("running")) and not result["total"] and not source and not query
     response = current_app.make_response(render_template(
         "index.html", error=state.get("error", ""), warning=state.get("warning", ""), indexing=indexing,
         progress=state.get("progress") or [0, 0], items=result["items"], sources=index.sources(db),
         source=source, query=query, english_query=english, page=result["page"], pages=result["pages"],
-        total=result["total"], csrf=csrf_token(),
+        total=result["total"], csrf=csrf_token(), highlights=highlights,
     ))
     response.headers["Cache-Control"] = CACHE_LIST
     return response

@@ -12,6 +12,8 @@
 <a class="chip{% if not source %} active{% endif %}" href="{{ url_for('index', q=query or None) }}">すべて</a>
 {% for s in sources %}<a class="chip{% if source == s.name %} active{% endif %}" href="{{ url_for('index', source=s.name, q=query or None) }}">{{ s.name or '未分類' }}<span>{{ s.count }}</span></a>{% endfor %}
 </nav>
+{% if highlights %}<section class="highlights" aria-labelledby="highlights-head"><div class="highlights-head"><h2 id="highlights-head">複数の媒体が報じたニュース</h2><a href="{{ url_for('stories_page') }}">読み比べへ</a></div>
+<div class="highlight-row">{% for story in highlights %}<a class="highlight" href="{{ url_for('story_page', key=story.key) }}"><span class="story-outlets">{% for name, n in story.outlet_counts %}<span class="badge" data-lang="{{ name|src_lang }}">{{ name }}{% if n > 1 %} ×{{ n }}{% endif %}</span>{% endfor %}</span><strong data-gloss-id="{{ story.lead_id }}">{{ story.lead_title }}</strong><span class="story-time">{{ story.newest_time|localtime_short }}</span></a>{% endfor %}</div></section>{% endif %}
 <div class="list-head"><h1>{% if query %}「{{ query }}」の検索結果{% elif source %}{{ source }}{% else %}新着記事{% endif %}</h1><span class="count">{{ total }} 件</span>{% if items %}<button type="button" class="gloss-toggle" id="gloss-toggle" aria-pressed="false" title="各見出しの下に訳を表示（見出しだけを翻訳サービスに送信。一度訳した見出しは保存して再送信しません）">見出しを訳す</button>{% endif %}</div>
 {% if query %}<p class="hint search-note">{% if english_query %}英語に訳した「{{ english_query }}」でも、全記事の見出し（英訳）を検索しています。{% else %}見出し・冒頭文と、全記事の見出しの英訳を検索しています。日本語などで検索すると英語に訳して探します（翻訳キーが必要）。{% endif %}</p>{% endif %}
 {% if items %}

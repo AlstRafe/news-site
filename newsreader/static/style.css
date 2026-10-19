@@ -627,3 +627,15 @@ h1 .story-gloss{font-size:clamp(16px,2.4vw,20px);font-weight:600;margin-top:6px;
 /* Reading progress on article pages */
 .read-progress{position:fixed;z-index:17;left:0;right:0;top:0;height:3px;pointer-events:none;}
 .read-progress span{display:block;height:100%;background:var(--bg-b51d24);transform-origin:0 50%;transform:scaleX(0);}
+/* Home: the newest news several outlets reported, as a row to swipe through */
+.highlights{margin:4px 0 22px;}
+.highlights-head{display:flex;align-items:baseline;justify-content:space-between;gap:12px;}
+.highlights-head h2{font-size:15px;margin:0 0 10px;}
+.highlights-head a{font-size:13px;font-weight:700;text-decoration:none;color:var(--fg-a41b22);}
+.highlight-row{display:grid;grid-auto-flow:column;grid-auto-columns:minmax(240px,1fr);gap:12px;overflow-x:auto;scroll-snap-type:x mandatory;padding-bottom:6px;overscroll-behavior-x:contain;}
+.highlight{scroll-snap-align:start;display:flex;flex-direction:column;gap:7px;padding:13px 14px;border-radius:12px;background:var(--bg-ffffff);border:1px solid var(--line-e6e7ed);text-decoration:none;color:inherit;min-height:118px;}
+.highlight:hover{border-color:var(--line-b51d24);}
+.highlight strong{font-size:14px;line-height:1.5;display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden;overflow-wrap:anywhere;}
+.highlight .story-time{margin-top:auto;font-size:11px;color:var(--fg-878b93);}
+.highlight .badge{font-size:10px;}
+@media(max-width:650px){.highlight-row{grid-auto-columns:78%;margin:0 -16px;padding:0 16px 6px;scroll-padding:0 16px;}}
