@@ -15,6 +15,8 @@ from pathlib import Path
 from newsreader.library import index
 
 _FORMAT = "%Y-%m-%dT%H:%M:%SZ"
+#: The newest news only this outlet reported, listed under its figures.
+SCOOPS_SHOWN = 3
 
 
 def _parse(stamp: str) -> datetime | None:
@@ -28,14 +30,14 @@ def stats(db_path: Path, *, days: int = 7, now: datetime | None = None) -> dict:
     now = (now or datetime.now(timezone.utc)).replace(tzinfo=None)
     since = (now - timedelta(days=days)).strftime(_FORMAT)
     with closing(index.connect(db_path)) as db:
-        articles = db.execute("SELECT a.id, a.source, a.published, m.story_key FROM articles a "
+        articles = db.execute("SELECT a.id, a.source, a.published, m.story_key, a.title FROM articles a "
                               "LEFT JOIN story_members m ON m.article_id = a.id "
                               "WHERE a.error = '' AND a.published >= ? AND a.source != ''", (since,)).fetchall()
         facts = db.execute("SELECT summary FROM story_facts WHERE differs = 1 AND cohesive = 1 AND newest >= ?",
                            (since,)).fetchall()
     outlets: dict[str, dict] = {}
     groups: dict[str, list[tuple[str, datetime | None]]] = {}
-    for article_id, source, published, key in articles:
+    for article_id, source, published, key, _title in articles:
         entry = outlets.setdefault(source, {"source": source, "articles": 0, "shared": 0, "scoops": 0, "first": 0,
                                             "later": [], "disputes": 0})
         entry["articles"] += 1
@@ -47,6 +49,11 @@ def stats(db_path: Path, *, days: int = 7, now: datetime | None = None) -> dict:
             outlets[source]["shared"] += 1
     for entry in outlets.values():
         entry["scoops"] = entry["articles"] - entry["shared"]  # no other outlet reported that news
+    shared_ids_keys = set(shared_groups)
+    for article_id, source, published, key, title in sorted(articles, key=lambda row: row[2] or "", reverse=True):
+        entry = outlets[source]
+        if key not in shared_ids_keys and len(entry.setdefault("recent_scoops", [])) < SCOOPS_SHOWN:
+            entry["recent_scoops"].append({"id": article_id, "title": title, "published": published})
     pairs: dict[tuple[str, str], int] = {}
     for members in shared_groups.values():
         firsts: dict[str, datetime] = {}

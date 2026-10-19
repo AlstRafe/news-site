@@ -55,6 +55,8 @@ class OutletTests(unittest.TestCase):
         self.assertEqual((by["Yonhap"]["scoops"], by["Yonhap"]["median_lag_hours"]), (1, 3.0))
         self.assertEqual((by["BBC"]["disputes"], by["Yonhap"]["disputes"], by["CNA"]["disputes"]), (1, 1, 0))
         self.assertEqual(found["shared_news"], 2)
+        self.assertEqual([a["id"] for a in by["BBC"]["recent_scoops"]], [7, 6])  # newest first, only BBC's own news
+        self.assertEqual([a["id"] for a in by["Yonhap"]["recent_scoops"]], [8])
         self.assertEqual({(p["a"], p["b"]): p["news"] for p in found["pairs"]},
                          {("BBC", "CNA"): 2, ("BBC", "Yonhap"): 1, ("CNA", "Yonhap"): 1})
 
