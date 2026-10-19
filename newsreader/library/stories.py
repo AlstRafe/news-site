@@ -325,3 +325,48 @@ def related(db_path: Path, article_id: int) -> dict | None:
         members = _members(db, [row["story_key"]]).get(row["story_key"], [])
     others = [m for m in members if m["id"] != article_id]
     return {"key": row["story_key"], "members": others} if others else None
+
+
+#: 似た記事 (D-66): looser than grouping (PAIR_THRESHOLD), for the reader to judge.
+SIMILAR_MIN = 0.2
+SIMILAR_HOURS = 72
+
+
+def similar(db_path: Path, article_id: int, limit: int = 5) -> list[dict]:
+    """Articles of other outlets whose English headlines resemble this one's, within three days,
+    that are not already in its group: [{"id", "source", "title", "published", "score"}]."""
+    from datetime import timedelta
+    with closing(index.connect(db_path)) as db:
+        me = db.execute("""SELECT a.id, a.source, a.published, s.pivot, m.story_key FROM articles a
+                           JOIN story_items s ON s.article_id = a.id LEFT JOIN story_members m ON m.article_id = a.id
+                           WHERE a.id = ? AND s.pivot IS NOT NULL""", (article_id,)).fetchone()
+        moment = core.parse_utc(me["published"]) if me else None
+        if me is None or moment is None:
+            return []
+        low = (moment - timedelta(hours=SIMILAR_HOURS)).strftime("%Y-%m-%dT%H:%M:%SZ")
+        high = (moment + timedelta(hours=SIMILAR_HOURS)).strftime("%Y-%m-%dT%H:%M:%SZ")
+        rows = db.execute("""SELECT a.id, a.source, a.title, a.published, s.pivot, m.story_key FROM articles a
+                             JOIN story_items s ON s.article_id = a.id LEFT JOIN story_members m ON m.article_id = a.id
+                             WHERE a.error = '' AND s.pivot IS NOT NULL AND a.published BETWEEN ? AND ?""",
+                          (low, high)).fetchall()
+    items = {row["id"]: (core.features(row["pivot"]), core.parse_utc(row["published"]) or moment) for row in rows}
+    if article_id not in items:
+        return []
+    corpus = core.Corpus(items)
+    pivots = {row["id"]: row["pivot"] for row in rows}
+
+    def names(pivot: str) -> set[str]:
+        return {word for word, shape in core.shapes(pivot).items() if shape & {"name", "quoted"}}
+
+    mine = names(pivots[article_id])
+    found = []
+    for row in rows:
+        if row["source"] == me["source"] or row["id"] == article_id or (me["story_key"] and row["story_key"] == me["story_key"]):
+            continue
+        score = corpus.raw(article_id, row["id"])
+        # a shared name (a person, place, organisation) as well: shared common words are not enough
+        if score >= SIMILAR_MIN and mine & names(row["pivot"]):
+            found.append({"id": row["id"], "source": row["source"], "title": row["title"], "published": row["published"],
+                          "score": round(score, 2)})
+    found.sort(key=lambda item: -item["score"])
+    return found[:limit]

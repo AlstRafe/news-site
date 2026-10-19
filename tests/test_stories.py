@@ -578,5 +578,36 @@ class HyphenTests(unittest.TestCase):
         self.assertEqual(set(core.features("US-Japan drills")), {"us", "japan", "drill"})
 
 
+
+class SimilarTests(unittest.TestCase):
+    """似た記事 (D-66): other outlets' articles with a resembling English headline, not grouped."""
+
+    def test_similar_needs_a_shared_name_and_skips_the_group(self):
+        tmp = Path(tempfile.mkdtemp())
+        db = tmp / "lib.sqlite3"
+        rows = [(1, "BBC", "France's government under pressure after weekend of riots in Paris", "s1"),
+                (2, "CNA", "Violent protests in France: curfew imposed in parts of Paris", None),
+                (3, "Yonhap", "Curfew in parts of Paris as France is shocked by violence", "s1"),
+                (4, "CNA", "Government under pressure after weekend of protests in Lima", None),
+                (5, "BBC", "Paris riots: more arrests in France", None)]
+        with closing(index.connect(db)) as c:
+            for aid, source, pivot, key in rows:
+                c.execute("INSERT INTO articles(id, source, filename, title, published, size, mtime) VALUES(?,?,?,?,?,1,1)",
+                          (aid, source, f"{aid}.html", pivot, "2026-10-19T10:00:00Z"))
+                c.execute("INSERT INTO story_items(article_id, title, lang, pivot, pivot_chars, pivot_at) VALUES(?,?,'en',?,0,'')",
+                          (aid, pivot, pivot))
+                if key:
+                    c.execute("INSERT INTO story_members(article_id, story_key, score) VALUES(?,?,0.5)", (aid, key))
+        try:
+            found = [item["id"] for item in stories.similar(db, 1)]
+            self.assertIn(2, found)        # another outlet, France and Paris
+            self.assertNotIn(3, found)     # already in the same group
+            self.assertNotIn(4, found)     # common words only, no shared name
+            self.assertNotIn(5, found)     # the same outlet
+            self.assertEqual(stories.similar(db, 999), [])
+        finally:
+            shutil.rmtree(tmp, ignore_errors=True)
+
+
 if __name__ == "__main__":
     unittest.main()

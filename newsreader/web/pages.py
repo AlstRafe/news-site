@@ -172,6 +172,7 @@ def show_article(article_id: int):
     response = current_app.make_response(render_template(
         "article.html", article=article, record=record, article_id=article_id, csrf=csrf_token(),
         related=related, neighbours=index.neighbours(db_path(), article_id),
+        similar=stories.similar(db_path(), article_id),
     ))
     response.headers["Cache-Control"] = CACHE_PAGE
     return response

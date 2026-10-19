@@ -25,7 +25,8 @@ AVG_LINK_THRESHOLD = 0.12
 MAX_CLUSTER = 12
 COMMON_SHARE = 0.25
 STEM_LENGTH = 6
-_GENERIC = frozenset({"us", "uk", "eu"})  # too common in headlines to count as evidence on their own
+_GENERIC = frozenset({"us", "uk", "eu"})
+_NUMBER_WORDS = frozenset("one two three four five six seven eight nine ten dozen hundred thousand million".split())  # too common in headlines to count as evidence on their own
 
 _STOP = frozenset(
     "a an the and or but of to in on for at by with from as is are was were be been being it its this that "
@@ -202,6 +203,17 @@ class Corpus:
                 value = score
         self._cache[key] = value
         return value
+
+    def raw(self, a: int, b: int) -> float:
+        """The blended similarity of two headlines, without the acceptance rules (for "似た記事")."""
+        va, vb = self.vectors[a], self.vectors[b]
+        # Numbers ("4", "four") and generic words are no evidence; two shared words at least.
+        shared = [t for t in va if t in vb and t not in _GENERIC and not t[:1].isdigit() and t not in _NUMBER_WORDS]
+        if len(shared) < 2:
+            return 0.0
+        cosine = sum(va[t] * vb[t] for t in shared) / (self.norms[a] * self.norms[b])
+        contained = sum(min(va[t], vb[t]) for t in shared) / min(self.mass[a], self.mass[b])
+        return CONTAIN_BLEND * contained + (1 - CONTAIN_BLEND) * cosine
 
     def candidate_pairs(self) -> list[tuple[float, int, int]]:
         postings: dict[str, list[int]] = defaultdict(list)
