@@ -62,6 +62,28 @@ class LogonStartTests(unittest.TestCase):
             self.assertEqual(launcher.main(["--background"]), 0)
         self.assertTrue(launch.call_args.kwargs["background"])
 
+    def test_old_shared_task_of_this_copy_is_replaced_by_a_per_copy_task(self):
+        import json, os, tempfile, types
+        tmp = Path(tempfile.mkdtemp())
+        (tmp / "pythonw.exe").write_text("")
+        record = tmp / "server-task.json"
+        record.write_text(json.dumps({"task_name": launcher.LEGACY_LOGON_TASK_NAME}), encoding="utf-8")
+        calls = []
+
+        def run(args, **kwargs):
+            calls.append(args[1:4])
+            return types.SimpleNamespace(returncode=0, stdout=f"<Arguments>{launcher.PROJECT_ROOT}</Arguments>", stderr="")
+
+        fake_os = types.SimpleNamespace(name="nt", environ={"USERNAME": "u", "USERDOMAIN": "PC"}, getpid=os.getpid)
+        with mock.patch.object(launcher, "os", fake_os), mock.patch.object(launcher.shutil, "which", return_value="schtasks"), \
+                mock.patch.object(launcher.subprocess, "run", run), mock.patch.object(launcher, "LOGON_REGISTRATION_PATH", record), \
+                mock.patch.object(launcher, "INSTANCE_DIRECTORY", tmp):
+            self.assertTrue(launcher.ensure_logon_task(tmp / "python.exe", True))
+        self.assertIn(["/Delete", "/TN", launcher.LEGACY_LOGON_TASK_NAME], calls)
+        self.assertIn(["/Create", "/TN", launcher.LOGON_TASK_NAME], calls)
+        self.assertTrue(launcher.LOGON_TASK_NAME.startswith(launcher.LEGACY_LOGON_TASK_NAME + "-"))
+        self.assertEqual(json.loads(record.read_text(encoding="utf-8"))["task_name"], launcher.LOGON_TASK_NAME)
+
     def test_no_task_outside_windows(self):
         if launcher.os.name == "nt":
             self.skipTest("Windows")

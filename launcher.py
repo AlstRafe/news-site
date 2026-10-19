@@ -34,8 +34,11 @@ SETTINGS_PATH = PROJECT_ROOT / "instance" / "settings.json"
 INSTANCE_DIRECTORY = PROJECT_ROOT / "instance"
 COLLECTOR_SETTINGS_PATH = INSTANCE_DIRECTORY / "collector.json"
 TASK_REGISTRATION_PATH = INSTANCE_DIRECTORY / "collector-task.json"
-#: One per Windows user: the installation started last is the one that starts at logon.
-LOGON_TASK_NAME = f"{APP_CONFIG['name']}-WebServer"
+#: Identifies this copy of the app (folder), so two copies on one PC keep separate tasks.
+PROJECT_ID = hashlib.sha256(str(PROJECT_ROOT).casefold().encode("utf-8")).hexdigest()[:8]
+#: One per installation (D-52); earlier versions used one unsuffixed name per Windows user.
+LOGON_TASK_NAME = f"{APP_CONFIG['name']}-WebServer-{PROJECT_ID}"
+LEGACY_LOGON_TASK_NAME = f"{APP_CONFIG['name']}-WebServer"
 LOGON_REGISTRATION_PATH = INSTANCE_DIRECTORY / "server-task.json"
 CREATE_NO_WINDOW = 0x08000000
 
@@ -268,8 +271,7 @@ def ensure_hourly_collector_task(runtime_python: Path, library_root: Path) -> bo
         print("Warning: schtasks.exe was not found; automatic article collection is not scheduled.")
         return False
 
-    project_id = hashlib.sha256(str(PROJECT_ROOT).casefold().encode("utf-8")).hexdigest()[:8]
-    task_name = f"{APP_CONFIG['name']}-HourlyCollector-{project_id}"
+    task_name = f"{APP_CONFIG['name']}-HourlyCollector-{PROJECT_ID}"
     collector_script = PROJECT_ROOT / "collector.py"
     # python.exe attaches a console window when Task Scheduler starts the job.
     # Use the matching pythonw.exe so hourly collection stays invisible while
@@ -427,6 +429,14 @@ def ensure_logon_task(runtime_python: Path, enabled: bool) -> bool:
         previous = json.loads(LOGON_REGISTRATION_PATH.read_text(encoding="utf-8"))
     except (OSError, ValueError, TypeError):
         previous = {}
+    if previous.get("task_name") == LEGACY_LOGON_TASK_NAME:
+        # registered by this copy under the old shared name: remove it (only when it is ours)
+        legacy = subprocess.run([scheduler, "/Query", "/TN", LEGACY_LOGON_TASK_NAME, "/XML"],
+                                capture_output=True, text=True, errors="replace")
+        if legacy.returncode == 0 and str(PROJECT_ROOT) in (legacy.stdout or ""):
+            subprocess.run([scheduler, "/Delete", "/TN", LEGACY_LOGON_TASK_NAME, "/F"], capture_output=True, text=True, errors="replace")
+        previous = {}
+        LOGON_REGISTRATION_PATH.unlink(missing_ok=True)
     if not enabled:
         if previous:
             subprocess.run([scheduler, "/Delete", "/TN", LOGON_TASK_NAME, "/F"], capture_output=True, text=True, errors="replace")
@@ -442,7 +452,6 @@ def ensure_logon_task(runtime_python: Path, enabled: bool) -> bool:
     arguments = f'"{PROJECT_ROOT / "launcher.py"}" --background'
     registration = {"definition_version": 1, "task_name": LOGON_TASK_NAME, "command": str(pythonw), "arguments": arguments}
     query = subprocess.run([scheduler, "/Query", "/TN", LOGON_TASK_NAME, "/XML"], capture_output=True, text=True, errors="replace")
-    # Another installation may have taken the task since: compare with what is registered now.
     if query.returncode == 0 and previous == registration and str(PROJECT_ROOT) in (query.stdout or ""):
         return False
     temporary_xml = INSTANCE_DIRECTORY / f"server-task-{os.getpid()}.xml"
