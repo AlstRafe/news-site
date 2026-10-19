@@ -5,6 +5,7 @@
 <div class="eyebrow">{{ article.kind }} · {{ article.paragraph_count }} 段落</div><h1{{ record.source|lang_attr }}>{{ article.title }}</h1>
 <p class="title-tr" id="bi-title" hidden></p>
 <div class="meta">{{ record.source }}{% if record.published %} · {{ record.published|localtime }}{% endif %}{% if related %} · <a class="related-jump" href="#related-head">同じニュースの他の記事 {{ related.members|length }} 本 ↓</a>{% endif %}</div>
+{% if related and related.disputes %}<a class="article-dispute" href="{{ url_for('story_page', key=related.key) }}#facts"><span class="diff-flag">数字が媒体で違います</span>{% for k in related.disputes[:2] %}<span class="dispute-kind"><span class="dispute-label">{{ k.label }}</span><span class="fact-trail" role="list">{% for t in k.trail[:4] %}<span role="listitem"><span class="badge" data-lang="{{ t.source|src_lang }}">{{ t.source }}</span><strong>{{ t.text }}</strong></span>{% endfor %}</span></span>{% endfor %}<span class="article-dispute-more">比べる →</span></a>{% endif %}
 {% if article.url %}<p class="source-link"><a href="{{ article.url }}" target="_blank" rel="noopener noreferrer">元の記事を開く ↗</a></p>{% endif %}
 {# The first image leads the article; the rest follow the text, so the text starts on the first screen. #}
 {% if article.images %}<div class="article-images lead-image">{% with image = article.images[0] %}<figure><img src="{{ image.url }}" alt="{{ image.alt }}" decoding="async" fetchpriority="high">{% if image.alt %}<figcaption>{{ image.alt }}</figcaption>{% endif %}</figure>{% endwith %}</div>{% endif %}

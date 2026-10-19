@@ -169,6 +169,9 @@ def show_article(article_id: int):
         own = stories.LANG_TARGETS.get(stories.headline_language(db_path(), article_id), "")
         others = {stories.LANG_TARGETS.get(m.get("lang") or "", "") for m in related["members"]}
         related["align"] = own if own and others - {own, ""} else ""
+        # The group's outlets disagree on a count (background comparison, D-59): say so up top.
+        from newsreader.library import facts_watch
+        related["disputes"] = facts_watch.disputed(db_path(), [related["key"]]).get(related["key"], [])
     response = current_app.make_response(render_template(
         "article.html", article=article, record=record, article_id=article_id, csrf=csrf_token(),
         related=related, neighbours=index.neighbours(db_path(), article_id),

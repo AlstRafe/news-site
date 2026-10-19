@@ -122,6 +122,17 @@ class FactsWatchTests(unittest.TestCase):
         self.assertNotIn("/stories/s3", only)
         self.assertIn("死者の数字が媒体で違います", page)
 
+    def test_article_page_says_its_group_disagrees(self):
+        facts_watch.refresh(self.db)
+        client = create_app(self.tmp / "articles", self.db, start_background=False, secret_key=b"f" * 32).test_client()
+        with mock.patch("newsreader.web.pages.load_article", lambda record: {"title": "t", "paragraphs": ["p"], "kind": "k",
+                                                                            "paragraph_count": 1, "images": [], "url": ""}), \
+                mock.patch.object(ts, "_translate_batch", lambda provider, texts, target: texts):
+            page = client.get("/a/1", headers=H).get_data(as_text=True)
+            other = client.get("/a/3", headers=H).get_data(as_text=True)
+        self.assertIn('class="article-dispute" href="/stories/s1#facts"', page)
+        self.assertNotIn("article-dispute", other)
+
     def test_summary_keeps_compared_counts_only(self):
         facts_watch.refresh(self.db, self.to_english)
         with closing(index.connect(self.db)) as db:
