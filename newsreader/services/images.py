@@ -38,6 +38,8 @@ IMAGE_HOSTS = frozenset({
     "imgnews.pstatic.net",
     "mimgnews.pstatic.net",
     "imgcdn.cna.com.tw",
+    # Yonhap serves article photos from img.yna.co.kr and the numbered mirrors img1–img9.
+    "img.yna.co.kr", *(f"img{n}.yna.co.kr" for n in range(1, 10)),
 })
 MIME_EXTENSIONS = {
     "image/jpeg": ".jpg",

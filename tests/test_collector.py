@@ -35,6 +35,13 @@ CNA_FEED = b"""<?xml version="1.0"?><rss><channel>
 <item><link>https://www.cna.com.tw/news/aopl/202610180001.aspx</link></item>
 </channel></rss>"""
 
+from test_yonhap import YONHAP  # noqa: E402
+
+YONHAP_FEED = b"""<?xml version="1.0" encoding="UTF-8"?><rss version="2.0"><channel>
+<item><title>Yonhap item</title><link>https://www.yna.co.kr/view/AKR20261019174900007</link></item>
+<item><title>English service</title><link>https://www.yna.co.kr/view/AEN20261019000100315</link></item>
+</channel></rss>"""
+
 RESPONSES = {
     "https://feeds.bbci.co.uk/robots.txt": (ROBOTS_OK, "text/plain"),
     "https://www.bbc.com/robots.txt": (ROBOTS_OK, "text/plain"),
@@ -45,6 +52,9 @@ RESPONSES = {
     "https://www.bbc.com/news/articles/c1": (BBC_ARTICLE, "text/html"),
     "https://www.bbc.com/news/videos/v1": (BBC_NO_BODY, "text/html"),
     "https://www.cna.com.tw/news/aopl/202610180001.aspx": (CNA_ARTICLE, "text/html"),
+    "https://www.yna.co.kr/robots.txt": (b"User-agent: *\nAllow: /\nDisallow: /view/AEN*\n", "text/plain"),
+    "https://www.yna.co.kr/rss/international.xml": (YONHAP_FEED, "application/rss+xml"),
+    "https://www.yna.co.kr/view/AKR20261019174900007": (YONHAP, "text/html"),
 }
 
 
@@ -87,7 +97,6 @@ class CollectionEndToEndTests(unittest.TestCase):
             mock.patch.object(runner, "LOCK_FILE", self.instance / "collector.lock"),
             mock.patch.object(runner, "get_library_root", lambda: self.root),
             mock.patch.object(runner.library, "DEFAULT_DB_PATH", self.instance / "library.sqlite3"),
-            mock.patch.object(runner, "get_secret", lambda name: None),
             mock.patch.object(settings, "SETTINGS_PATH", self.instance / "settings.json"),
             mock.patch.object(sys, "argv", ["collector.py", "--once"]),
         ]
@@ -108,7 +117,7 @@ class CollectionEndToEndTests(unittest.TestCase):
     def test_collection_saves_reports_indexes_and_shows_on_the_list(self):
         self.assertEqual(runner.main(), 0)
         saved = sorted(p.relative_to(self.root).as_posix() for p in self.root.glob("*/*.html"))
-        self.assertEqual(len(saved), 2, saved)  # BBC text article + CNA article; the video page has no body
+        self.assertEqual(len(saved), 3, saved)  # BBC text, CNA and Yonhap articles; the video page has no body
 
         data = json.loads((self.instance / "status.json").read_text(encoding="utf-8"))
         collector = data["collector"]
@@ -117,10 +126,10 @@ class CollectionEndToEndTests(unittest.TestCase):
         self.assertEqual(collector["sites"]["BBC"]["saved"], 1)
         self.assertEqual(collector["sites"]["BBC"]["skipped"], 1)
         self.assertEqual(collector["sites"]["CNA"]["saved"], 1)
-        self.assertEqual(collector["sites"]["NAVER NEWS"]["error"], "APIキー未設定")
-        self.assertFalse(collector["naver_configured"])
+        self.assertEqual(collector["sites"]["Yonhap"]["saved"], 1)  # the English-service link is not an article
+        self.assertNotIn("NAVER NEWS", collector["sites"])
         self.assertTrue(collector["library_root"])  # lets a copy showing this folder follow this task
-        self.assertEqual(data["library"]["result"]["added"], 2)
+        self.assertEqual(data["library"]["result"]["added"], 3)
 
         app = create_app(self.root, self.instance / "library.sqlite3", start_background=False, secret_key=b"k" * 32)
         page = app.test_client().get("/", headers={"Host": "localhost"}).get_data(as_text=True)
@@ -128,12 +137,12 @@ class CollectionEndToEndTests(unittest.TestCase):
         self.assertIn("CNA headline", page)
         self.assertIn("取得 たった今", page)
         status_page = app.test_client().get("/status", headers={"Host": "localhost"}).get_data(as_text=True)
-        self.assertIn("APIキー未設定", status_page)
+        self.assertIn("Yonhap", status_page)
 
         # Second run: everything is a duplicate, nothing new saved, still ok.
         autofetch._robots_cache.clear()
         self.assertEqual(runner.main(), 0)
-        self.assertEqual(len(list(self.root.glob("*/*.html"))), 2)
+        self.assertEqual(len(list(self.root.glob("*/*.html"))), 3)
         again = json.loads((self.instance / "status.json").read_text(encoding="utf-8"))["collector"]
         self.assertEqual(again["sites"]["BBC"]["duplicates"] + again["sites"]["BBC"]["saved"], 1)
 
@@ -237,18 +246,6 @@ class CollectionEndToEndTests(unittest.TestCase):
             self.assertEqual(runner.main(), 0)
         collector = json.loads((self.instance / "status.json").read_text(encoding="utf-8"))["collector"]
         self.assertIn("失敗", collector["sites"]["BBC"]["error"])
-        self.assertEqual(collector["sites"]["CNA"]["saved"], 1)
-
-    def test_credential_store_failure_skips_only_naver(self):
-        from newsreader.services.settings import SecretStoreError
-
-        def broken(name):
-            raise SecretStoreError("vault locked")
-
-        with mock.patch.object(runner, "get_secret", broken):
-            self.assertEqual(runner.main(), 0)
-        collector = json.loads((self.instance / "status.json").read_text(encoding="utf-8"))["collector"]
-        self.assertTrue(collector["ok"])
         self.assertEqual(collector["sites"]["CNA"]["saved"], 1)
 
     def test_crash_is_recorded_as_a_failed_collection(self):

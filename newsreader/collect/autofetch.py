@@ -12,7 +12,7 @@ import xml.etree.ElementTree as ET
 from logging.handlers import RotatingFileHandler
 from pathlib import Path
 from urllib.error import HTTPError, URLError
-from urllib.parse import urlencode, urljoin, urlsplit, urlunsplit
+from urllib.parse import urljoin, urlsplit, urlunsplit
 from urllib.request import Request, urlopen
 from urllib.robotparser import RobotFileParser
 
@@ -71,8 +71,6 @@ def slim_on_save() -> bool:
     return os.environ.get("NEWS_SLIM_ON_SAVE", "1").strip() not in {"0", "false", "no", "off"}
 MAX_FEED_BYTES = 2 * 1024 * 1024
 REQUEST_TIMEOUT_SECONDS = 20
-NAVER_API_URL = "https://naverapihub.apigw.ntruss.com/search/v1/news"
-NAVER_API_RESULT_COUNT = 100
 SOURCES = (
     {
         "name": "BBC",
@@ -83,20 +81,21 @@ SOURCES = (
         "is_article": lambda url: urlsplit(url).path.startswith("/news/"),
     },
     {
-        "name": "NAVER NEWS",
-        "directory": "NAVER NEWS",
-        "kind": "naver-api",
-        "url": NAVER_API_URL,
-        "article_hosts": {"n.news.naver.com"},
-        "is_article": lambda url: bool(re.fullmatch(r"/article/\d+/\d+", urlsplit(url).path)),
-    },
-    {
         "name": "CNA",
         "directory": "CNA",
         "kind": "rss",
         "url": "https://feeds.feedburner.com/rsscna/intworld",
         "article_hosts": {"www.cna.com.tw", "cna.com.tw"},
         "is_article": lambda url: urlsplit(url).path.startswith("/news/"),
+    },
+    {
+        # 연합뉴스 international news (replaces NAVER, whose API needs keys that cannot be had).
+        "name": "Yonhap",
+        "directory": "Yonhap",
+        "kind": "rss",
+        "url": "https://www.yna.co.kr/rss/international.xml",
+        "article_hosts": {"www.yna.co.kr"},
+        "is_article": lambda url: urlsplit(url).path.startswith("/view/AKR"),
     },
 )
 
@@ -195,60 +194,7 @@ def _download(url: str, max_bytes: int) -> tuple[bytes, str, str] | None:
     return data, final_url, content_type
 
 
-def _naver_api_links(source: dict, credentials: tuple[str, str], query: str) -> list[str]:
-    query_string = urlencode({
-        "query": query,
-        "display": NAVER_API_RESULT_COUNT,
-        "start": 1,
-        "sort": "date",
-        "format": "json",
-    })
-    request = Request(
-        f"{NAVER_API_URL}?{query_string}",
-        headers={
-            "X-NCP-APIGW-API-KEY-ID": credentials[0],
-            "X-NCP-APIGW-API-KEY": credentials[1],
-            "Accept": "application/json",
-            "User-Agent": USER_AGENT,
-        },
-    )
-    with urlopen(request, timeout=REQUEST_TIMEOUT_SECONDS) as response:
-        data = response.read(MAX_FEED_BYTES + 1)
-    if len(data) > MAX_FEED_BYTES:
-        raise ValueError("NAVER API HUB response exceeded size limit")
-    payload = json.loads(data.decode("utf-8"))
-    if not isinstance(payload, dict) or not isinstance(payload.get("items"), list):
-        raise ValueError("NAVER API HUB returned an invalid news response")
-    links = []
-    seen = set()
-    for item in payload["items"]:
-        if not isinstance(item, dict):
-            continue
-        candidate = str(item.get("link", ""))
-        parts = urlsplit(candidate)
-        if (parts.hostname or "").lower() == "n.news.naver.com":
-            candidate = urlunsplit(("https", parts.netloc, parts.path, parts.query, ""))
-        normalized = _normalize_url(candidate)
-        if not normalized or normalized in seen:
-            continue
-        if not _host_allowed(normalized, source["article_hosts"]) or not source["is_article"](normalized):
-            continue
-        seen.add(normalized)
-        links.append(normalized)
-    return links
-
-
-def _article_links(
-    source: dict,
-    naver_credentials: tuple[str, str] | None = None,
-    naver_query: str = "뉴스",
-) -> list[str]:
-    if source["kind"] == "naver-api":
-        if not naver_credentials or not all(naver_credentials):
-            _log.warning("NAVER API HUB credentials are not configured; add Client ID and Client Secret in app settings")
-            return []
-        return _naver_api_links(source, naver_credentials, naver_query)
-
+def _article_links(source: dict) -> list[str]:
     result = _download(source["url"], MAX_FEED_BYTES)
     if result is None:
         return []
@@ -363,8 +309,6 @@ def _fetch_article(source: dict, url: str, destination: Path) -> str:
 
 def fetch_cycle(
     library_root: Path,
-    naver_credentials: tuple[str, str] | None = None,
-    naver_query: str = "뉴스",
     report: dict | None = None,
     skip_memory_path: Path | None = None,
 ) -> dict[str, int]:
@@ -383,10 +327,8 @@ def fetch_cycle(
         site = {"saved": 0, "duplicates": 0, "skipped": 0, "failed": 0, "error": ""}
         if report is not None:
             report[source["name"]] = site
-        if source["kind"] == "naver-api" and not (naver_credentials and all(naver_credentials)):
-            site["error"] = "APIキー未設定"
         try:
-            links = _article_links(source, naver_credentials, naver_query)
+            links = _article_links(source)
         except (HTTPError, URLError, OSError, TimeoutError, ValueError) as exc:
             _log.warning("%s discovery failed (%s)", source["name"], type(exc).__name__)
             site["error"] = f"一覧の取得に失敗（{type(exc).__name__}）"

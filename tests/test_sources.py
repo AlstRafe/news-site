@@ -84,7 +84,7 @@ class EquivalenceTests(unittest.TestCase):
 
 class AdapterContractTests(unittest.TestCase):
     def test_every_site_has_the_adapter_interface(self):
-        self.assertEqual([site.NAME for site in sources.SITES], ["BBC", "NAVER NEWS", "中央社 CNA"])
+        self.assertEqual([site.NAME for site in sources.SITES], ["BBC", "NAVER NEWS", "中央社 CNA", "연합뉴스 Yonhap"])
         for site in sources.SITES:
             self.assertTrue(callable(site.matches) and callable(site.parse), site.NAME)
             self.assertIsInstance(site.HOSTS, frozenset)

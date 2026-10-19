@@ -15,7 +15,7 @@
 <button type="submit">翻訳設定を保存</button>
 </section>
 <section class="panel settings-panel" id="stories-settings"><h2>読み比べ（同じニュースのまとめ）</h2>
-<p>BBC・NAVER・CNA の記事から同じニュースを探してまとめます。英語以外の見出しは、上で選んだ翻訳サービスで<strong>見出しだけ</strong>英訳して照合します（本文は送信しません）。英訳は1回きりで保存され、同じ見出しを再送信することはありません。</p>
+<p>BBC・CNA・聯合ニュースの記事から同じニュースを探してまとめます。英語以外の見出しは、上で選んだ翻訳サービスで<strong>見出しだけ</strong>英訳して照合します（本文は送信しません）。英訳は1回きりで保存され、同じ見出しを再送信することはありません。</p>
 <label class="check-row"><input type="checkbox" name="stories_enabled" value="1" {% if story_settings.stories_enabled %}checked{% endif %}> 英語以外の見出しを英訳して照合する</label>
 <label for="stories_daily_chars">見出し英訳の1日の上限（文字）</label><input id="stories_daily_chars" name="stories_daily_chars" type="text" inputmode="numeric" maxlength="7" value="{{ story_settings.stories_daily_chars }}" required>
 <p class="hint">{{ "{:,}".format(story_range[0]) }}〜{{ "{:,}".format(story_range[1]) }}文字。見出しは1本あたり20〜60文字程度なので、既定の8,000文字で1日150本前後を英訳できます。上限に達した見出しは翌日に回り、英語の見出しはこの設定に関係なく照合されます。オフにした場合も、英訳済みの見出しはそのまま使います。</p>
@@ -48,15 +48,6 @@
 <label for="network_port">ポート番号（任意）</label><input id="network_port" name="network_port" type="text" inputmode="numeric" maxlength="5" value="{{ settings.network_port }}" placeholder="自動選択（5000–5100）">
 <p class="hint">IPまたはポートの変更を保存した後はアプリを再起動してください。現在のブラウザー接続は再起動まで維持されます。</p>
 </section>
-<section class="panel settings-panel"><h2>NAVER NEWSの自動取得</h2>
-<p class="hint">キーを取得できない場合は未設定のままで構いません（NAVER の自動取得だけが止まり、ほかの機能はそのまま使えます）。</p>
-<p>NAVER API HUBのニュース検索で新着記事を見つけ、NAVER記事ページを保存します。APIキーはWindows資格情報ストアに保存され、配布ZIPには含まれません。</p>
-<label for="naver_search_query">ニュース検索語</label><input id="naver_search_query" name="naver_search_query" type="text" maxlength="100" value="{{ settings.naver_search_query }}" required>
-<div class="credential-row"><div><label for="naver_api_key_id">NAVER API HUB Client ID <span class="configured">{% if secrets.naver_api_key_id %}設定済み{% else %}未設定{% endif %}</span></label><input id="naver_api_key_id" name="naver_api_key_id" type="password" autocomplete="new-password" placeholder="設定済みの場合は空欄のままで構いません"></div><label class="remove-key"><input type="checkbox" name="remove_naver_api_key_id" value="1"> IDを削除</label></div>
-<div class="credential-row"><div><label for="naver_api_key_secret">NAVER API HUB Client Secret <span class="configured">{% if secrets.naver_api_key_secret %}設定済み{% else %}未設定{% endif %}</span></label><input id="naver_api_key_secret" name="naver_api_key_secret" type="password" autocomplete="new-password" placeholder="設定済みの場合は空欄のままで構いません"></div><label class="remove-key"><input type="checkbox" name="remove_naver_api_key_secret" value="1"> Secretを削除</label></div>
-<p><a href="https://console.ncloud.com/" target="_blank" rel="noopener noreferrer">NAVER Cloud Console ↗</a> · <a href="https://api.ncloud-docs.com/docs/naver-api-hub-overview" target="_blank" rel="noopener noreferrer">API HUBのキー発行方法 ↗</a> · <a href="https://api.ncloud-docs.com/docs/naver-api-hub-search-news" target="_blank" rel="noopener noreferrer">ニュース検索APIガイド ↗</a></p>
-<p class="hint">NAVER Cloudコンソールでアプリケーションを登録し、「ニュース検索」APIを追加して認証情報を入力してください。APIキーが未設定の場合、NAVERの自動取得はスキップされます。毎時、指定した検索語の新着順から最大3件のNAVERニュース記事HTMLを保存します。</p>
-<button type="submit">設定を保存</button>
-</section>
+
 </form>
 {% endblock %}

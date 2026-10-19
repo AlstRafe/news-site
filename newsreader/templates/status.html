@@ -14,7 +14,6 @@
 {% if sites %}<div class="table-wrap"><table class="stats"><thead><tr><th>サイト</th><th>保存</th><th>既存</th><th>対象外</th><th>失敗</th><th>注記</th></tr></thead><tbody>
 {% for s in sites %}<tr><th scope="row">{{ s.name }}</th><td>{{ s.saved }}</td><td>{{ s.duplicates }}</td><td>{{ s.skipped }}</td><td>{{ s.failed }}</td><td>{{ s.error }}</td></tr>{% endfor %}
 </tbody></table></div>{% endif %}
-{% if collector.naver_configured is defined and not collector.naver_configured %}<p class="hint">NAVER NEWS は API キー未設定のため取得していません。<a href="{{ url_for('translation_settings') }}">設定</a>で NAVER API HUB のキーを登録すると取得を始めます。</p>{% endif %}
 <p class="hint">「対象外」は動画のみのページなど本文を抽出できない記事（同じページは1日のあいだ再取得しません）、「既存」は保存済みの記事です。1回の取得で各サイト最大3件を保存します。</p>
 {% endif %}</section>
 <section class="panel"><h2>記事ライブラリ</h2>

@@ -17,7 +17,6 @@ from newsreader import paths
 from newsreader.collect.autofetch import configure_logging, fetch_cycle
 from newsreader.library import index as library
 from newsreader.library import status
-from newsreader.services.settings import SecretStoreError, get_secret, get_settings
 
 INSTANCE_DIRECTORY = paths.INSTANCE_DIR
 COLLECTOR_SETTINGS = paths.COLLECTOR_SETTINGS_PATH
@@ -124,16 +123,13 @@ def main() -> int:
             from newsreader.library import pipeline
             pipeline.refresh_stories(library.DEFAULT_DB_PATH, status_path())
             return 0
-        naver_credentials = _naver_credentials(log)
-        naver_query = get_settings().get("naver_search_query", "뉴스")
         log.info("Standalone scheduled collection started: %s", library_root)
         report: dict = {}
-        totals = fetch_cycle(library_root, naver_credentials, naver_query, report=report,
+        totals = fetch_cycle(library_root, report=report,
                              skip_memory_path=INSTANCE_DIRECTORY / "collector_skipped.json")
         log.info("Standalone scheduled collection complete: %s", totals)
         status.update("collector", {"running": False, "finished": status.now_iso(), "ok": True, "error": "",
                                     "seconds": round(time.perf_counter() - started, 1), "sites": report,
-                                    "naver_configured": naver_credentials is not None,
                                     "library_root": str(library_root)}, path=status_path())
         update_library_index(library_root)
         from newsreader.library import pipeline  # imported late: translation/keyring only when needed
@@ -148,17 +144,6 @@ def main() -> int:
         return 1
     finally:
         lock_file.close()
-
-
-def _naver_credentials(log: logging.Logger) -> tuple[str, str] | None:
-    """NAVER API keys from the credential store. An unavailable store skips NAVER only."""
-    try:
-        client_id = get_secret("naver_api_key_id")
-        client_secret = get_secret("naver_api_key_secret")
-    except SecretStoreError:
-        log.warning("Credential store unavailable; NAVER NEWS is skipped this cycle")
-        return None
-    return (client_id, client_secret) if client_id and client_secret else None
 
 
 if __name__ == "__main__":

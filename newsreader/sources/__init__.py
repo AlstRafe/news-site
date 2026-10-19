@@ -3,11 +3,11 @@
 Adding a site = a module with ``NAME``, ``HOSTS``, ``matches(page)`` and
 ``parse(page)`` (see ``bbc.py``), appended to ``SITES``. Order matters: the
 first adapter whose ``matches`` is true parses the page (BBC, then NAVER, then
-CNA — the precedence v3 used).
+CNA — the precedence v3 used), then Yonhap (added after v3, replaces NAVER collection).
 """
 from __future__ import annotations
 
-from newsreader.sources import bbc, cna, naver
+from newsreader.sources import bbc, cna, naver, yonhap
 from newsreader.sources.base import (
     ALLOWED_EXTENSIONS,
     IMAGE_EXTENSIONS,
@@ -20,7 +20,7 @@ from newsreader.sources.base import (
     extract_published,
 )
 
-SITES = (bbc, naver, cna)
+SITES = (bbc, naver, cna, yonhap)
 
 #: Bump whenever a change to any adapter can change ``extract_article`` output.
 #: The index stores the version each row was parsed with and re-parses stale rows
