@@ -64,6 +64,8 @@ def library_collector(library_root: Path, own_status: Path) -> dict | None:
 
 
 def _newer(candidate: dict, current: dict) -> bool:
+    if current.get("skipped_for") and candidate.get("finished"):
+        return True  # this copy's task left the job to that installation
     if current.get("running"):
         return False
     if candidate.get("running"):

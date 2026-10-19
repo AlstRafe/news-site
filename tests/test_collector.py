@@ -344,6 +344,23 @@ class SharedLibraryStatusTests(unittest.TestCase):
         self.assertNotIn("記事フォルダ側の収集タスク", self.page())
         self.assertIn("まだ記録がありません", self.page())
 
+    def test_this_copys_task_leaves_the_folder_to_the_owner_that_collected_recently(self):
+        with mock.patch.object(runner, "status_path", return_value=self.own_status):
+            self.assertFalse(runner.collected_elsewhere(self.root))  # nothing recorded there yet
+            status.update("collector", {"ok": True, "finished": status.now_iso(), "library_root": str(self.root)},
+                          path=self.live_status)
+            self.assertTrue(runner.collected_elsewhere(self.root))
+            status.update("collector", {"ok": True, "finished": "2000-01-01T00:00:00Z"}, path=self.live_status)
+            self.assertFalse(runner.collected_elsewhere(self.root))  # stale: collect here
+            status.update("collector", {"ok": False, "finished": status.now_iso()}, path=self.live_status)
+            self.assertFalse(runner.collected_elsewhere(self.root))  # failed there: collect here
+        # the skip record defers to the owner's record on the status page
+        status.update("collector", {"ok": True, "finished": status.now_iso(), "library_root": str(self.root),
+                                    "sites": {"BBC": {"saved": 2}}}, path=self.live_status)
+        status.update("collector", {"ok": True, "finished": "2999-01-01T00:00:00Z", "skipped_for": "x", "sites": {}},
+                      path=self.own_status)
+        self.assertIn("記事フォルダ側の収集タスク", self.page())
+
     def test_own_status_beside_the_folder_is_not_read_twice(self):
         from newsreader.web import status_view
         self.assertIsNone(status_view.library_collector(self.root, self.live_status))

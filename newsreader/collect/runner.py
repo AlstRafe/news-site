@@ -78,6 +78,28 @@ def update_library_index(library_root: Path) -> dict | None:
     return result
 
 
+#: Another installation that collected into the same folder this recently does the job.
+OTHER_COLLECTOR_MINUTES = 90
+
+
+def collected_elsewhere(library_root: Path) -> bool:
+    """True when the installation that owns ``library_root`` (its instance/status.json beside the
+    folder) collected into it successfully within the last OTHER_COLLECTOR_MINUTES: this copy's
+    hourly task then does nothing instead of fetching the same pages again."""
+    other = paths.status_path_beside(library_root)
+    try:
+        if other.resolve() == status_path().resolve() or not other.is_file():
+            return False
+    except OSError:
+        return False
+    collector = status.read(other).get("collector") or {}
+    recorded = collector.get("library_root")
+    if not collector.get("ok") or (recorded and not paths.same_path(recorded, library_root)):
+        return False
+    minutes = status.minutes_since(collector.get("finished", ""))
+    return minutes is not None and minutes < OTHER_COLLECTOR_MINUTES
+
+
 def main() -> int:
     if sys.argv[1:] not in ([], ["--once"]):
         print("Usage: collector.py [--once]", file=sys.stderr)
@@ -92,6 +114,16 @@ def main() -> int:
         configure_logging(INSTANCE_DIRECTORY)
         status.update("collector", {"running": True, "started": status.now_iso()}, path=status_path())
         library_root = get_library_root()
+        if collected_elsewhere(library_root):
+            log.info("Skipped: the installation that owns %s collected into it recently", library_root)
+            status.update("collector", {"running": False, "finished": status.now_iso(), "ok": True, "error": "",
+                                        "seconds": round(time.perf_counter() - started, 1), "sites": {},
+                                        "skipped_for": str(paths.status_path_beside(library_root).parent.parent),
+                                        "library_root": str(library_root)}, path=status_path())
+            update_library_index(library_root)
+            from newsreader.library import pipeline
+            pipeline.refresh_stories(library.DEFAULT_DB_PATH, status_path())
+            return 0
         naver_credentials = _naver_credentials(log)
         naver_query = get_settings().get("naver_search_query", "뉴스")
         log.info("Standalone scheduled collection started: %s", library_root)
