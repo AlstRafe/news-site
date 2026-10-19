@@ -16,6 +16,35 @@ _refresh_thread: threading.Thread | None = None
 _refresh_guard = threading.Lock()
 
 
+#: Timeline chart geometry (an inline SVG: the CSP forbids inline styles, attributes are fine).
+CHART_ROW = 30
+
+
+def timeline_chart(story: dict) -> dict | None:
+    """Who reported when, one row per outlet (the first to report on top): x in percent of the
+    time between the first and the last report (at least an hour)."""
+    from datetime import datetime
+    dated = []
+    for member in story["members"]:
+        try:
+            dated.append((member, datetime.strptime(member["published"], "%Y-%m-%dT%H:%M:%SZ")))
+        except (TypeError, ValueError):
+            continue
+    if len({m["source"] for m, _ in dated}) < 2:
+        return None
+    first, last = min(t for _, t in dated), max(t for _, t in dated)
+    span = max((last - first).total_seconds(), 3600.0)
+    rows: dict[str, list] = {}
+    for member, moment in sorted(dated, key=lambda pair: pair[1]):
+        rows.setdefault(member["source"] or "未分類", []).append(
+            {"id": member["id"], "title": member["title"], "published": member["published"],
+             "x": round(3 + 94 * (moment - first).total_seconds() / span, 2)})
+    return {"rows": [{"source": source, "y": index * CHART_ROW + CHART_ROW // 2, "points": points}
+                     for index, (source, points) in enumerate(rows.items())],
+            "height": len(rows) * CHART_ROW, "first": story["oldest"], "last": story["newest_time"],
+            "hours": round(span / 3600, 1)}
+
+
 def _with_thumbs(members: list[dict]) -> list[dict]:
     for member in members:
         thumb = member.get("thumb_src", "")
@@ -55,7 +84,7 @@ def story_page(key: str):
     if story is None:
         abort(404)
     _with_thumbs(story["members"])
-    response = current_app.make_response(render_template("story.html", story=story))
+    response = current_app.make_response(render_template("story.html", story=story, chart=timeline_chart(story)))
     # Not reused from the browser cache: a group changes when it is corrected or re-grouped.
     response.headers["Cache-Control"] = "no-cache"
     return response

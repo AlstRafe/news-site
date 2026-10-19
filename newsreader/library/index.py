@@ -116,6 +116,7 @@ def _migration_4(db: sqlite3.Connection) -> None:
         members TEXT NOT NULL,        -- the article ids compared, sorted, comma-separated
         newest TEXT NOT NULL DEFAULT '',
         differs INTEGER NOT NULL DEFAULT 0,
+        cohesive INTEGER NOT NULL DEFAULT 1,  -- every member close to the rest (not a loose chain)
         summary TEXT NOT NULL DEFAULT '[]',
         computed TEXT NOT NULL DEFAULT '')""")
     db.execute("""CREATE TABLE IF NOT EXISTS facts_usage (

@@ -28,6 +28,13 @@
 <div class="insight-panel" id="words-panel" hidden></div>
 </section>{% endif %}
 <p class="gloss-error hint" id="story-gloss-error" role="status" hidden></p>
+{% if chart %}<figure class="story-chart" aria-labelledby="chart-caption">
+<div class="chart-body"><div class="chart-labels">{% for row in chart.rows %}<span class="badge" data-lang="{{ row.source|src_lang }}">{{ row.source }}</span>{% endfor %}</div>
+<svg class="chart-plot" width="100%" height="{{ chart.height }}" role="img" aria-label="{% for row in chart.rows %}{{ row.source }} {{ row.points|length }} 本{% if not loop.last %}、{% endif %}{% endfor %}">
+{% for row in chart.rows %}<line class="chart-track" x1="0" x2="100%" y1="{{ row.y }}" y2="{{ row.y }}"/>
+{% for p in row.points %}<a href="{{ url_for('show_article', article_id=p.id) }}"><title>{{ p.published|localtime_short }} {{ p.title }}</title><circle class="chart-dot" data-lang="{{ row.source|src_lang }}" cx="{{ p.x }}%" cy="{{ row.y }}" r="6"/></a>{% endfor %}
+{% endfor %}</svg></div>
+<figcaption id="chart-caption" class="chart-axis"><span>{{ chart.first|localtime_short }}</span><span>報道のタイムライン（点にカーソル・タップで見出し）</span><span>{{ chart.last|localtime_short }}</span></figcaption></figure>{% endif %}
 <div class="story-view" data-view-panel="outlets"><div class="story-columns">{% for source, members in story.columns %}
 <section class="story-column"><h2><span class="badge" data-lang="{{ source|src_lang }}">{{ source }}</span> {{ members|length }} 本</h2>
 {% for m in members %}{{ item(m, false) }}{% endfor %}

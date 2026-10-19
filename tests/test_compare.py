@@ -164,6 +164,9 @@ class CompareApiTests(unittest.TestCase):
         self.assertIn('id="compare-facts"', page)
         self.assertIn('id="compare-words"', page)
         self.assertIn('<span class="lag first">最初の報道</span>', page)  # Yonhap 12:00
+        self.assertEqual(page.count('class="chart-dot"'), 2)  # 報道のタイムライン: one dot per article
+        self.assertIn('cx="3.0%"', page)   # the first report at the left edge
+        self.assertIn('cx="97.0%"', page)  # the last at the right
         self.assertIn('<span class="lag" title="最初の報道から">+4時間20分</span>', page)  # BBC 16:20
 
 

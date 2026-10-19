@@ -27,6 +27,9 @@ MAX_MEMBERS = 12
 #: button is not counted: the reader asked for it).
 DAILY_CHARS = 15_000
 RECENT_HOURS = 48
+#: Only groups whose every member is this close to the rest (stories_core mean similarity) are
+#: put on the home page: a loosely chained group can mix two events and show a false disagreement.
+COHESIVE_SCORE = 0.25
 MAX_GROUPS_PER_RUN = 30
 
 
@@ -83,10 +86,11 @@ def _signature(members: list[dict]) -> str:
 def store(db_path: Path, key: str, members: list[dict], categories: list[dict]) -> None:
     found = summary(categories)
     newest = max((m["published"] or "" for m in members), default="")
+    cohesive = all(float(m.get("score") or 0) >= COHESIVE_SCORE for m in members)
     with closing(index.connect(db_path)) as db:
-        index._write(db, [("INSERT OR REPLACE INTO story_facts(story_key, members, newest, differs, summary, computed) "
-                           "VALUES(?,?,?,?,?,?)",
-                           (key, _signature(members), newest, int(any(c["differs"] for c in found)),
+        index._write(db, [("INSERT OR REPLACE INTO story_facts(story_key, members, newest, differs, cohesive, summary, "
+                           "computed) VALUES(?,?,?,?,?,?,?)",
+                           (key, _signature(members), newest, int(any(c["differs"] for c in found)), int(cohesive),
                             json.dumps(found, ensure_ascii=False), datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")))])
 
 
@@ -136,7 +140,7 @@ def differing(db_path: Path, *, days: int = 3, limit: int = 4, now: datetime | N
     now = now or datetime.now(timezone.utc)
     since = (now - timedelta(days=days)).strftime("%Y-%m-%dT%H:%M:%SZ")
     with closing(index.connect(db_path)) as db:
-        rows = db.execute("SELECT story_key, members, summary FROM story_facts WHERE differs = 1 AND newest >= ? "
+        rows = db.execute("SELECT story_key, members, summary FROM story_facts WHERE differs = 1 AND cohesive = 1 AND newest >= ? "
                           "ORDER BY newest DESC LIMIT ?", (since, limit * 3)).fetchall()
     out = []
     for key, members, raw in rows:

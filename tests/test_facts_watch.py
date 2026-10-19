@@ -88,6 +88,12 @@ class FactsWatchTests(unittest.TestCase):
         facts_watch.refresh(self.db, self.to_english)  # members changed: compared again
         self.assertEqual([d["key"] for d in facts_watch.differing(self.db)], ["s1"])
 
+    def test_a_loosely_chained_group_is_not_put_on_the_home_page(self):
+        with closing(index.connect(self.db)) as db:
+            db.execute("UPDATE story_members SET score = 0.1 WHERE article_id = 2")
+        facts_watch.refresh(self.db, self.to_english)
+        self.assertEqual(facts_watch.differing(self.db), [])
+
     def test_old_groups_are_left_alone(self):
         later = datetime.now(timezone.utc) + timedelta(days=5)
         self.assertEqual(facts_watch.refresh(self.db, self.to_english, now=later)["compared"], 0)
