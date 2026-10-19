@@ -568,5 +568,15 @@ class LabelledEvaluation(unittest.TestCase):
             self.assertGreaterEqual(measured[name], floor, name)
 
 
+
+class HyphenTests(unittest.TestCase):
+    def test_hyphenated_words(self):
+        from newsreader.library import stories_core as core
+        self.assertEqual(set(core.features("Brazil's run-off vote")) & set(core.features("Brazil runoff")), {"brazil", "runoff"})
+        self.assertIn("iran", core.features("Yemen's Iran-backed rebels"))
+        self.assertEqual(set(core.features("Moscow tight-lipped on energy")), {"moscow", "tightl", "energy"})
+        self.assertEqual(set(core.features("US-Japan drills")), {"us", "japan", "drill"})
+
+
 if __name__ == "__main__":
     unittest.main()

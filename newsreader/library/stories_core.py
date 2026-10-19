@@ -93,10 +93,11 @@ def _tokens(pivot: str):
     for index, match in enumerate(_WORD.finditer(text)):
         raw = match.group(0)
         word = re.sub(r"'s$", "", raw.lower().replace("’", "'")).strip("'-")
-        if not word or word in _STOP or (len(word) < 2 and not word.isdigit()):
-            continue
-        word = _stem(_CANON.get(word, word))
-        word = word[:STEM_LENGTH] if len(word) > STEM_LENGTH else word
+        # Hyphenated: names keep their parts ("Iran-backed" -> iran, backed; "Ex-OpenAI" -> ex,
+        # openai; "US-Japan"); plain compounds are one word ("run-off" = "runoff", "tight-lipped").
+        parts = [part for part in word.split("-") if part]
+        named = any(piece[:1].isupper() for piece in raw.split("-")[1:]) or (index > 0 and raw[:1].isupper())
+        words = parts if named else ["".join(parts)]
         boosted = (raw[0].isupper() and index > 0) or (raw.isupper() and len(raw) >= 2)
         if match.start() in quoted:
             shape = "quoted"
@@ -108,7 +109,12 @@ def _tokens(pivot: str):
             shape = "digit"
         else:
             shape = "lower"
-        yield word, boosted, shape
+        for word in words:
+            if not word or word in _STOP or (len(word) < 2 and not word.isdigit()):
+                continue
+            word = _stem(_CANON.get(word, word))
+            word = word[:STEM_LENGTH] if len(word) > STEM_LENGTH else word
+            yield word, boosted, shape
 
 
 def features(pivot: str) -> dict[str, float]:
