@@ -193,10 +193,40 @@ def stories_exclude():
     return jsonify({"ok": True, "redirect": "/stories"})
 
 
+@routes.post("/api/stories/join", "stories_join")
+def stories_join():
+    """「同じニュース」(D-72): put an article and a similar one of another outlet into one group."""
+    from newsreader.library import pipeline
+    payload = request.get_json(silent=True) if request.is_json else None
+    ids = [payload.get(name) if isinstance(payload, dict) else None for name in ("id", "other")]
+    if not all(isinstance(i, int) and not isinstance(i, bool) for i in ids):
+        return jsonify({"error": "指定が不正です。"}), 400
+    db = db_path()
+    if not stories.join(db, ids[0], ids[1]):
+        return jsonify({"error": "記事が見つかりませんでした。"}), 404
+    with _refresh_guard:
+        pipeline.refresh_stories(db, current_app.config["STATUS_PATH"])
+    group = stories.related(db, ids[0])
+    if not group or ids[1] not in {m["id"] for m in group["members"]}:
+        return jsonify({"error": "まとめられませんでした（「別のニュース」で分けた記事がある、グループが大きすぎる、"
+                                 "または古すぎる記事です）。"}), 409
+    return jsonify({"ok": True, "redirect": f"/stories/{group['key']}"})
+
+
 @routes.post("/api/stories/exclusions/clear", "stories_clear_exclusions")
 def stories_clear_exclusions():
     from newsreader.library import pipeline
     cleared = stories.clear_exclusions(db_path())
+    with _refresh_guard:
+        pipeline.refresh_stories(db_path(), current_app.config["STATUS_PATH"])
+    return jsonify({"ok": True, "cleared": cleared})
+
+
+@routes.post("/api/stories/joins/clear", "stories_clear_joins")
+def stories_clear_joins():
+    """Undo every 「同じニュース」 (D-72) and re-group."""
+    from newsreader.library import pipeline
+    cleared = stories.clear_joins(db_path())
     with _refresh_guard:
         pipeline.refresh_stories(db_path(), current_app.config["STATUS_PATH"])
     return jsonify({"ok": True, "cleared": cleared})

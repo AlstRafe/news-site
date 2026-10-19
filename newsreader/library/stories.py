@@ -126,6 +126,8 @@ def _refresh_locked(db_path: Path, translate: Translator | None, enabled: bool, 
                 shapes[row["id"]] = core.shapes(row["pivot"])
         forbidden = {(row[0], row[1]) for row in db.execute("SELECT a, b FROM story_exclusions")}
         clusters = core.cluster(items, shapes, forbidden) if len(items) > 1 else []
+        joins = [(row[0], row[1]) for row in db.execute("SELECT a, b FROM story_joins") if row[0] in items and row[1] in items]
+        clusters = _apply_joins(clusters, joins, forbidden)
 
         # 3. replace the groups of the articles that took part in this run.
         statements = [("DELETE FROM story_members WHERE article_id IN (%s)" % ",".join("?" * len(items)), tuple(items))] if items else []
@@ -145,6 +147,51 @@ def _refresh_locked(db_path: Path, translate: Translator | None, enabled: bool, 
                GROUP BY m.story_key HAVING COUNT(DISTINCT a.source) > 1)""").fetchone()[0]
     return {"groups": len(clusters), "multi_outlet": multi, "pending": pending, "translated": translated,
             "chars_today": used, "error": error}
+
+
+#: The similarity recorded for an article the reader put into a group (D-72): above the
+#: "closely matched" lines, since the reader confirmed it.
+JOINED_SCORE = 0.3
+#: A reader's joins may make a group somewhat larger than automatic grouping does (core.MAX_CLUSTER).
+JOINED_MAX = 16
+
+
+def _apply_joins(clusters: list[dict[int, float]], joins: list[tuple[int, int]],
+                 forbidden: set[tuple[int, int]]) -> list[dict[int, float]]:
+    """Merge the groups (or lone articles) of every pair the reader said is the same news,
+    unless that would put a pair the reader separated into one group."""
+    owner = {article: index for index, members in enumerate(clusters) for article in members}
+    groups = [dict(members) for members in clusters]
+    for a, b in joins:
+        for article in (a, b):
+            if article not in owner:
+                owner[article] = len(groups)
+                groups.append({article: JOINED_SCORE})
+        ga, gb = owner[a], owner[b]
+        if ga == gb or len(groups[ga]) + len(groups[gb]) > JOINED_MAX:
+            continue
+        if any((min(x, y), max(x, y)) in forbidden for x in groups[ga] for y in groups[gb]):
+            continue
+        for article, score in groups[gb].items():
+            groups[ga][article] = max(score, JOINED_SCORE) if article in (a, b) else score
+            owner[article] = ga
+        groups[ga][a] = max(groups[ga][a], JOINED_SCORE)
+        groups[gb] = {}
+    return [members for members in groups if len(members) > 1]
+
+
+def join(db_path: Path, article_id: int, other_id: int) -> bool:
+    """The reader says two articles are the same news: remember the pair (and forget an earlier
+    "別のニュース" between exactly these two). Returns False when either article is unknown."""
+    if article_id == other_id:
+        return False
+    a, b = min(article_id, other_id), max(article_id, other_id)
+    with closing(index.connect(db_path)) as db:
+        if db.execute("SELECT COUNT(*) FROM articles WHERE id IN (?, ?)", (a, b)).fetchone()[0] != 2:
+            return False
+        _write(db, [("INSERT OR IGNORE INTO story_joins(a, b, created) VALUES(?,?,?)", (a, b, status.now_iso())),
+                    ("DELETE FROM story_exclusions WHERE a = ? AND b = ?", (a, b))])
+    return True
 
 
 # ---- queries -----------------------------------------------------------------
@@ -244,6 +291,8 @@ def exclude(db_path: Path, article_id: int, key: str) -> int:
         before = db.execute("SELECT COUNT(*) FROM story_exclusions").fetchone()[0]
         _write(db, [("INSERT OR IGNORE INTO story_exclusions(a, b, created) VALUES(?,?,?)",
                      (min(article_id, other), max(article_id, other), status.now_iso())) for other in others]
+               + [("DELETE FROM story_joins WHERE a = ? AND b = ?", (min(article_id, other), max(article_id, other)))
+                  for other in others]
                + [("DELETE FROM story_members WHERE article_id = ?", (article_id,))])
         return db.execute("SELECT COUNT(*) FROM story_exclusions").fetchone()[0] - before
 
@@ -251,6 +300,18 @@ def exclude(db_path: Path, article_id: int, key: str) -> int:
 def exclusion_count(db_path: Path) -> int:
     with closing(index.connect(db_path)) as db:
         return db.execute("SELECT COUNT(*) FROM story_exclusions").fetchone()[0]
+
+
+def join_count(db_path: Path) -> int:
+    with closing(index.connect(db_path)) as db:
+        return db.execute("SELECT COUNT(*) FROM story_joins").fetchone()[0]
+
+
+def clear_joins(db_path: Path) -> int:
+    with closing(index.connect(db_path)) as db:
+        count = db.execute("SELECT COUNT(*) FROM story_joins").fetchone()[0]
+        _write(db, [("DELETE FROM story_joins", ())])
+        return count
 
 
 def clear_exclusions(db_path: Path) -> int:
@@ -363,9 +424,13 @@ def similar(db_path: Path, article_id: int, limit: int = 5) -> list[dict]:
         return {word for word, shape in core.shapes(pivot).items() if shape & {"name", "quoted"}}
 
     mine = names(pivots[article_id])
+    with closing(index.connect(db_path)) as db:  # pairs the reader already said are different news
+        apart = {row[0] if row[1] == article_id else row[1]
+                 for row in db.execute("SELECT a, b FROM story_exclusions WHERE a = ? OR b = ?", (article_id, article_id))}
     found = []
     for row in rows:
-        if row["source"] == me["source"] or row["id"] == article_id or (me["story_key"] and row["story_key"] == me["story_key"]):
+        if row["source"] == me["source"] or row["id"] == article_id or row["id"] in apart \
+                or (me["story_key"] and row["story_key"] == me["story_key"]):
             continue
         score = corpus.raw(article_id, row["id"])
         # a shared name (a person, place, organisation) as well: shared common words are not enough

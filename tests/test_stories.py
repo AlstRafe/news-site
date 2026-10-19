@@ -305,6 +305,43 @@ class WebTests(StoryTestCase):
         for bad in ({"id": "1", "key": self.key}, {"id": z}, {"id": True, "key": self.key}):
             self.assertEqual(self.client.post("/api/stories/exclude", headers={**H, "X-CSRF-Token": token}, json=bad).status_code, 400)
 
+    def test_reader_join_puts_a_similar_article_into_the_group_for_good(self):
+        o, z = self.id_of("BBC", "o.html"), self.id_of("CNA", "z.html")
+        token = self.csrf()
+        self.assertEqual(self.client.post("/api/stories/join", headers=H, json={"id": z, "other": o}).status_code, 400)  # no CSRF
+        response = self.client.post("/api/stories/join", headers={**H, "X-CSRF-Token": token}, json={"id": z, "other": o})
+        self.assertEqual(response.status_code, 200, response.get_data(as_text=True))
+        self.assertEqual(response.get_json()["redirect"], f"/stories/{self.key}")
+        self.assertEqual(stories.related(self.db, o)["key"], self.key)
+        self.refresh(FakeTranslator({NOBEL_ZH: NOBEL_ZH_EN}))  # a later regrouping keeps it
+        self.assertEqual(stories.related(self.db, o)["key"], self.key)
+        self.assertIn("まとめた組: 1 組", self.client.get("/status", headers=H).get_data(as_text=True))
+        # "別のニュース" afterwards wins, and forgets the join between those two
+        self.client.post("/api/stories/exclude", headers={**H, "X-CSRF-Token": token}, json={"id": o, "key": self.key})
+        self.assertIsNone(stories.related(self.db, o))
+        self.assertEqual(stories.join_count(self.db), 0)
+        # joining again replaces the exclusion of exactly that pair, but the others still keep it out
+        refused = self.client.post("/api/stories/join", headers={**H, "X-CSRF-Token": token}, json={"id": z, "other": o})
+        self.assertEqual(refused.status_code, 409)
+        self.assertIn("別のニュース", refused.get_json()["error"])
+        self.assertIsNone(stories.related(self.db, o))
+        self.assertEqual(self.client.post("/api/stories/exclusions/clear", headers={**H, "X-CSRF-Token": token}).status_code, 200)
+        self.assertEqual(stories.related(self.db, o)["key"], self.key)
+        self.assertEqual(self.client.post("/api/stories/joins/clear", headers={**H, "X-CSRF-Token": token}).get_json()["cleared"], 1)
+        self.assertIsNone(stories.related(self.db, o))
+        for bad in ({"id": z}, {"id": z, "other": "1"}, {"id": True, "other": o}, {"id": z, "other": z}):
+            code = self.client.post("/api/stories/join", headers={**H, "X-CSRF-Token": token}, json=bad).status_code
+            self.assertIn(code, (400, 404))
+        self.assertEqual(self.client.post("/api/stories/join", headers={**H, "X-CSRF-Token": token},
+                                          json={"id": z, "other": 999999}).status_code, 404)
+
+    def test_similar_articles_offer_the_join_button(self):
+        o, z = self.id_of("BBC", "o.html"), self.id_of("CNA", "z.html")
+        fake = [{"id": z, "source": "CNA", "title": NOBEL_ZH, "published": "2026-10-13T13:00:00Z", "score": 0.3}]
+        with mock.patch.object(stories, "similar", lambda db, article_id, limit=5: fake):
+            page = self.client.get(f"/a/{o}", headers=H).get_data(as_text=True)
+        self.assertIn(f'class="text-button join-button" data-join-id="{o}" data-join-other="{z}"', page)
+
     def test_openings_are_translated_for_comparison(self):
         from newsreader.services import cache
         from newsreader.services import translation as ts
@@ -579,6 +616,23 @@ class HyphenTests(unittest.TestCase):
 
 
 
+class JoinTests(unittest.TestCase):
+    """同じニュース (D-72): reader joins merge groups unless a "別のニュース" pair would end up together."""
+
+    def test_apply_joins(self):
+        clusters = [{1: 0.5, 2: 0.5}, {3: 0.4, 4: 0.4}]
+        self.assertEqual(stories._apply_joins(clusters, [], set()), clusters)
+        merged = stories._apply_joins(clusters, [(2, 3)], set())
+        self.assertEqual(len(merged), 1)
+        self.assertEqual(set(merged[0]), {1, 2, 3, 4})
+        self.assertEqual(stories._apply_joins(clusters, [(2, 3)], {(1, 4)}), clusters)  # would join a separated pair
+        lone = stories._apply_joins(clusters, [(5, 6), (6, 1)], set())
+        self.assertEqual(sorted(sorted(group) for group in lone), [[1, 2, 5, 6], [3, 4]])
+        self.assertTrue(all(score >= stories.JOINED_SCORE for group in lone for article, score in group.items() if article in (5, 6)))
+        big = [dict.fromkeys(range(1, 11), 0.5), dict.fromkeys(range(11, 21), 0.5)]
+        self.assertEqual(stories._apply_joins(big, [(1, 11)], set()), big)  # would be larger than JOINED_MAX
+
+
 class SimilarTests(unittest.TestCase):
     """似た記事 (D-66): other outlets' articles with a resembling English headline, not grouped."""
 
@@ -605,6 +659,9 @@ class SimilarTests(unittest.TestCase):
             self.assertNotIn(4, found)     # common words only, no shared name
             self.assertNotIn(5, found)     # the same outlet
             self.assertEqual(stories.similar(db, 999), [])
+            with closing(index.connect(db)) as c:
+                c.execute("INSERT INTO story_exclusions(a, b, created) VALUES(1, 2, '')")
+            self.assertNotIn(2, [item["id"] for item in stories.similar(db, 1)])  # the reader said: different news
         finally:
             shutil.rmtree(tmp, ignore_errors=True)
 

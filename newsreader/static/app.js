@@ -106,19 +106,18 @@
     });
   }
 
-  // 3a. Status page: undo every "別のニュース" correction.
-  const clearButton = document.querySelector('[data-action="stories-clear-exclusions"]');
-  if (clearButton) {
+  // 3a. Status page: undo every "別のニュース" / "同じニュース" correction.
+  document.querySelectorAll('[data-action="stories-clear-exclusions"]').forEach(clearButton => {
     clearButton.addEventListener("click", () => {
       const state = clearButton.parentElement.querySelector(".refresh-state");
       clearButton.disabled = true;
       if (state) state.textContent = "取り消しています…";
-      fetch("/api/stories/exclusions/clear", { method: "POST", credentials: "same-origin",
+      fetch(clearButton.dataset.clearUrl || "/api/stories/exclusions/clear", { method: "POST", credentials: "same-origin",
         headers: { "X-CSRF-Token": document.querySelector('meta[name="csrf-token"]')?.content || "" } })
         .then(r => { if (!r.ok) throw new Error(String(r.status)); location.reload(); })
         .catch(() => { clearButton.disabled = false; if (state) state.textContent = "取り消せませんでした"; });
     });
-  }
+  });
 
   // 3b. "見出しを訳す" on the article list: a translated line under each card's headline.
   //     On/off is remembered per device; the language follows the article page's 翻訳先.
@@ -219,6 +218,38 @@
       button.textContent = error.message;
     } finally {
       button.disabled = false;
+    }
+  });
+
+  // 同じニュース (D-72): put a similar article of another outlet into this article's group.
+  //   Two taps (the first one asks), then the groups are recomputed and the group page opens.
+  document.addEventListener("click", async event => {
+    const button = event.target.closest?.(".join-button");
+    if (!button) return;
+    event.preventDefault();
+    const label = "同じニュース";
+    if (!button.classList.contains("confirm")) {
+      document.querySelectorAll(".join-button.confirm").forEach(other => { other.classList.remove("confirm"); other.textContent = label; });
+      button.classList.add("confirm");
+      button.textContent = "まとめる（もう一度押す）";
+      window.setTimeout(() => { if (button.isConnected && button.classList.contains("confirm") && !button.disabled) { button.classList.remove("confirm"); button.textContent = label; } }, 4000);
+      return;
+    }
+    button.disabled = true;
+    button.textContent = "まとめています…";
+    try {
+      const response = await fetch("/api/stories/join", {
+        method: "POST", credentials: "same-origin",
+        headers: { "Content-Type": "application/json", "X-CSRF-Token": document.querySelector('meta[name="csrf-token"]')?.content || "" },
+        body: JSON.stringify({ id: Number(button.dataset.joinId), other: Number(button.dataset.joinOther) })
+      });
+      const payload = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(payload.error || "まとめられませんでした。");
+      location.assign(payload.redirect || "/stories");
+    } catch (error) {
+      button.disabled = false;
+      button.classList.remove("confirm");
+      button.textContent = error.message;
     }
   });
 
