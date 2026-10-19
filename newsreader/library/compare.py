@@ -62,7 +62,7 @@ _NUMBER = re.compile(
     re.IGNORECASE)
 _WORDNUM = re.compile(r"\b(?P<word>" + "|".join(sorted(_SMALL, key=len, reverse=True))
                       + r"|dozens|hundreds|thousands|scores|a dozen)\b", re.IGNORECASE)
-_SENTENCE_END = re.compile(r"(?<=[.!?])[\"”’']?\s+(?=[A-Z\"“‘'(])|\n+")
+_SENTENCE_END = re.compile(r"(?<=[.!?])\s+(?=[A-Z\"“‘'(])|(?<=[.!?][\"”’'])\s+(?=[A-Z\"“‘'(])|\n+")
 _YEAR = re.compile(r"^(19|20)\d\d$")
 
 
@@ -289,3 +289,66 @@ def framing(members: list[dict], limit: int = 6) -> dict:
         mine.sort(key=lambda k: (-words[k], k))
         only[source] = [shown(k) for k in mine[:limit]]
     return {"shared": shared, "only": only}
+
+
+# ---- quotes ------------------------------------------------------------------------------------
+
+_QUOTE = re.compile(r"[“\"]([^”\"]{12,400})[”\"]|‘([^’]{12,300})’")
+_QUOTE_WORD = re.compile(r"[A-Za-z][A-Za-z'’\-]*")
+QUOTE_MIN_WORDS = 4
+QUOTE_SAME = 0.35  # word overlap (Jaccard of content words) for "the same statement"
+
+
+@dataclass
+class Quote:
+    text: str       # the quoted words (English)
+    sentence: str   # the English sentence around them
+
+
+def quotes_in(text: str) -> list[Quote]:
+    """Quoted statements (four words or more) in an English text, in order."""
+    found = []
+    for sentence in sentences(text):
+        for match in _QUOTE.finditer(sentence):
+            quoted = (match.group(1) or match.group(2) or "").strip(" ,.")
+            if len(_QUOTE_WORD.findall(quoted)) >= QUOTE_MIN_WORDS:
+                found.append(Quote(quoted, sentence))
+    return found
+
+
+def _content_words(text: str) -> set[str]:
+    return {_key(w) for w in _QUOTE_WORD.findall(text) if w.lower() not in _FRAMING_STOP and len(w) > 2}
+
+
+def quote_groups(members: list[dict], limit: int = 8) -> list[dict]:
+    """Quotes from the articles' English text, the same statement as reported by different
+    outlets put together (most outlets first): [{"outlets", "quotes": [{"id", "source",
+    "published", "text", "sentence"}]}]. ``members`` as for ``compare``."""
+    items = []
+    for member in members:
+        seen: set[str] = set()
+        for quote in quotes_in(member.get("english", "")):
+            if quote.text in seen:
+                continue
+            seen.add(quote.text)
+            items.append({"id": member["id"], "source": member.get("source") or "", "published": member.get("published", ""),
+                          "text": quote.text, "sentence": quote.sentence, "words": _content_words(quote.text)})
+    groups: list[list[dict]] = []
+    for item in items:
+        best, best_score = None, 0.0
+        for group in groups:
+            score = max(len(item["words"] & other["words"]) / max(1, len(item["words"] | other["words"])) for other in group)
+            if score > best_score:
+                best, best_score = group, score
+        if best is not None and best_score >= QUOTE_SAME:
+            best.append(item)
+        else:
+            groups.append([item])
+    out = []
+    for group in groups:
+        for item in group:
+            item.pop("words", None)
+        group.sort(key=lambda q: (q["published"] or "", q["id"]))
+        out.append({"outlets": len({q["source"] for q in group}), "quotes": group})
+    out.sort(key=lambda g: (-g["outlets"], -len(g["quotes"])))
+    return out[:limit]

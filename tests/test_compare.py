@@ -98,7 +98,7 @@ class CompareApiTests(unittest.TestCase):
                 db.execute("INSERT INTO story_items(article_id, title, lang, pivot, pivot_chars, pivot_at) VALUES(?,?,?,?,0,'')",
                            (aid, title, lang, pivot))
                 db.execute("INSERT INTO story_members(article_id, story_key, score) VALUES(?, 's1', 0.5)", (aid,))
-        contents = {1: {"paragraphs": ["The Houthis fired a missile at a camp in Yemen, killing 50 people.", "More later."]},
+        self.contents = contents = {1: {"paragraphs": ["The Houthis fired a missile at a camp in Yemen, killing 50 people.", "More later."]},
                     2: {"paragraphs": ["후티 반군이 미사일을 발사했다. 최소 53명이 숨졌다고 정부가 밝혔다."]}}
         self.sent = []
 
@@ -146,6 +146,20 @@ class CompareApiTests(unittest.TestCase):
         english_sent = [t for target, texts in self.sent if target == "en" for t in texts]
         self.assertFalse(any("Houthis fired a missile at a camp" in t for t in english_sent))  # BBC is not translated
 
+    def test_the_same_statement_from_two_outlets(self):
+        self.contents[1]["paragraphs"].insert(0, 'The president said: "We will respond firmly to this criminal attack on our soldiers."')
+        self.contents[2]["paragraphs"] = ['대통령은 "우리 군인에 대한 이번 범죄적 공격에 단호히 대응하겠다"고 말했다.']
+        english = 'The president said, "We will firmly respond to this criminal attack against our soldiers."'
+        with mock.patch.object(ts, "_translate_batch",
+                               lambda provider, texts, target: [english if target == "en" else f"[{target}] {t}" for t in texts]):
+            reply = self.post("/api/story-quotes", {"key": "s1", "target": "ja"}).get_json()
+        top = reply["groups"][0]
+        self.assertEqual(top["outlets"], 2)
+        by = {q["source"]: q for q in top["quotes"]}
+        self.assertEqual(by["Yonhap"]["original"], '대통령은 "우리 군인에 대한 이번 범죄적 공격에 단호히 대응하겠다"고 말했다.')
+        self.assertTrue(by["Yonhap"]["shown"].startswith("[ja] 대통령은"))
+        self.assertTrue(by["BBC"]["shown"].startswith("[ja] The president said"))
+
     def test_words_glossed_in_the_readers_language(self):
         reply = self.post("/api/story-words", {"key": "s1", "target": "ja"}).get_json()
         only = {entry["source"]: [w["word"] for w in entry["words"]] for entry in reply["only"]}
@@ -163,6 +177,7 @@ class CompareApiTests(unittest.TestCase):
         page = self.client.get("/stories/s1", headers=H).get_data(as_text=True)
         self.assertIn('id="compare-facts"', page)
         self.assertIn('id="compare-words"', page)
+        self.assertIn('id="compare-quotes"', page)
         self.assertIn('<span class="lag first">最初の報道</span>', page)  # Yonhap 12:00
         self.assertEqual(page.count('class="chart-dot"'), 2)  # 報道のタイムライン: one dot per article
         self.assertIn('cx="3.0%"', page)   # the first report at the left edge

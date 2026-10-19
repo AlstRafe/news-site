@@ -23,9 +23,10 @@
 {% if story.languages|length > 1 %}<div class="align-langs" role="group" aria-label="ほかの媒体の言語にそろえて比べる"><span class="align-label">言語をそろえる</span>{% for l in story.languages %}<button type="button" class="chip-button" data-align="{{ l.target }}" aria-pressed="false" title="{{ l.outlets|join('・') }} と同じ{{ translation_targets[l.target].label }}に、ほかの記事の見出しと書き出しを訳します">{{ translation_targets[l.target].label }}<small>{{ l.outlets|join('・') }}</small></button>{% endfor %}</div>{% endif %}
 {% if story.columns|length > 1 %}<section class="insights" aria-labelledby="insights-title">
 <div class="insights-head"><h2 id="insights-title">違いを見る</h2><p class="hint">媒体どうしで、数字や言葉づかいがどう違うか。押したときだけ翻訳します。</p>{% if disputes %}<span class="diff-flag">{{ disputes|map(attribute='label')|join('・') }}の数字が媒体で違います</span>{% endif %}</div>
-<div class="insight-buttons"><button type="button" class="secondary" id="compare-facts" aria-expanded="false" aria-controls="facts-panel">数字を比べる</button><button type="button" class="secondary" id="compare-words" aria-expanded="false" aria-controls="words-panel">言葉の違い</button></div>
+<div class="insight-buttons"><button type="button" class="secondary" id="compare-facts" aria-expanded="false" aria-controls="facts-panel">数字を比べる</button><button type="button" class="secondary" id="compare-words" aria-expanded="false" aria-controls="words-panel">言葉の違い</button><button type="button" class="secondary" id="compare-quotes" aria-expanded="false" aria-controls="quotes-panel">発言を比べる</button></div>
 <div class="insight-panel" id="facts-panel" hidden></div>
 <div class="insight-panel" id="words-panel" hidden></div>
+<div class="insight-panel" id="quotes-panel" hidden></div>
 </section>{% endif %}
 <p class="gloss-error hint" id="story-gloss-error" role="status" hidden></p>
 {% if chart %}<figure class="story-chart" aria-labelledby="chart-caption">

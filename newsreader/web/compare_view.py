@@ -43,6 +43,47 @@ def _same(a: str, b: str) -> bool:
     return bool(a and b) and (a in b or b in a)
 
 
+def _english_texts(story: dict):
+    """(members, {id: English text}, {id: [(own sentence, English sentence)]}) for a group."""
+    members = facts_watch.newest_members(story)
+    english_of, foreign = facts_watch.english_of(db_path(), members, _to_english)
+    originals: dict[int, list[tuple[str, str]]] = {}
+    for member in members:
+        if member["id"] in foreign:
+            own, english = foreign[member["id"]]
+            originals[member["id"]] = [(member["title"], member["pivot"])] + (sentences.pairs("en", own, english) or [])
+    return members, english_of, originals
+
+
+def _show_sentences(items: list[tuple[dict, dict]], originals: dict, target: str) -> None:
+    """For each (member, item with an English "sentence"): set "original" (the outlet's own
+    sentence, when known) and "shown" (in the reader's language: translated once from the
+    outlet's own sentence, else from the English one). Raises TranslationError."""
+    wanted: dict[str, str] = {}
+    for member, item in items:
+        own = next((o for o, e in originals.get(member["id"], []) if _same(e, item["sentence"])), "")
+        item["original"] = own
+        if stories.LANG_TARGETS.get(member.get("lang") or "", "") == target:
+            item["shown"] = own or item["sentence"]
+        elif target == "en" and not own:
+            item["shown"] = item["sentence"]
+        else:
+            wanted.setdefault(own or item["sentence"], "")
+            item["shown_from"] = own or item["sentence"]
+    if wanted:
+        texts = list(wanted)
+        for text, out in zip(texts, translate_titles(texts, target, kind="fact", max_chars=600)):
+            wanted[text] = out
+    for _, item in items:
+        if "shown_from" in item:
+            item["shown"] = wanted.get(item.pop("shown_from"), "")
+
+
+def _outlet_fields(row: dict) -> None:
+    row["lang"] = branding.source_language(row["source"])  # badge colour
+    row["tag"] = branding.LANG_TAGS.get(row["lang"], "")  # the original sentence's lang
+
+
 @routes.post("/api/story-facts", "story_facts")
 def story_facts():
     """{"categories": [...]} — see compare.compare; each fact also carries the sentence in the
@@ -51,53 +92,47 @@ def story_facts():
     if error:
         return error
     story, target = found
-    members = facts_watch.newest_members(story)
     try:
-        english_of, foreign = facts_watch.english_of(db_path(), members, _to_english)
+        members, english_of, originals = _english_texts(story)
+        by_id = {member["id"]: member for member in members}
+        categories = compare.compare([dict(member, english=english_of[member["id"]])
+                                      for member in members if member["id"] in english_of])
+        facts_watch.store(db_path(), story["key"], members, categories)  # the home page's 数字の食い違い
+        items = []
+        for category in categories:
+            for row in category["rows"]:
+                row["facts"] = row["facts"][:FACTS_PER_ROW]
+                _outlet_fields(row)
+                items += [(by_id[row["id"]], fact) for fact in row["facts"]]
+        _show_sentences(items, originals, target)
     except TranslationError as exc:
         return jsonify({"error": str(exc)}), 503
-    originals: dict[int, list[tuple[str, str]]] = {}  # id -> [(own sentence, English sentence)]
-    for member in members:
-        if member["id"] in foreign:
-            own, english = foreign[member["id"]]
-            originals[member["id"]] = [(member["title"], member["pivot"])] + (sentences.pairs("en", own, english) or [])
-    by_id = {member["id"]: member for member in members}
-    categories = compare.compare([dict(member, english=english_of[member["id"]])
-                                  for member in members if member["id"] in english_of])
-    facts_watch.store(db_path(), story["key"], members, categories)  # the home page's 数字の食い違い
-    # The sentences to show, each translated once into the reader's language: an outlet's own
-    # sentence when known (one translation step), else the English one.
-    wanted: dict[str, str] = {}
-    for category in categories:
-        for row in category["rows"]:
-            member = by_id[row["id"]]
-            row["facts"] = row["facts"][:FACTS_PER_ROW]
-            for fact in row["facts"]:
-                own = next((o for o, e in originals.get(row["id"], []) if _same(e, fact["sentence"])), "")
-                fact["original"] = own
-                same_language = stories.LANG_TARGETS.get(member.get("lang") or "", "") == target
-                if same_language:
-                    fact["shown"] = own or fact["sentence"]
-                elif target == "en" and not own:
-                    fact["shown"] = fact["sentence"]
-                else:
-                    wanted.setdefault(own or fact["sentence"], "")
-                    fact["shown_from"] = own or fact["sentence"]
-                row["lang"] = branding.source_language(row["source"])  # badge colour
-                row["tag"] = branding.LANG_TAGS.get(row["lang"], "")  # the original sentence's lang
-    if wanted:
-        texts = list(wanted)
-        try:
-            for text, out in zip(texts, translate_titles(texts, target, kind="fact", max_chars=600)):
-                wanted[text] = out
-        except TranslationError as exc:
-            return jsonify({"error": str(exc)}), 503
-    for category in categories:
-        for row in category["rows"]:
-            for fact in row["facts"]:
-                if "shown_from" in fact:
-                    fact["shown"] = wanted.get(fact.pop("shown_from"), "")
     return jsonify({"categories": categories, "compared": len(english_of)})
+
+
+@routes.post("/api/story-quotes", "story_quotes")
+def story_quotes():
+    """発言を比べる (D-64): {"groups": [{"outlets", "quotes": [{"id", "source", "published",
+    "text", "sentence", "original", "shown", "lang", "tag"}]}]} — the same statement as each
+    outlet reported (and translated) it, side by side."""
+    found, error = _story(_json_request())
+    if error:
+        return error
+    story, target = found
+    try:
+        members, english_of, originals = _english_texts(story)
+        by_id = {member["id"]: member for member in members}
+        groups = compare.quote_groups([dict(member, english=english_of[member["id"]])
+                                       for member in members if member["id"] in english_of])
+        items = []
+        for group in groups:
+            for quote in group["quotes"]:
+                _outlet_fields(quote)
+                items.append((by_id[quote["id"]], quote))
+        _show_sentences(items, originals, target)
+    except TranslationError as exc:
+        return jsonify({"error": str(exc)}), 503
+    return jsonify({"groups": groups, "compared": len(english_of)})
 
 
 @routes.post("/api/story-words", "story_words")

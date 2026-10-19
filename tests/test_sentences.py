@@ -49,7 +49,7 @@ class SentenceTests(unittest.TestCase):
         sentences.remember("ja", "A. B.", "あ。い。", [1, 1], [1, 1])  # wrong sums
         self.assertEqual(sentences.pairs("ja", "A. B.", "あ。い。"), [("A.", "あ。"), ("B.", "い。")])
         self.assertIsNone(sentences.spans("ja", "A. B. C.", "あ。い。"))  # counts differ: no pairing
-        self.assertIsNone(sentences.spans("ja", "Only one", "ひとつ"))
+        self.assertEqual(sentences.pairs("ja", "Only one", "ひとつ"), [("Only one", "ひとつ")])
 
     def test_lengths_are_in_utf16_units_for_the_browser(self):
         source, translated = "😀 Hi. Bye.", "😀 やあ。またね。"

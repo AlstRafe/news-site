@@ -357,6 +357,38 @@
     }
   }
 
+  function renderQuotes(panel, payload, target) {
+    panel.replaceChildren();
+    const tag = targetMenu[target]?.tag || target;
+    if (!payload.groups?.length) {
+      panel.append(el("p", "hint", "かぎかっこで引用された発言は見つかりませんでした（見出しと最初の段落から探しています）。"));
+      return;
+    }
+    panel.append(el("p", "hint", "同じ発言を、各媒体がどう伝え（どう訳し）たか。英語以外の記事は英訳して照合し、文は元の言語から訳しています。"));
+    for (const group of payload.groups) {
+      const box = el("section", "quote-group" + (group.outlets > 1 ? " shared" : ""));
+      if (group.outlets > 1) box.append(el("span", "quote-shared", `${group.outlets} 媒体が伝えた発言`));
+      for (const quote of group.quotes) {
+        const item = el("div", "quote-item");
+        const meta = el("div", "fact-meta");
+        meta.append(badge(quote.source, quote.lang), el("time", "", when(quote.published)));
+        const link = el("a", "fact-link", "記事");
+        link.href = `/a/${quote.id}`;
+        meta.append(link);
+        const shown = el("blockquote", "quote-shown", quote.shown || quote.sentence);
+        shown.lang = quote.shown ? tag : "en";
+        item.append(meta, shown);
+        if (quote.original && quote.original !== quote.shown) {
+          const own = el("p", "fact-original", quote.original);
+          if (quote.tag) own.lang = quote.tag;
+          item.append(own);
+        }
+        box.append(item);
+      }
+      panel.append(box);
+    }
+  }
+
   function wire(buttonId, panelId, url, render, labels) {
     const button = document.getElementById(buttonId);
     const panel = document.getElementById(panelId);
@@ -391,8 +423,10 @@
        { show: "数字を比べる", hide: "数字を隠す", loading: "記事の数字を集めています…", failed: "数字を比べられませんでした" });
   wire("compare-words", "words-panel", "/api/story-words", renderWords,
        { show: "言葉の違い", hide: "言葉の違いを隠す", loading: "見出しの言葉を比べています…", failed: "言葉を比べられませんでした" });
-  // Arriving from an article's "各社の数字を比べる →" (#facts) or a link to #words: open that panel.
-  const wanted = { "#facts": "compare-facts", "#words": "compare-words" }[location.hash];
+  wire("compare-quotes", "quotes-panel", "/api/story-quotes", renderQuotes,
+       { show: "発言を比べる", hide: "発言を隠す", loading: "引用された発言を探しています…", failed: "発言を比べられませんでした" });
+  // Arriving from an article's "各社の数字を比べる →" (#facts) or a link to #words / #quotes: open that panel.
+  const wanted = { "#facts": "compare-facts", "#words": "compare-words", "#quotes": "compare-quotes" }[location.hash];
   if (wanted) {
     const button = document.getElementById(wanted);
     button?.click();

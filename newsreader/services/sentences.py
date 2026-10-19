@@ -89,8 +89,8 @@ def spans(target: str, source: str, translation: str) -> dict | None:
         if src and tr and len(src) == len(tr):
             return {"src": src, "tr": tr}
     a, b = split(source), split(translation)
-    if len(a) < 2 or len(a) != len(b):
-        return None
+    if not a or len(a) != len(b):
+        return None  # one sentence each pairs trivially; different counts cannot be paired
     return {"src": [_utf16(s) for s in a], "tr": [_utf16(s) for s in b]}
 
 
