@@ -437,11 +437,22 @@ def start_background_sync(root_provider: Callable[[], Path], db_path: Path, inte
 
 # --------------------------------------------------------------- queries ----
 
-def sources(db_path: Path) -> list[dict]:
+def sources(db_path: Path, query: str = "", pivot_words: list[str] | None = None) -> list[dict]:
+    """Outlets with their article counts — with a search, how many of each match it (every
+    outlet is still listed, so the chips do not jump around)."""
     with closing(connect(db_path)) as db:
         rows = db.execute("SELECT source, COUNT(*) AS n FROM articles WHERE error='' "
                           "GROUP BY source ORDER BY source COLLATE NOCASE").fetchall()
-    return [{"name": r["source"], "count": r["n"]} for r in rows]
+        matched: dict[str, int] = {}
+        query = query.strip()[:100]
+        if query:
+            ids = search_ids(db, query, pivot_words)
+            for start in range(0, len(ids), 900):
+                chunk = ids[start:start + 900]
+                for source, n in db.execute(f"SELECT source, COUNT(*) FROM articles WHERE id IN ({','.join('?' * len(chunk))}) "
+                                            "GROUP BY source", chunk):
+                    matched[source] = matched.get(source, 0) + n
+    return [{"name": r["source"], "count": matched.get(r["source"], 0) if query else r["n"]} for r in rows]
 
 
 def source_stats(db_path: Path) -> list[dict]:

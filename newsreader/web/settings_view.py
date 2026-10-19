@@ -33,6 +33,11 @@ def _story_daily(raw: str) -> int:
     return int(text)
 
 
+def _topics() -> list[str]:
+    from newsreader.services.settings import topics
+    return topics()
+
+
 def _glossary() -> list[dict]:
     from newsreader.services.settings import glossary
     return glossary()
@@ -54,6 +59,16 @@ def translation_settings():
             message = "合言葉を発行しました。テスト版の設定画面（または配布物）に入れてください。"
         else:
             message = f"合言葉 {relay.revoke_all()} 件を無効にしました。"
+    elif action.startswith("remove_topic:"):  # 話題を追う (D-61)
+        from newsreader.services.settings import save_topic, topics
+        try:
+            followed = topics()
+            index = int(action.split(":", 1)[1])
+            if 0 <= index < len(followed):
+                save_topic(followed[index], False)
+                message = f"「{followed[index]}」を追うのをやめました。"
+        except ValueError as exc:
+            error = str(exc)
     elif action == "add_glossary" or action.startswith("remove_glossary:"):  # 訳語の指定 (D-63)
         from newsreader.services.settings import remove_glossary_entry, save_glossary_entry
         try:
@@ -122,7 +137,7 @@ def translation_settings():
         "settings.html", settings=get_settings(), secrets=secret_status, story_settings=get_story_settings(),
         story_range=STORY_DAILY_RANGE, library_dir=paths.configured_library_dir(), start_at_logon=start_at_logon(),
         relay_tokens=_relay_tokens(), relay_usage=_relay_usage(), issued_token=issued_token,
-        glossary=_glossary(), glossary_prefill={key: request.args.get(key, "")[:40] for key in ("gsrc", "gdst", "glang")},
+        topics=_topics(), glossary=_glossary(), glossary_prefill={key: request.args.get(key, "")[:40] for key in ("gsrc", "gdst", "glang")},
         active_library=str(current_app.config["LIBRARY_ROOT"]), html_directory_env=bool(os.environ.get("HTML_DIRECTORY", "").strip()),
         secret_store_error=secret_store_error,
         csrf=csrf_token(), message=message, error=error,

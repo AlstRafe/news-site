@@ -143,7 +143,7 @@ def index_page():
     indexing = bool(state.get("running")) and not result["total"] and not source and not query
     response = current_app.make_response(render_template(
         "index.html", error=state.get("error", ""), warning=state.get("warning", ""), indexing=indexing,
-        progress=state.get("progress") or [0, 0], items=result["items"], sources=index.sources(db),
+        progress=state.get("progress") or [0, 0], items=result["items"], sources=index.sources(db, query, index.search_words(english or query) if query else None),
         source=source, query=query, english_query=english, page=result["page"], pages=result["pages"],
         total=result["total"], csrf=csrf_token(), highlights=highlights, disputes=disputes,
         topic_cards=topic_cards, following=any(t.casefold() == query.casefold() for t in followed) if query else False,

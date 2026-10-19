@@ -41,6 +41,9 @@
 <button type="submit" name="action" value="add_glossary" class="secondary">登録</button></div>
 <p class="hint">登録すると、その翻訳先への翻訳はキャッシュとは別に訳し直します（登録前の訳は残りません）。テスト版で中継を使う場合も、テスト版で決めた訳語が使われます。</p>
 </section>
+<section class="panel settings-panel" id="topics"><h2>追っている話題</h2>
+{% if topics %}<p>ホームの「追っている話題」に、新しいものから6件まで表示します（最大10件）。</p><ul class="glossary-list">{% for t in topics %}<li><span><a href="{{ url_for('index', q=t) }}">{{ t }}</a></span><button type="submit" name="action" value="remove_topic:{{ loop.index0 }}" class="secondary">やめる</button></li>{% endfor %}</ul>{% else %}<p class="hint">記事を検索して「この話題を追う」を押すと、こことホームに表示されます。日本語の語でも、英語・中国語・韓国語の記事をまとめて探します。</p>{% endif %}
+</section>
 <section class="panel settings-panel" id="stories-settings"><h2>読み比べ（同じニュースのまとめ）</h2>
 <p>BBC・CNA・聯合ニュースの記事から同じニュースを探してまとめます。英語以外の見出しは、上で選んだ翻訳サービスで<strong>見出しだけ</strong>英訳して照合します（本文は送信しません）。英訳は1回きりで保存され、同じ見出しを再送信することはありません。</p>
 <label class="check-row"><input type="checkbox" name="stories_enabled" value="1" {% if story_settings.stories_enabled %}checked{% endif %}> 英語以外の見出しを英訳して照合する</label>

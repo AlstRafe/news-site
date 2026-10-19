@@ -89,6 +89,20 @@ class TopicTests(unittest.TestCase):
         self.follow("Taiwan", False)
         self.assertNotIn("追っている話題", self.client.get("/", headers=H).get_data(as_text=True))
 
+    def test_outlet_chips_count_the_matches(self):
+        page = self.client.get("/?q=Taiwan", headers=H).get_data(as_text=True)
+        self.assertIn("BBC<span>1</span>", page)      # not the football article
+        self.assertIn("CNA<span>1</span>", page)      # through its English headline
+        self.assertIn("BBC<span>2</span>", self.client.get("/", headers=H).get_data(as_text=True))
+
+    def test_settings_lists_and_removes_topics(self):
+        self.follow("Taiwan")
+        self.follow("台湾")
+        page = self.client.get("/translation-settings", headers=H).get_data(as_text=True)
+        self.assertIn('value="remove_topic:1"', page)
+        self.client.post("/translation-settings", headers=H, data={"csrf": self.csrf, "action": "remove_topic:1"})
+        self.assertEqual(settings.topics(), ["台湾"])
+
     def test_bad_requests(self):
         self.assertEqual(self.follow("", True).status_code, 400)
         self.assertEqual(self.client.post("/api/topics", json={"topic": "a", "follow": "yes"},
