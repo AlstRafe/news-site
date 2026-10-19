@@ -421,6 +421,13 @@
     }
     addDetails(payload);
     if (payload.translation && !payload.translation_error) offerFixedTerm(normalized, String(payload.translation).trim(), targetSelect.value);
+    const lost = payload.translation && window.NumberCheck ? window.NumberCheck.missing(normalized, String(payload.translation)) : [];
+    if (lost.length) {  // 訳文の数字チェック (D-69)
+      const note = document.createElement("p");
+      note.className = "num-check-card";
+      note.textContent = `訳文に見当たらない数字: ${lost.join("・")}`;
+      document.getElementById("language-details").prepend(note);
+    }
     placePopup({ reveal: true });
     if (payload.dictionary && payload.translation) loadSenses(normalized, targetSelect.value, sequence);
   }
