@@ -261,10 +261,13 @@
 
   // The sentence around what was looked up, so a word can be read in context ("文全体を訳す").
   let currentSentence = "";
+  let currentParagraph = null; // the article paragraph the looked-up text is in
   function sentenceAround(range) {
+    currentParagraph = null;
     if (!range) return "";
     const block = (range.startContainer.nodeType === Node.TEXT_NODE ? range.startContainer.parentElement : range.startContainer)?.closest?.("p");
     if (!block || !reader.contains(block)) return "";
+    if (!block.classList.contains("bi-tr")) currentParagraph = block;
     const before = document.createRange();
     before.selectNodeContents(block);
     before.setEnd(range.startContainer, range.startOffset);
@@ -287,7 +290,60 @@
     const box = document.getElementById("sentence-tr");
     if (button) { button.hidden = !currentSentence; button.disabled = false; }
     if (box) box.hidden = true;
+    // Without a sentence step (the whole sentence was selected), offer the paragraph at once.
+    showParagraphButton(!currentSentence);
   }
+
+  // "段落を対訳表示": the paragraph's translation goes under it in the article (like the 対訳
+  // view, for one paragraph), so a long article need not be translated as a whole.
+  function inlineTranslation(paragraph) {
+    const next = paragraph?.nextElementSibling;
+    return next && next.classList.contains("bi-tr") ? next : null;
+  }
+
+  function showParagraphButton(show) {
+    const button = document.getElementById("translate-paragraph");
+    if (!button) return;
+    button.hidden = !(show && currentParagraph?.isConnected && !inlineTranslation(currentParagraph)
+                      && (currentParagraph.textContent || "").trim().length <= 4000);
+    button.disabled = false;
+  }
+
+  async function translateParagraphInline() {
+    const paragraph = currentParagraph;
+    const button = document.getElementById("translate-paragraph");
+    if (!paragraph?.isConnected || inlineTranslation(paragraph)) return;
+    const target = targetSelect.value;
+    button.disabled = true;
+    button.textContent = "訳しています…";
+    let text = "";
+    let failure = "";
+    try {
+      const { ok, payload } = await postJson("/api/translate", { text: (paragraph.textContent || "").trim(), target, plain: true });
+      if (ok && payload.translation) text = payload.translation;
+      else failure = payload.translation_error || payload.error || "翻訳できませんでした。";
+    } catch (_) {
+      failure = "アプリに接続できませんでした。";
+    }
+    button.textContent = "段落を対訳表示";
+    button.disabled = false;
+    if (failure) {
+      const error = document.getElementById("selection-error");
+      error.textContent = failure;
+      error.hidden = false;
+      placePopup();
+      return;
+    }
+    if (inlineTranslation(paragraph)) return;
+    const translated = document.createElement("p");
+    translated.className = "bi-tr bi-one";
+    translated.lang = langTags[target] || "";
+    translated.textContent = text;
+    paragraph.after(translated);
+    closePopup();
+    translated.scrollIntoView({ block: "nearest", behavior: "smooth" });
+  }
+  document.getElementById("translate-paragraph")?.addEventListener("click", translateParagraphInline);
 
   async function translateSentence() {
     const button = document.getElementById("translate-sentence");
@@ -309,6 +365,7 @@
     if (sequence !== requestCounter) return;
     document.getElementById("sentence-translation").textContent = text;
     button.hidden = true;
+    showParagraphButton(true);
     placePopup();
   }
   document.getElementById("translate-sentence")?.addEventListener("click", translateSentence);
@@ -523,6 +580,7 @@
   }
 
   targetSelect.addEventListener("change", () => {
+    reader.querySelectorAll(".bi-one").forEach(node => node.remove()); // single paragraphs, old language
     if (!biTarget) return;
     clearBilingual();
     // With "open in 対訳" on, follow the new language instead of just closing.
@@ -542,6 +600,7 @@
       if (!Array.isArray(payload.paragraphs) || payload.paragraphs.length !== originals.length) {
         throw new Error("段落の対応が取れませんでした。「全文を翻訳」をお試しください。");
       }
+      reader.querySelectorAll(".bi-tr").forEach(node => node.remove()); // single-paragraph ones
       originals.forEach((paragraph, index) => {
         const text = payload.paragraphs[index];
         if (!text) return;

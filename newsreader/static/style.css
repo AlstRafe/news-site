@@ -555,3 +555,4 @@ h1 .story-gloss{font-size:clamp(16px,2.4vw,20px);font-weight:600;margin-top:6px;
 /* Plain links in text (settings, status, hints) use the theme colour instead of browser blue,
    which is hard to read on the dark background. Links with their own class keep their style. */
 main a:not([class]){color:var(--fg-a41b22);text-underline-offset:2px;}
+.reading p:has(+ .bi-one){margin-bottom:9px;}
