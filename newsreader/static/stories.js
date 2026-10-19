@@ -259,6 +259,26 @@
       return;
     }
     panel.append(el("p", "hint", `${payload.compared} 本の見出しと書き出しから数字を拾いました（英語以外の記事は英訳して照合し、文は元の言語から訳しています）。`));
+    // A plain-text summary to paste elsewhere (notes, a message): one line per kind of figure.
+    const compared = payload.categories.filter(c => c.compared);
+    if (compared.length && navigator.clipboard) {
+      const copy = el("button", "text-button copy-facts", "数字の比較をコピー");
+      copy.type = "button";
+      copy.addEventListener("click", async () => {
+        const title = document.querySelector("h1")?.textContent.trim() || "";
+        const lines = compared.map(c => `【${c.label}】` + c.rows.map(row => {
+          const top = row.facts.reduce((best, f) => (f.value ?? -1) > (best?.value ?? -1) ? f : best, row.facts[0]);
+          return `${row.source} ${top?.text || ""}（${when(row.published)}）`;
+        }).join(" → "));
+        try {
+          await navigator.clipboard.writeText([title, ...lines, location.href.split("#")[0]].join("\n"));
+          copy.textContent = "コピーしました";
+        } catch (_) {
+          copy.textContent = "コピーできませんでした";
+        }
+      });
+      panel.append(copy);
+    }
     for (const category of payload.categories) {
       const box = el("section", "fact-kind" + (category.differs ? " differs" : ""));
       const head = el("h3", "", category.label);
