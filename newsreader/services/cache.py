@@ -22,7 +22,7 @@ def _connect() -> sqlite3.Connection:
 
 def record_translation_usage(provider: str, target: str, source_chars: int, metered_chars: int | None = None) -> None:
     """Record a successful uncached provider request; failures and cache hits are excluded."""
-    if provider not in {"azure", "deepl"} or source_chars < 0:
+    if provider != "azure" or source_chars < 0:
         return
     now = time.time()
     try:
@@ -48,7 +48,7 @@ def monthly_translation_usage() -> dict:
             ).fetchall()
     except (OSError, sqlite3.Error):
         rows = []
-    totals = {"azure": {"source_chars": 0, "metered_chars": 0, "requests": 0}, "deepl": {"source_chars": 0, "metered_chars": 0, "requests": 0}}
+    totals = {"azure": {"source_chars": 0, "metered_chars": 0, "requests": 0}}
     for provider, source, metered, requests in rows:
         if provider in totals:
             totals[provider] = {"source_chars": int(source or 0), "metered_chars": int(metered or 0), "requests": int(requests or 0)}

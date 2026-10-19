@@ -1,4 +1,4 @@
-"""News HTML Reader — reads saved BBC / NAVER NEWS / CNA pages with translation tools.
+"""NewsBridge (internal name News HTML Reader) — collects and reads BBC / CNA / Yonhap pages (and saved NAVER NEWS pages) with translation tools.
 
 Layer order (never reversed): ``web`` -> ``library`` / ``services`` -> ``sources``.
 ``paths`` sits below everything and is the only place filesystem locations live.

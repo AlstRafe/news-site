@@ -15,21 +15,18 @@ from newsreader.netpolicy import is_allowed_bind_address
 
 SETTINGS_PATH = paths.SETTINGS_PATH
 SERVICE_NAME = "NewsHtmlReader"
-SECRET_NAMES = {
-    "deepl_api_key", "azure_api_key", "stdict_api_key", "relay_token",
-    "naver_api_key_id", "naver_api_key_secret",
-}
+#: Credentials this version uses. Keys of removed services (DeepL, NAVER API) stay in the
+#: credential store untouched if they were ever saved; nothing reads them any more.
+SECRET_NAMES = {"azure_api_key", "stdict_api_key", "relay_token"}
 #: Same-news grouping (§10/§11). Kept in the same settings.json; every writer merges, so saving
 #: the main form never drops these keys (and saving these never drops the others).
 STORY_DEFAULTS = {"stories_enabled": True, "stories_daily_chars": 8_000}
 STORY_DAILY_RANGE = (500, 200_000)
 DEFAULTS = {
     "provider": "azure",
-    "deepl_endpoint": "auto",
     "azure_region": "",
     "network_bind_host": "",
     "network_port": "",
-    "naver_search_query": "뉴스",
 }
 
 
@@ -43,11 +40,9 @@ def get_settings() -> dict[str, str]:
     except (OSError, ValueError, TypeError):
         value = {}
     provider = value.get("provider") if isinstance(value, dict) else None
-    endpoint = value.get("deepl_endpoint") if isinstance(value, dict) else None
     region = value.get("azure_region") if isinstance(value, dict) else None
     bind_host = value.get("network_bind_host") if isinstance(value, dict) else None
     port = value.get("network_port") if isinstance(value, dict) else None
-    naver_query = value.get("naver_search_query") if isinstance(value, dict) else None
     try:
         bind_host = validate_bind_host(bind_host if isinstance(bind_host, str) else "")
     except ValueError:
@@ -57,11 +52,9 @@ def get_settings() -> dict[str, str]:
         port = ""
     return {
         "provider": "azure",  # the only translation provider (D-44); an old "deepl" choice reads as Azure
-        "deepl_endpoint": endpoint if endpoint in {"auto", "free", "paid"} else DEFAULTS["deepl_endpoint"],
         "azure_region": region.strip()[:80] if isinstance(region, str) else DEFAULTS["azure_region"],
         "network_bind_host": bind_host,
         "network_port": port,
-        "naver_search_query": naver_query.strip()[:100] if isinstance(naver_query, str) and naver_query.strip() else DEFAULTS["naver_search_query"],
         # "own": this PC's Azure key; "relay": ask another NewsBridge to translate (relay.py, D-50).
         "translation_source": "relay" if isinstance(value, dict) and value.get("translation_source") == "relay" else "own",
         "relay_url": relay_url(value.get("relay_url") if isinstance(value, dict) else ""),
@@ -109,31 +102,13 @@ def validate_network_settings(bind_host: str, port: str) -> tuple[str, str]:
     return bind_host, port
 
 
-def save_settings(
-    provider: str,
-    deepl_endpoint: str,
-    azure_region: str = "",
-    network_bind_host: str = "",
-    network_port: str = "",
-    naver_search_query: str = "뉴스",
-) -> None:
-    if provider not in {"deepl", "azure"} or deepl_endpoint not in {"auto", "free", "paid"}:
-        raise ValueError("設定値が不正です。")
+def save_settings(azure_region: str = "", network_bind_host: str = "", network_port: str = "") -> None:
     azure_region = azure_region.strip()
     if len(azure_region) > 80:
         raise ValueError("Azureのリージョン名が長すぎます。")
     network_bind_host, network_port = validate_network_settings(network_bind_host, network_port)
-    naver_search_query = naver_search_query.strip()
-    if not naver_search_query or len(naver_search_query) > 100:
-        raise ValueError("NAVERニュース検索語は1～100文字で指定してください。")
-    _write_merged({
-        "provider": provider,
-        "deepl_endpoint": deepl_endpoint,
-        "azure_region": azure_region,
-        "network_bind_host": network_bind_host,
-        "network_port": network_port,
-        "naver_search_query": naver_search_query,
-    })
+    _write_merged({"provider": "azure", "azure_region": azure_region,
+                   "network_bind_host": network_bind_host, "network_port": network_port})
 
 
 def get_story_settings() -> dict:

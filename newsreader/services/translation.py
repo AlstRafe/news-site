@@ -26,7 +26,6 @@ TARGET_LABELS = {"ja": "日本語", "en": "English", "ko": "한국어", "zh-hant
 #: BCP 47 tags for the lang attribute of translated text.
 LANG_TAGS = {"ja": "ja", "en": "en", "ko": "ko", "zh-hant": "zh-Hant"}
 #: Kept for callers of the earlier split between UI and internal targets ("en" is now a UI target).
-INTERNAL_TARGETS: dict[str, dict[str, str]] = {}
 
 
 def target_menu(provider: str) -> dict[str, dict]:
@@ -248,7 +247,7 @@ def _group_senses(translations: list) -> list[dict]:
 
 
 def _codes(target: str) -> dict[str, str]:
-    return TARGETS.get(target) or INTERNAL_TARGETS.get(target) or {}
+    return TARGETS.get(target) or {}
 
 
 def translate_titles_to_english(titles: list[str]) -> list[str]:

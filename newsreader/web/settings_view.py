@@ -47,15 +47,10 @@ def translation_settings():
         else:
             message = f"合言葉 {relay.revoke_all()} 件を無効にしました。"
     elif request.method == "POST":  # CSRF already verified centrally
-        provider = "azure"  # the only translation provider (D-44)
-        deepl_endpoint = "auto"
         azure_region = request.form.get("azure_region", "").strip()
         network_bind_host = request.form.get("network_bind_host", "")
         network_port = request.form.get("network_port", "")
-        naver_search_query = request.form.get("naver_search_query", "뉴스")
         try:
-            if provider not in {"deepl", "azure"} or deepl_endpoint not in {"auto", "free", "paid"}:
-                raise ValueError("設定値が不正です。")
             network_bind_host, network_port = validate_network_settings(network_bind_host, network_port)
             # Forms from before the same-news section (or scripts) omit it: leave those settings alone.
             stories_form = "stories_daily_chars" in request.form
@@ -69,7 +64,7 @@ def translation_settings():
                     delete_secret(name)
                 elif value:
                     set_secret(name, value)
-            save_settings(provider, deepl_endpoint, azure_region, network_bind_host, network_port, naver_search_query)
+            save_settings(azure_region, network_bind_host, network_port)
             if "translation_source" in request.form:
                 save_translation_source(request.form["translation_source"], request.form.get("relay_url", ""))
             if stories_form:
