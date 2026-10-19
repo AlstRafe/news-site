@@ -58,6 +58,18 @@ def create_app(library_root: Path | str | None = None, db_path: Path | str | Non
     app.jinja_env.globals["theme_boot"] = security.register_inline_script("theme_boot", THEME_BOOT)
 
     status_view.init_app(app)
+    from newsreader import branding
+    from newsreader.services import translation
+    from newsreader.services.settings import get_settings
+    app.jinja_env.globals.update(app_name=branding.APP_NAME, app_name_ja=branding.APP_NAME_JA,
+                                 app_tagline=branding.APP_TAGLINE)
+
+    @app.context_processor
+    def _translation_targets():
+        # One list of translation targets for every page and script (base.html meta tag).
+        menu = translation.target_menu(get_settings()["provider"])
+        return {"translation_targets": menu, "translation_targets_json": json.dumps(menu, ensure_ascii=False)}
+
     for module in (pages, api, settings_view, status_view, stories_view):
         module.routes.register(app)
     pages.register_error_handlers(app)

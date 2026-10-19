@@ -21,7 +21,9 @@
   let anchor = () => null;
   const narrow = window.matchMedia("(max-width: 650px)");
   const PIN_KEY = "news-html-reader-translation-pinned";
-  const targetNames = { ja: "日本語", "en-gb": "English (UK)", ko: "한국어", "zh-hant": "繁體中文" };
+  // Translation targets come from the server (base.html), one list for every page.
+  const targetMenu = (() => { try { return JSON.parse(document.querySelector('meta[name="translation-targets"]')?.content || "{}"); } catch (_) { return {}; } })();
+  const targetNames = Object.fromEntries(Object.entries(targetMenu).map(([code, t]) => [code, t.label]));
 
   try {
     const saved = localStorage.getItem("news-html-reader-translation-target");
@@ -566,7 +568,7 @@
   // ---- Side-by-side (対訳) view: each translated paragraph is inserted under its original ----
   const biButton = document.getElementById("translate-bilingual");
   const biTitle = document.getElementById("bi-title");
-  const langTags = { ja: "ja", "en-gb": "en-GB", ko: "ko", "zh-hant": "zh-Hant" };
+  const langTags = Object.fromEntries(Object.entries(targetMenu).map(([code, t]) => [code, t.tag]));
   let biTarget = "";
 
   function clearBilingual() {
@@ -675,6 +677,15 @@
 
   showTitleGloss();
 
+  // "?tr=en" (from 読み比べ's 言語をそろえる): open the 対訳 view in that language for this visit
+  // only (the saved 翻訳先 is not changed).
+  const requested = new URLSearchParams(location.search).get("tr");
+  const openedFor = requested && targetMenu[requested]?.available ? requested : "";
+  if (openedFor) {
+    targetSelect.value = openedFor;
+    biButton.click();
+  }
+
   // Remembered per device: open every article directly in the side-by-side view.
   const BI_AUTO_KEY = "news-html-reader-bilingual-auto";
   const biAuto = document.getElementById("bi-auto");
@@ -684,7 +695,7 @@
       try { localStorage.setItem(BI_AUTO_KEY, biAuto.checked ? "1" : "0"); } catch (_) { /* optional */ }
       if (biAuto.checked && !biTarget) biButton.click();
     });
-    if (biAuto.checked) biButton.click();
+    if (biAuto.checked && !openedFor) biButton.click();
   }
 
   wholeButton.addEventListener("click", async () => {

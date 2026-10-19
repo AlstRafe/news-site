@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% block head %}<title>{{ article.title }} | News HTML Reader</title>{% endblock %}
+{% block head %}<title>{{ article.title }} | {{ app_name }}</title>{% endblock %}
 {% block main_class %} article{% endblock %}
 {% block content %}<a class="back" href="{{ url_for('index', source=record.source or None) }}">← {{ record.source or '記事一覧' }}の一覧へ戻る</a>
 <div class="eyebrow">{{ article.kind }} · {{ article.paragraph_count }} 段落</div><h1>{{ article.title }}</h1>
@@ -10,7 +10,7 @@
 {% if article.images %}<div class="article-images lead-image">{% with image = article.images[0] %}<figure><img src="{{ image.url }}" alt="{{ image.alt }}" decoding="async" fetchpriority="high">{% if image.alt %}<figcaption>{{ image.alt }}</figcaption>{% endif %}</figure>{% endwith %}</div>{% endif %}
 <section class="translation-controls" id="translation-controls" data-article-id="{{ article_id }}">
 <div class="tc-row"><label for="translation-target">翻訳先</label>
-<select id="translation-target" aria-label="翻訳先"><option value="ja">日本語</option><option value="en-gb" {% if translation_provider == 'azure' %}disabled{% endif %}>English (UK){% if translation_provider == 'azure' %}（DeepL選択時のみ）{% endif %}</option><option value="ko">한국어</option><option value="zh-hant">繁體中文</option></select></div>
+<select id="translation-target" aria-label="翻訳先">{% for code, t in translation_targets.items() %}<option value="{{ code }}"{% if not t.available %} disabled{% endif %}>{{ t.label }}{% if not t.available %}（DeepL選択時のみ）{% endif %}</option>{% endfor %}</select></div>
 <div class="tc-buttons"><button id="translate-bilingual" type="button" aria-pressed="false" title="キーボード: B">対訳で読む</button>
 <button id="translate-whole" type="button" class="secondary">全文を翻訳</button></div>
 <label class="bi-auto"><input type="checkbox" id="bi-auto"> 記事を開いたら対訳で表示する</label>

@@ -1,4 +1,4 @@
 {% extends "base.html" %}
-{% block head %}<title>{{ status }} | News HTML Reader</title>{% endblock %}
+{% block head %}<title>{{ status }} | {{ app_name }}</title>{% endblock %}
 {% block content %}<div class="eyebrow">ERROR {{ status }}</div><div class="alert" role="alert">{{ message }}</div>
 <p><a class="back" href="{{ url_for('index') }}">← 記事一覧へ戻る</a></p>{% endblock %}

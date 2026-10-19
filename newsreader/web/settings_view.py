@@ -36,8 +36,8 @@ def translation_settings():
     message = ""
     error = ""
     if request.method == "POST":  # CSRF already verified centrally
-        provider = request.form.get("provider", "")
-        deepl_endpoint = request.form.get("deepl_endpoint", "")
+        provider = "azure"  # the only translation provider (D-44)
+        deepl_endpoint = "auto"
         azure_region = request.form.get("azure_region", "").strip()
         network_bind_host = request.form.get("network_bind_host", "")
         network_port = request.form.get("network_port", "")

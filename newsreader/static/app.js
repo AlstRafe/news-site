@@ -110,7 +110,9 @@
     const writeLocal = (key, value) => { try { localStorage.setItem(key, value); } catch (_) { /* private mode */ } };
     const target = () => {
       const saved = readLocal("news-html-reader-translation-target");
-      return ["ja", "en-gb", "ko", "zh-hant"].includes(saved) ? saved : "ja";
+      let menu = {};
+      try { menu = JSON.parse(document.querySelector('meta[name="translation-targets"]')?.content || "{}"); } catch (_) { menu = {}; }
+      return menu[saved]?.available ? saved : "ja";
     };
     const csrfToken = document.querySelector('meta[name="csrf-token"]')?.content || "";
     const cards = () => [...document.querySelectorAll("a.card[data-id]")];
@@ -135,7 +137,7 @@
           if (!text || !heading || text === heading.textContent.trim()) continue;
           const line = document.createElement("p");
           line.className = "card-gloss";
-          line.lang = target() === "zh-hant" ? "zh-Hant" : target() === "en-gb" ? "en-GB" : target();
+          line.lang = target() === "zh-hant" ? "zh-Hant" : target(); // BCP 47
           line.textContent = text;
           heading.after(line);
         }

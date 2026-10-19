@@ -14,7 +14,6 @@ from newsreader import paths
 from newsreader.library import index
 from newsreader.library.files import resolve_html_file, validate_directory
 from newsreader.services import images as image_service
-from newsreader.services.settings import get_settings
 from newsreader.sources import IMAGE_EXTENSIONS, ReaderError, extract_article
 from newsreader.web.assets import CACHE_LIST, CACHE_PAGE, YEAR
 from newsreader.web.routing import Routes
@@ -140,7 +139,6 @@ def show_article(article_id: int):
     response = current_app.make_response(render_template(
         "article.html", article=article, record=record, article_id=article_id, csrf=csrf_token(),
         related=stories.related(db_path(), article_id), neighbours=index.neighbours(db_path(), article_id),
-        translation_provider=get_settings()["provider"],
     ))
     response.headers["Cache-Control"] = CACHE_PAGE
     return response

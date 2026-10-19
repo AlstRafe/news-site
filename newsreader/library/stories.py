@@ -269,7 +269,34 @@ def get_story(db_path: Path, key: str) -> dict | None:
     timeline = sorted(members, key=lambda m: (m["published"], m["id"]))
     return {"key": key, "members": members, "columns": sorted(columns.items(), key=lambda kv: kv[0].casefold()),
             "newest": members[0]["published"], "lead_title": central["title"], "lead_id": central["id"],
-            "timeline": timeline, **_summary(members)}
+            "timeline": timeline, "languages": languages(members), **_summary(members)}
+
+
+#: Headline language (story_items.lang) -> translation target code.
+LANG_TARGETS = {"en": "en", "zh": "zh-hant", "ko": "ko", "ja": "ja"}
+
+
+def languages(members: list[dict]) -> list[dict]:
+    """The languages of a group, for "read them all in one outlet's language": each with its
+    target code and outlets, most articles first. Sets ``lang_target`` on every member."""
+    found: dict[str, dict] = {}
+    for member in members:
+        target = LANG_TARGETS.get(member.get("lang") or "", "")
+        member["lang_target"] = target
+        if target:
+            entry = found.setdefault(target, {"target": target, "outlets": [], "count": 0})
+            entry["count"] += 1
+            source = member["source"] or "未分類"
+            if source not in entry["outlets"]:
+                entry["outlets"].append(source)
+    return sorted(found.values(), key=lambda e: (-e["count"], e["target"]))
+
+
+def headline_language(db_path: Path, article_id: int) -> str:
+    """"en" / "zh" / "ko" / "ja" / "other" as detected for grouping ("" when not known yet)."""
+    with closing(index.connect(db_path)) as db:
+        row = db.execute("SELECT lang FROM story_items WHERE article_id = ?", (article_id,)).fetchone()
+    return row[0] if row else ""
 
 
 def badges(db_path: Path, article_ids: list[int]) -> dict[int, dict]:

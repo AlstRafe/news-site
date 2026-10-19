@@ -56,7 +56,7 @@ def get_settings() -> dict[str, str]:
     if port and (not port.isdecimal() or not 1 <= int(port) <= 65535):
         port = ""
     return {
-        "provider": provider if provider in {"deepl", "azure"} else DEFAULTS["provider"],
+        "provider": "azure",  # the only translation provider (D-44); an old "deepl" choice reads as Azure
         "deepl_endpoint": endpoint if endpoint in {"auto", "free", "paid"} else DEFAULTS["deepl_endpoint"],
         "azure_region": region.strip()[:80] if isinstance(region, str) else DEFAULTS["azure_region"],
         "network_bind_host": bind_host,

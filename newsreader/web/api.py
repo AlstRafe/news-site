@@ -176,6 +176,37 @@ def opening(article: dict) -> str:
     return text[:LEAD_CHARS]
 
 
+@routes.post("/api/compare-translate", "compare_translate")
+def compare_translate():
+    """読み比べ: headlines and openings of articles in other languages, translated into the
+    language of one outlet of the group: {"items": {id: {"title", "lead"}}}. Articles already in
+    that language are left out. Cached per headline / opening like the other comparisons."""
+    payload = _json_request()
+    ids, target = payload.get("ids"), payload.get("target")
+    if (not isinstance(target, str) or target not in TARGETS or not isinstance(ids, list)
+            or not 0 < len(ids) <= MAX_LEADS_PER_REQUEST
+            or not all(isinstance(i, int) and not isinstance(i, bool) for i in ids)):
+        return jsonify({"error": "記事または翻訳先の指定が不正です。"}), 400
+    from newsreader.library import stories
+    wanted = []
+    for article_id in dict.fromkeys(ids):
+        record = index.get(db_path(), article_id)
+        if record is None:
+            continue
+        if stories.LANG_TARGETS.get(stories.headline_language(db_path(), article_id), "") == target:
+            continue
+        content = index.get_content(db_path(), article_id)
+        wanted.append((article_id, record["title"], opening(content) if content else ""))
+    if not wanted:
+        return jsonify({"items": {}})
+    try:
+        titles = translate_titles([title for _, title, _ in wanted], target)
+        leads = translate_titles([lead for _, _, lead in wanted], target, kind="lead", max_chars=LEAD_CHARS)
+    except TranslationError as exc:
+        return jsonify({"error": str(exc)}), 503
+    return jsonify({"items": {str(i): {"title": t, "lead": l} for (i, _, _), t, l in zip(wanted, titles, leads)}})
+
+
 @routes.post("/api/translate-leads", "translate_story_leads")
 def translate_story_leads():
     """Opening paragraphs of the articles on a same-news page: {"leads": {id: {"original", "translation"}}}."""

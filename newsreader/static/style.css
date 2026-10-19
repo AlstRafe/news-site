@@ -565,3 +565,18 @@ h1 .story-gloss{font-size:clamp(16px,2.4vw,20px);font-weight:600;margin-top:6px;
 .search-note{margin:-6px 0 14px;}
 .day-sep{grid-column:1/-1;margin:6px 0 -8px;font-size:13px;font-weight:800;color:var(--fg-60636c);letter-spacing:.02em;}
 @media(max-width:650px){.day-sep{margin:4px 0 -4px;}}
+/* 読み比べ: 言語をそろえる */
+.align-langs{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin:10px 0 4px;}
+.align-label{font-size:12px;font-weight:700;color:var(--fg-60636c);}
+.chip-button{width:auto!important;display:inline-flex;align-items:baseline;gap:6px;min-height:36px;padding:7px 13px;border-radius:99px;font-size:13px;background:var(--bg-ffffff);color:var(--fg-3b3e45);border:1px solid var(--line-e0e3e9);}
+.chip-button small{font-size:10px;font-weight:600;color:var(--fg-878b93);}
+.chip-button:hover{background:var(--bg-fbf5f5);}
+.chip-button[aria-pressed="true"]{background:var(--bg-b51d24);border-color:var(--line-b51d24);color:var(--fg-ffffff);}
+.chip-button[aria-pressed="true"] small{color:var(--fg-ffffff);opacity:.8;}
+.cmp-tr{margin:8px 0 0;padding:9px 11px;border-radius:9px;background:var(--bg-f8f9fb);border:1px dashed var(--line-e0e3e9);display:flex;flex-direction:column;gap:4px;}
+.cmp-label{font-size:10px;font-weight:700;letter-spacing:.02em;color:var(--fg-878b93);}
+.cmp-title{font-size:14px;line-height:1.5;overflow-wrap:anywhere;}
+.cmp-lead{margin:0;font-size:13px;line-height:1.7;color:var(--fg-3c4048);overflow-wrap:anywhere;}
+.cmp-full{font-size:12px;font-weight:700;text-decoration:none;color:var(--fg-a41b22);}
+/* The hidden attribute always wins over a component display rule. */
+[hidden]{display:none!important;}

@@ -88,12 +88,10 @@ class LookupTests(DictionaryTestCase):
 
     def test_only_english_words_with_azure(self):
         for text, target, expected in [("fly", "ja", True), ("carry out", "ko", True), ("Prime Minister's", "ja", True),
-                                       ("fly", "en-gb", False), ("a b c d", "ja", False), ("안녕", "ja", False),
+                                       ("fly", "en", False), ("a b c d", "ja", False), ("안녕", "ja", False),
                                        ("飛ぶ", "ja", False), ("COVID-19", "ja", False), ("x" * 41, "ja", False),
                                        ("This is a sentence.", "ja", False)]:
             self.assertEqual(ts.dictionary_available(text, target), expected, text)
-        with mock.patch.object(ts, "active_provider", lambda: "deepl"):
-            self.assertFalse(ts.dictionary_available("fly", "ja"))  # DeepL has no dictionary
 
 
 class ApiTests(DictionaryTestCase):

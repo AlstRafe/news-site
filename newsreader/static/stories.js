@@ -5,11 +5,12 @@
   const csrf = document.querySelector('meta[name="csrf-token"]')?.content || "";
   const readLocal = key => { try { return localStorage.getItem(key); } catch (_) { return null; } };
   const writeLocal = (key, value) => { try { localStorage.setItem(key, value); } catch (_) { /* private mode */ } };
+  const targetMenu = (() => { try { return JSON.parse(document.querySelector('meta[name="translation-targets"]')?.content || "{}"); } catch (_) { return {}; } })();
   const targetLang = () => {
     const saved = readLocal("news-html-reader-translation-target");
-    return ["ja", "en-gb", "ko", "zh-hant"].includes(saved) ? saved : "ja";
+    return targetMenu[saved]?.available ? saved : "ja";
   };
-  const langTag = t => (t === "zh-hant" ? "zh-Hant" : t === "en-gb" ? "en-GB" : t);
+  const langTag = t => targetMenu[t]?.tag || t;
   const post = async (url, body) => {
     const response = await fetch(url, {
       method: "POST", credentials: "same-origin",
@@ -102,6 +103,70 @@
       say(`書き出しを翻訳できませんでした: ${error.message}`);
     }
   });
+
+  // 3b. "言語をそろえる": the other articles' headline and opening in the language of one outlet
+  //     (e.g. CNA in English beside BBC), hidden until asked for; the reader's own translations
+  //     (訳 / 書き出しを訳して比べる) stay as they are, so both can be shown at once.
+  const alignButtons = [...document.querySelectorAll("[data-align]")];
+  const aligned = {}; // target -> {id: {title, lead}}
+  const hideAligned = () => document.querySelectorAll(".cmp-tr").forEach(box => { box.hidden = true; box.replaceChildren(); });
+  async function alignTo(target, button) {
+    if (button.getAttribute("aria-pressed") === "true") {
+      button.setAttribute("aria-pressed", "false");
+      hideAligned();
+      return;
+    }
+    alignButtons.forEach(other => other.setAttribute("aria-pressed", "false"));
+    button.setAttribute("aria-pressed", "true");
+    hideAligned();
+    const ids = [...new Set([...document.querySelectorAll("[data-article-id]")]
+      .filter(el => el.dataset.langTarget !== target).map(el => Number(el.dataset.articleId)))];
+    if (!aligned[target]) {
+      button.disabled = true;
+      try {
+        aligned[target] = {};
+        for (let i = 0; i < ids.length; i += 12) {
+          const payload = await post("/api/compare-translate", { ids: ids.slice(i, i + 12), target });
+          Object.assign(aligned[target], payload.items || {});
+        }
+        say("");
+      } catch (error) {
+        delete aligned[target];
+        button.setAttribute("aria-pressed", "false");
+        say(`翻訳できませんでした: ${error.message}`);
+        return;
+      } finally {
+        button.disabled = false;
+      }
+    }
+    if (button.getAttribute("aria-pressed") !== "true") return;
+    const label = `${targetMenu[target]?.label || target}に翻訳（${button.querySelector("small")?.textContent || ""}と同じ言語）`;
+    for (const [id, item] of Object.entries(aligned[target])) {
+      document.querySelectorAll(`[data-cmp-for="${id}"]`).forEach(box => {
+        const head = document.createElement("span");
+        head.className = "cmp-label";
+        head.textContent = label;
+        const title = document.createElement("strong");
+        title.className = "cmp-title";
+        title.textContent = item.title || "";
+        box.replaceChildren(head, title);
+        if (item.lead) {
+          const lead = document.createElement("p");
+          lead.className = "cmp-lead";
+          lead.textContent = item.lead;
+          box.appendChild(lead);
+        }
+        const full = document.createElement("a");
+        full.className = "cmp-full";
+        full.href = `/a/${id}?tr=${encodeURIComponent(target)}`;
+        full.textContent = `全文を${targetMenu[target]?.label || target}の対訳で読む →`;
+        box.appendChild(full);
+        box.lang = langTag(target);
+        box.hidden = false;
+      });
+    }
+  }
+  alignButtons.forEach(button => button.addEventListener("click", () => alignTo(button.dataset.align, button)));
 
   // 4. "別のニュース": two taps (the first one asks), then the group is corrected and re-grouped.
   const key = document.querySelector('meta[name="story-key"]')?.content || "";

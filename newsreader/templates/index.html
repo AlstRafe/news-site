@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% block head %}<title>{% if source %}{{ source }} | {% endif %}News HTML Reader</title>{% if indexing %}<meta http-equiv="refresh" content="2">{% endif %}{% endblock %}
+{% block head %}<title>{% if source %}{{ source }} | {% endif %}{{ app_name }}</title>{% if indexing %}<meta http-equiv="refresh" content="2">{% endif %}{% endblock %}
 {% block content %}
 {% if error %}<div class="alert" role="alert">{{ error }}</div>{% endif %}
 {% if warning %}<div class="alert" role="status">{{ warning }}</div>{% endif %}

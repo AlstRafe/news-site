@@ -55,7 +55,8 @@ def serve_until_redeployed(app, host: str, port: int, poll_seconds: float = VERS
     if supervised:
         threading.Thread(target=watch, name="deploy-watch", daemon=True).start()
     where = f"[{host}]" if ipaddress.ip_address(host).version == 6 else host
-    print(f"News HTML Reader: http://{where}:{port}/ （終了は Ctrl+C）", flush=True)
+    from newsreader.branding import APP_NAME
+    print(f"{APP_NAME}: http://{where}:{port}/ （終了は Ctrl+C）", flush=True)
     try:
         server.run()
     finally:

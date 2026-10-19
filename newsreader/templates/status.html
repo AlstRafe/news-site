@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% block head %}<title>状態 | News HTML Reader</title>{% endblock %}
+{% block head %}<title>状態 | {{ app_name }}</title>{% endblock %}
 {% block main_class %} status-page{% endblock %}
 {% block content %}<div class="eyebrow">STATUS</div><h1>状態</h1>
 <section class="panel"><h2>自動取得</h2>
@@ -41,7 +41,6 @@
 </section>
 <section class="panel"><h2>翻訳の利用量（{{ usage.month }}）</h2>
 <dl class="facts"><dt>Azure</dt><dd>{{ "{:,}".format(usage.providers.azure.metered_chars) }} 文字 · {{ usage.providers.azure.requests }} 回</dd>
-<dt>DeepL</dt><dd>{{ "{:,}".format(usage.providers.deepl.source_chars) }} 文字 · {{ usage.providers.deepl.requests }} 回</dd></dl></section>
 <section class="panel"><h2>アプリ</h2>
 <dl class="facts"><dt>バージョン</dt><dd>{{ version }}</dd><dt>起動</dt><dd>{{ started }}</dd><dt>Python</dt><dd>{{ python }}</dd></dl></section>
 {% endblock %}

@@ -327,6 +327,37 @@ class WebTests(StoryTestCase):
         bad = self.client.post("/api/translate-leads", headers={**H, "X-CSRF-Token": token}, json={"ids": list(range(1, 20)), "target": "ja"})
         self.assertEqual(bad.status_code, 400)
 
+    def test_articles_can_be_read_in_another_outlets_language(self):
+        from newsreader.services import cache
+        from newsreader.services import translation as ts
+        detail = stories.get_story(self.db, self.key)
+        self.assertEqual([(l["target"], l["outlets"], l["count"]) for l in detail["languages"]],
+                         [("en", ["BBC"], 2), ("zh-hant", ["CNA"], 1)])
+        html = self.client.get(f"/stories/{self.key}", headers=H).get_data(as_text=True)
+        self.assertIn('data-align="en"', html)
+        self.assertIn('data-align="zh-hant"', html)
+        self.assertEqual(html.count('class="cmp-tr"'), 6)  # hidden until asked (3 articles x 2 views)
+        calls = []
+
+        def fake(provider, texts, target):
+            calls.append((target, list(texts)))
+            return [f"[{target}] {t}" for t in texts]
+
+        token = self.csrf()
+        bbc, cna = self.id_of("BBC", "a.html"), self.id_of("CNA", "z.html")
+        with mock.patch.object(ts, "_translate_batch", fake), mock.patch.object(cache, "CACHE_PATH", self.tmp / "cache.sqlite3"):
+            items = self.client.post("/api/compare-translate", headers={**H, "X-CSRF-Token": token},
+                                     json={"ids": [bbc, cna], "target": "en"}).get_json()["items"]
+            self.assertEqual(list(items), [str(cna)])  # the BBC article is English already
+            self.assertEqual(items[str(cna)]["title"], f"[en] {NOBEL_ZH}")
+            self.assertTrue(items[str(cna)]["lead"].startswith("[en] "))
+            other = self.client.post("/api/compare-translate", headers={**H, "X-CSRF-Token": token},
+                                     json={"ids": [bbc, cna], "target": "zh-hant"}).get_json()["items"]
+            self.assertEqual(list(other), [str(bbc)])
+        self.assertEqual({target for target, _ in calls}, {"en", "zh-hant"})
+        self.assertEqual(self.client.post("/api/compare-translate", headers={**H, "X-CSRF-Token": token},
+                                          json={"ids": [bbc], "target": "xx"}).status_code, 400)
+
     def test_list_cards_mark_articles_reported_by_several_outlets(self):
         html = self.client.get("/", headers=H).get_data(as_text=True)
         self.assertEqual(html.count("読み比べ 2媒体"), 3)  # the two BBC Nobel articles and the CNA one
@@ -384,9 +415,9 @@ class WebTests(StoryTestCase):
         self.assertIn("500", page.get_data(as_text=True))
         self.assertEqual(settings.get_story_settings()["stories_daily_chars"], 12_000)  # unchanged
         # A form without the section (older page, scripts) keeps the stored values.
-        self.client.post("/translation-settings", headers=H, data={**form, "provider": "deepl"})
+        self.client.post("/translation-settings", headers=H, data={**form, "azure_region": "japaneast"})
         stored = json.loads(settings.SETTINGS_PATH.read_text(encoding="utf-8"))
-        self.assertEqual((stored["provider"], stored["stories_daily_chars"]), ("deepl", 12_000))
+        self.assertEqual((stored["azure_region"], stored["stories_daily_chars"]), ("japaneast", 12_000))
         self.assertIn('id="stories-settings"', self.client.get("/translation-settings", headers=H).get_data(as_text=True))
 
     def tearDown(self):

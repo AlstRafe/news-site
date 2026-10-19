@@ -14,15 +14,25 @@ import truststore
 from newsreader.services.cache import get as cache_get, put as cache_put, record_translation_usage
 from newsreader.services.settings import SecretStoreError, get_secret, get_settings
 
+#: Translation targets offered in the app, in menu order, with the Azure Translator code.
+#: "en" is also the pivot language for same-news grouping (§10). DeepL was removed (D-44).
 TARGETS = {
-    "ja": {"deepl": "JA", "azure": "ja"},
-    "en-gb": {"deepl": "EN-GB"},
-    "ko": {"deepl": "KO", "azure": "ko"},
-    "zh-hant": {"deepl": "ZH-HANT", "azure": "zh-Hant"},
+    "ja": {"azure": "ja"},
+    "en": {"azure": "en"},
+    "ko": {"azure": "ko"},
+    "zh-hant": {"azure": "zh-Hant"},
 }
-#: Targets the app uses internally but never offers in the UI (TARGETS above is the UI list).
-#: "en" is the pivot language for same-news grouping: DeepL EN-US, Azure en (§10).
-INTERNAL_TARGETS = {"en": {"deepl": "EN-US", "azure": "en"}}
+TARGET_LABELS = {"ja": "日本語", "en": "English", "ko": "한국어", "zh-hant": "繁體中文"}
+#: BCP 47 tags for the lang attribute of translated text.
+LANG_TAGS = {"ja": "ja", "en": "en", "ko": "ko", "zh-hant": "zh-Hant"}
+#: Kept for callers of the earlier split between UI and internal targets ("en" is now a UI target).
+INTERNAL_TARGETS: dict[str, dict[str, str]] = {}
+
+
+def target_menu(provider: str) -> dict[str, dict]:
+    """{code: {"label", "tag", "available"}} for the pages (the browser reads it from base.html)."""
+    return {code: {"label": TARGET_LABELS[code], "tag": LANG_TAGS[code], "available": True}
+            for code in TARGETS}
 MAX_SELECTION_CHARS = 4_000
 MAX_ARTICLE_CHARS = 250_000
 MAX_BATCH_CHARS = 20_000
@@ -35,13 +45,12 @@ class TranslationError(Exception):
 
 
 def active_provider() -> str:
-    return get_settings()["provider"]
+    """Azure Translator is the only provider (the provider name stays part of every cache key)."""
+    return "azure"
 
 
 def provider_ready(provider: str | None = None) -> bool:
-    provider = provider or active_provider()
-    secret = "deepl_api_key" if provider == "deepl" else "azure_api_key"
-    return bool(get_secret(secret))
+    return bool(get_secret("azure_api_key"))
 
 
 def _split_long(text: str) -> list[str]:
@@ -103,8 +112,6 @@ def _post_json(url: str, headers: dict[str, str], data: bytes, provider: str) ->
             message = "APIキーが認証されませんでした。設定画面でキーを確認してください。"
         elif exc.code == 429:
             message = "翻訳サービスの利用上限またはアクセス頻度の上限に達しました。時間を置いて再試行してください。"
-        elif provider == "deepl" and exc.code == 456:
-            message = "DeepL APIの利用上限に達しました。プランの上限または請求設定を確認してください。"
         elif provider == "azure" and exc.code == 403:
             message = "Azure Translatorの利用が拒否されました。F0無料枠の月間上限、キー、リソースのリージョンを確認してください。"
         elif exc.code == 403:
@@ -117,24 +124,6 @@ def _post_json(url: str, headers: dict[str, str], data: bytes, provider: str) ->
 
 
 def _translate_batch(provider: str, texts: list[str], target: str) -> list[str]:
-    if provider == "deepl":
-        try:
-            key = get_secret("deepl_api_key")
-        except SecretStoreError as exc:
-            raise TranslationError(str(exc)) from None
-        if not key:
-            raise TranslationError("DeepL APIキーが未設定です。設定画面から登録してください。")
-        endpoint_mode = get_settings()["deepl_endpoint"]
-        is_free_key = key.rstrip().endswith(":fx")
-        use_free = is_free_key if endpoint_mode == "auto" else endpoint_mode == "free"
-        base = "https://api-free.deepl.com" if use_free else "https://api.deepl.com"
-        body = urllib.parse.urlencode([("text", text) for text in texts] + [("target_lang", _codes(target)["deepl"])]).encode()
-        payload, _ = _post_json(base + "/v2/translate", {"Authorization": f"DeepL-Auth-Key {key}", "Content-Type": "application/x-www-form-urlencoded"}, body, "deepl")
-        results = payload.get("translations") if isinstance(payload, dict) else None
-        if not isinstance(results, list) or len(results) != len(texts) or any(not isinstance(item, dict) or not isinstance(item.get("text"), str) for item in results):
-            raise TranslationError("DeepLから予期しない形式の応答がありました。")
-        record_translation_usage("deepl", target, sum(len(text) for text in texts))
-        return [str(item.get("text", "")) for item in results]
     if provider == "azure":
         try:
             key = get_secret("azure_api_key")
@@ -142,8 +131,6 @@ def _translate_batch(provider: str, texts: list[str], target: str) -> list[str]:
             raise TranslationError(str(exc)) from None
         if not key:
             raise TranslationError("Azure Translatorのキーが未設定です。設定画面から登録してください。")
-        if "azure" not in _codes(target):
-            raise TranslationError("Azure Translatorは英語の地域変種を指定できないため、English (UK)への翻訳にはDeepLを選んでください。")
         region = get_settings().get("azure_region", "").strip()
         query = urllib.parse.urlencode({"api-version": "3.0", "to": _codes(target)["azure"]})
         body = json.dumps([{"Text": text} for text in texts], ensure_ascii=False).encode("utf-8")
@@ -185,7 +172,7 @@ MAX_DICTIONARY_TERMS = 10
 
 
 def dictionary_available(text: str, target: str) -> bool:
-    """Azure only (DeepL has no dictionary); English source, and a target the dictionary covers."""
+    """English source (a word or short idiom), and a target the Azure dictionary covers."""
     return (active_provider() == "azure" and target in ("ja", "ko", "zh-hant") and len(text.strip()) <= 40
             and _DICTIONARY_WORD.fullmatch(text.strip()) is not None)
 
@@ -272,8 +259,6 @@ def translate_titles(titles: list[str], target: str, *, kind: str = "title", max
     if target not in TARGETS:
         raise TranslationError("翻訳先の指定が不正です。")
     provider = active_provider()
-    if provider == "azure" and "azure" not in TARGETS[target]:
-        raise TranslationError("Azure Translatorは英語の地域変種を指定できないため、English (UK)への翻訳にはDeepLを選んでください。")
     cleaned = [title.strip()[:max_chars] for title in titles]
     keys = [hashlib.sha256((provider + "\0" + target + "\0" + title).encode("utf-8")).hexdigest() for title in cleaned]
     results = [cache_get(kind, key) if title else "" for title, key in zip(cleaned, keys)]
@@ -316,8 +301,6 @@ def translate_text(text: str, target: str, *, limit: int) -> str:
     cached = cache_get("translation", digest)
     if isinstance(cached, str):
         return cached
-    if active_provider() == "azure" and "azure" not in TARGETS[target]:
-        raise TranslationError("Azure Translatorは英語の地域変種を指定できないため、English (UK)への翻訳にはDeepLを選んでください。")
     translated = _run_batches(provider, target, _chunks(text.splitlines() or [text]))
     output = "\n\n".join(translated)
     cache_put("translation", digest, output, max_entries=300)
@@ -338,8 +321,6 @@ def translate_paragraphs(paragraphs: list[str], target: str, *, limit: int) -> l
     if sum(len(text) for text in cleaned) > limit:
         raise TranslationError(f"翻訳できる文字数を超えています（上限 {limit:,} 文字）。")
     provider = active_provider()
-    if provider == "azure" and "azure" not in TARGETS[target]:
-        raise TranslationError("Azure Translatorは英語の地域変種を指定できないため、English (UK)への翻訳にはDeepLを選んでください。")
     pieces: list[str] = []
     owners: list[int] = []
     for index, text in enumerate(cleaned):
