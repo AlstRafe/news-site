@@ -82,7 +82,29 @@ def main() -> int:
         return 0
     app = create_app()
     _record_web_status(app, bind_host, port)
+    if os.environ.get("NEWS_SUPERVISED") == "1":
+        _keep_logon_task_current()
     return serve_until_redeployed(app, bind_host, port, supervised=os.environ.get("NEWS_SUPERVISED") == "1")
+
+
+def _keep_logon_task_current() -> None:
+    """Under launcher.py (Windows), register or remove the start-at-logon task as the settings
+    say, at each (re)start, so a new version applies it without starting the app by hand.
+    Runs in the background; any problem only means the task is left as it was."""
+    def work() -> None:
+        try:
+            import importlib.util
+            from pathlib import Path
+
+            from newsreader.services.settings import start_at_logon
+            spec = importlib.util.spec_from_file_location("newsreader_launcher", paths.PROJECT_ROOT / "launcher.py")
+            launcher = importlib.util.module_from_spec(spec)
+            spec.loader.exec_module(launcher)
+            launcher.ensure_logon_task(Path(sys.executable), start_at_logon())
+        except Exception:  # noqa: BLE001 - informational only, never stops the server
+            pass
+
+    threading.Thread(target=work, name="logon-task", daemon=True).start()
 
 
 def _record_web_status(app, host: str, port: int) -> None:

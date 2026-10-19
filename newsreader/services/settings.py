@@ -144,6 +144,19 @@ def save_library_dir(value: str) -> None:
     _write_merged({"library_dir": validate_library_dir(value)})
 
 
+def start_at_logon() -> bool:
+    """launcher.py registers the start-at-logon task unless this is switched off (default on)."""
+    try:
+        value = json.loads(SETTINGS_PATH.read_text(encoding="utf-8"))
+    except (OSError, ValueError, TypeError):
+        return True
+    return not (isinstance(value, dict) and value.get("start_at_logon") is False)
+
+
+def save_start_at_logon(enabled: bool) -> None:
+    _write_merged({"start_at_logon": bool(enabled)})
+
+
 def save_story_settings(enabled: bool, daily_chars: int) -> None:
     low, high = STORY_DAILY_RANGE
     if not isinstance(daily_chars, int) or not low <= daily_chars <= high:

@@ -34,6 +34,10 @@ SETTINGS_PATH = PROJECT_ROOT / "instance" / "settings.json"
 INSTANCE_DIRECTORY = PROJECT_ROOT / "instance"
 COLLECTOR_SETTINGS_PATH = INSTANCE_DIRECTORY / "collector.json"
 TASK_REGISTRATION_PATH = INSTANCE_DIRECTORY / "collector-task.json"
+#: One per Windows user: the installation started last is the one that starts at logon.
+LOGON_TASK_NAME = f"{APP_CONFIG['name']}-WebServer"
+LOGON_REGISTRATION_PATH = INSTANCE_DIRECTORY / "server-task.json"
+CREATE_NO_WINDOW = 0x08000000
 
 
 def read_settings() -> dict[str, object]:
@@ -376,7 +380,88 @@ def ensure_hourly_collector_task(runtime_python: Path, library_root: Path) -> bo
     return True
 
 
-def launch_app(runtime_python: Path, first_run: bool, open_first_run_settings: bool) -> int:
+def logon_task_xml(command: Path, arguments: str, account: str) -> ElementTree.ElementTree:
+    """Task Scheduler definition: start the reader (no window) 30 s after this user logs on."""
+    xml_namespace = "http://schemas.microsoft.com/windows/2004/02/mit/task"
+    ElementTree.register_namespace("", xml_namespace)
+
+    def element(parent, name: str, text: str | None = None, **attributes):
+        node = ElementTree.SubElement(parent, f"{{{xml_namespace}}}{name}", attributes)
+        if text is not None:
+            node.text = text
+        return node
+
+    task = ElementTree.Element(f"{{{xml_namespace}}}Task", {"version": "1.3"})
+    element(element(task, "RegistrationInfo"), "Description",
+            "Start the news reader in the background when this user logs on (phone access after a restart).")
+    trigger = element(element(task, "Triggers"), "LogonTrigger")
+    element(trigger, "Enabled", "true")
+    element(trigger, "UserId", account)
+    element(trigger, "Delay", "PT30S")
+    principal = element(element(task, "Principals"), "Principal", id="ReaderUser")
+    element(principal, "UserId", account)
+    element(principal, "LogonType", "InteractiveToken")
+    element(principal, "RunLevel", "LeastPrivilege")
+    settings = element(task, "Settings")
+    for name, value in (("MultipleInstancesPolicy", "IgnoreNew"), ("DisallowStartIfOnBatteries", "false"),
+                        ("StopIfGoingOnBatteries", "false"), ("AllowHardTerminate", "true"),
+                        ("StartWhenAvailable", "false"), ("RunOnlyIfNetworkAvailable", "false"),
+                        ("WakeToRun", "false"), ("Enabled", "true"), ("Hidden", "false"),
+                        ("ExecutionTimeLimit", "PT0S"), ("Priority", "7")):
+        element(settings, name, value)
+    execute = element(element(task, "Actions", Context="ReaderUser"), "Exec")
+    element(execute, "Command", str(command))
+    element(execute, "Arguments", arguments)
+    element(execute, "WorkingDirectory", str(PROJECT_ROOT))
+    return ElementTree.ElementTree(task)
+
+
+def ensure_logon_task(runtime_python: Path, enabled: bool) -> bool:
+    """Register (or with ``enabled`` False, remove) the start-at-logon task. Returns whether it changed."""
+    if os.name != "nt":
+        return False
+    scheduler = shutil.which("schtasks.exe") or shutil.which("schtasks")
+    if not scheduler:
+        return False
+    try:
+        previous = json.loads(LOGON_REGISTRATION_PATH.read_text(encoding="utf-8"))
+    except (OSError, ValueError, TypeError):
+        previous = {}
+    if not enabled:
+        if previous:
+            subprocess.run([scheduler, "/Delete", "/TN", LOGON_TASK_NAME, "/F"], capture_output=True, text=True, errors="replace")
+            LOGON_REGISTRATION_PATH.unlink(missing_ok=True)
+            print("ログオン時の自動起動を解除しました。")
+            return True
+        return False
+    pythonw = runtime_python.with_name("pythonw.exe")
+    user_name, domain_name = os.environ.get("USERNAME", ""), os.environ.get("USERDOMAIN", "")
+    account = f"{domain_name}\\{user_name}" if domain_name else user_name
+    if not pythonw.is_file() or not account:
+        return False
+    arguments = f'"{PROJECT_ROOT / "launcher.py"}" --background'
+    registration = {"definition_version": 1, "task_name": LOGON_TASK_NAME, "command": str(pythonw), "arguments": arguments}
+    query = subprocess.run([scheduler, "/Query", "/TN", LOGON_TASK_NAME, "/XML"], capture_output=True, text=True, errors="replace")
+    # Another installation may have taken the task since: compare with what is registered now.
+    if query.returncode == 0 and previous == registration and str(PROJECT_ROOT) in (query.stdout or ""):
+        return False
+    temporary_xml = INSTANCE_DIRECTORY / f"server-task-{os.getpid()}.xml"
+    try:
+        INSTANCE_DIRECTORY.mkdir(parents=True, exist_ok=True)
+        logon_task_xml(pythonw, arguments, account).write(temporary_xml, encoding="utf-16", xml_declaration=True)
+        created = subprocess.run([scheduler, "/Create", "/TN", LOGON_TASK_NAME, "/XML", str(temporary_xml), "/F"],
+                                 capture_output=True, text=True, errors="replace")
+    finally:
+        temporary_xml.unlink(missing_ok=True)
+    if created.returncode:
+        print(f"Warning: could not register the start-at-logon task: {(created.stderr or created.stdout).strip()}")
+        return False
+    LOGON_REGISTRATION_PATH.write_text(json.dumps(registration, ensure_ascii=False, indent=2), encoding="utf-8")
+    print(f"PCにログオンすると自動で起動するよう登録しました（タスク {LOGON_TASK_NAME}）。")
+    return True
+
+
+def launch_app(runtime_python: Path, first_run: bool, open_first_run_settings: bool, background: bool = False) -> int:
     settings = read_settings()
     bind_host, port, allowed_hosts = select_connection(settings)
     env = os.environ.copy()
@@ -390,12 +475,13 @@ def launch_app(runtime_python: Path, first_run: bool, open_first_run_settings: b
     print(f"自動選択するポート範囲: {first_port}–{last_port}。固定したい場合はブラウザー設定で変更してください。")
     browser_path = "/translation-settings?first_run=1" if first_run and open_first_run_settings else "/"
     start_url = f"http://{bind_host}:{port}{browser_path}"
-    threading.Timer(2, webbrowser.open, args=(start_url,)).start()
+    if not background:
+        threading.Timer(2, webbrowser.open, args=(start_url,)).start()
     if bind_host != APP_CONFIG["default_bind_host"]:
         print(f"For another device, use http://{bind_host}:{port}/ (Tailscale or the same private network).")
     print("Keep this window open while using the reader. Press Ctrl+C to stop it.")
     env["NEWS_SUPERVISED"] = "1"  # lets app.py restart itself into newly deployed code
-    return supervise_app(runtime_python, env)
+    return supervise_app(runtime_python, env, background=background)
 
 
 RESTART_EXIT_CODE = 75  # app.py: "a new version was deployed, start me again"
@@ -411,7 +497,7 @@ def _file_digest(path: Path) -> str:
         return ""
 
 
-def supervise_app(runtime_python: Path, env: dict[str, str]) -> int:
+def supervise_app(runtime_python: Path, env: dict[str, str], background: bool = False) -> int:
     """Run app.py and keep it running across deployments (the PC stays on while the user is out).
 
     - exit 75: a new version was deployed -> refresh dependencies if requirements.txt changed, restart;
@@ -424,7 +510,9 @@ def supervise_app(runtime_python: Path, env: dict[str, str]) -> int:
     quick_failures = 0
     while True:
         started = time.monotonic()
-        code = subprocess.run([str(runtime_python), str(PROJECT_ROOT / "app.py")], cwd=PROJECT_ROOT, env=env).returncode
+        # Started at logon without a window: the app must not open a console window either.
+        extra = {"creationflags": CREATE_NO_WINDOW} if background and os.name == "nt" else {}
+        code = subprocess.run([str(runtime_python), str(PROJECT_ROOT / "app.py")], cwd=PROJECT_ROOT, env=env, **extra).returncode
         if code == 0:
             return 0
         if code == RESTART_EXIT_CODE:
@@ -450,11 +538,26 @@ def supervise_app(runtime_python: Path, env: dict[str, str]) -> int:
         time.sleep(delay)
 
 
-def main() -> int:
+def background_port_taken(settings: dict[str, object]) -> bool:
+    """At logon: is the reader already running (its usual port in use)? Then do not start a second one."""
+    host = validate_bind_host(os.environ.get("NEWS_BIND_HOST", "").strip()
+                              or str(settings.get("network_bind_host", "") or "") or detect_bind_host())
+    port = str(os.environ.get("NEWS_PORT", "") or settings.get("network_port", "") or APP_CONFIG["port_range"][0]).strip()
+    return port.isdecimal() and not is_port_available(host, int(port))
+
+
+def main(argv: list[str] | None = None) -> int:
+    argv = sys.argv[1:] if argv is None else argv
+    background = "--background" in argv  # started by the logon task: no window, no browser, no questions
     if not is_supported_python():
         print(f"Python 3.10 or newer is required; found {platform.python_version()}.", file=sys.stderr)
         return 1
     settings = read_settings()
+    if background:
+        if background_port_taken(settings):
+            return 0
+        runtime_python = find_runtime_python()
+        return launch_app(runtime_python, False, False, background=True)
     profile_root = Path(os.environ.get("LOCALAPPDATA", Path.home() / "AppData" / "Local")) / APP_CONFIG["name"]
     first_run_marker = profile_root / "first-run-complete"
     first_run = not first_run_marker.exists()
@@ -465,6 +568,7 @@ def main() -> int:
     library_root = resolve_article_directory()
     persist_collector_config(library_root)
     ensure_hourly_collector_task(runtime_python, library_root)
+    ensure_logon_task(runtime_python, settings.get("start_at_logon", True) is not False)
     if not first_run_marker.exists():
         profile_root.mkdir(parents=True, exist_ok=True)
         first_run_marker.write_text("completed", encoding="ascii")

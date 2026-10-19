@@ -12,7 +12,8 @@ from flask import current_app, render_template, request
 from newsreader.services.cache import monthly_translation_usage
 from newsreader.services.settings import (
     SECRET_NAMES, STORY_DAILY_RANGE, SecretStoreError, configured_secrets, delete_secret, get_settings,
-    get_story_settings, save_library_dir, save_settings, save_story_settings, set_secret, validate_library_dir,
+    get_story_settings, save_library_dir, save_settings, save_start_at_logon, save_story_settings, set_secret,
+    start_at_logon, validate_library_dir,
     validate_network_settings,
 )
 from newsreader import paths
@@ -63,6 +64,8 @@ def translation_settings():
                 save_story_settings(request.form.get("stories_enabled") == "1", stories_daily)
             if library_form:
                 save_library_dir(request.form["library_dir"])
+            if "start_at_logon_form" in request.form:
+                save_start_at_logon(request.form.get("start_at_logon") == "1")
             message = "設定を保存しました。APIキーはこのPCの資格情報ストアに保存されています。接続IPまたはポートの変更はアプリ再起動後に反映されます。"
         except Exception as exc:
             # Never log the exception text: it could echo a submitted key.
@@ -78,7 +81,7 @@ def translation_settings():
     azure = usage["providers"]["azure"]["metered_chars"]
     return render_template(
         "settings.html", settings=get_settings(), secrets=secret_status, story_settings=get_story_settings(),
-        story_range=STORY_DAILY_RANGE, library_dir=paths.configured_library_dir(),
+        story_range=STORY_DAILY_RANGE, library_dir=paths.configured_library_dir(), start_at_logon=start_at_logon(),
         active_library=str(current_app.config["LIBRARY_ROOT"]), html_directory_env=bool(os.environ.get("HTML_DIRECTORY", "").strip()),
         secret_store_error=secret_store_error,
         csrf=csrf_token(), message=message, error=error,
