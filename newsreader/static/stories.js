@@ -425,6 +425,21 @@
        { show: "言葉の違い", hide: "言葉の違いを隠す", loading: "見出しの言葉を比べています…", failed: "言葉を比べられませんでした" });
   wire("compare-quotes", "quotes-panel", "/api/story-quotes", renderQuotes,
        { show: "発言を比べる", hide: "発言を隠す", loading: "引用された発言を探しています…", failed: "発言を比べられませんでした" });
+  // Keys on a group page: F 数字 / W 言葉 / Q 発言 / T 時系列と媒体ごとの切り替え.
+  document.addEventListener("keydown", event => {
+    if (event.ctrlKey || event.metaKey || event.altKey || event.isComposing) return;
+    if (event.target.closest?.("input, textarea, select, [contenteditable]")) return;
+    const target = { f: "compare-facts", w: "compare-words", q: "compare-quotes" }[event.key.toLowerCase()];
+    if (target && document.getElementById(target)) {
+      event.preventDefault();
+      document.getElementById(target).click();
+      return;
+    }
+    if (event.key.toLowerCase() === "t") {
+      const other = document.querySelector('.seg[data-view][aria-pressed="false"]');
+      if (other) { event.preventDefault(); other.click(); }
+    }
+  });
   // Arriving from an article's "各社の数字を比べる →" (#facts) or a link to #words / #quotes: open that panel.
   const wanted = { "#facts": "compare-facts", "#words": "compare-words", "#quotes": "compare-quotes" }[location.hash];
   if (wanted) {

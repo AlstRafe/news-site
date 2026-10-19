@@ -111,6 +111,15 @@ class BuildTests(unittest.TestCase):
         self.assertFalse(preset_settings["collect_hourly"])
         self.assertTrue(set(preset_settings) - {"preset_id"} <= launcher.PRESET_KEYS)
 
+    def test_the_glossary_travels_with_the_test_build(self):
+        glossary = [{"source": "다카이치", "target": "高市", "lang": "ja"}]
+        archive = make_alpha_zip.build(self.tmp, [(self.article, "BBC/a.html")], "http://100.64.0.1:5000",
+                                       "nbr_token", 5, "20261020-0900", glossary=glossary)
+        with zipfile.ZipFile(archive) as z:
+            preset_settings = json.loads(z.read("NewsBridge-alpha/preset/settings.json"))
+        self.assertEqual(preset_settings["glossary"], glossary)
+        self.assertIn("glossary", launcher.PRESET_KEYS)
+
     def test_portable_zip_never_ships_a_preset(self):
         self.assertFalse(make_portable_zip.should_include(ROOT / "preset" / "relay_token", Path("preset/relay_token")))
 

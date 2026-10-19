@@ -46,7 +46,7 @@ PRESET_RECORD_PATH = INSTANCE_DIRECTORY / "preset-applied.json"
 #: The only settings a preset may set; anything else in the file is ignored.
 PRESET_KEYS = frozenset({"translation_source", "relay_url", "network_bind_host", "network_port", "library_limit",
                          "start_at_logon", "collect_hourly", "build_channel", "stories_enabled",
-                         "stories_daily_chars"})
+                         "stories_daily_chars", "glossary"})
 CREATE_NO_WINDOW = 0x08000000
 
 

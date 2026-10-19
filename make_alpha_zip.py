@@ -135,12 +135,14 @@ def default_relay_url() -> str:
 
 
 def build(out_dir: Path, articles: list[tuple[Path, str]], relay_url: str, token: str, count: int,
-          stamp: str, port: str = "5000") -> Path:
+          stamp: str, port: str = "5000", glossary: list[dict] | None = None) -> Path:
     """Write the ZIP. ``articles`` = (file on disk, path under articles/)."""
     version = (PROJECT_ROOT / "VERSION").read_text(encoding="utf-8").strip() if (PROJECT_ROOT / "VERSION").is_file() else "dev"
     preset = {"preset_id": stamp, "build_channel": "alpha", "translation_source": "relay", "relay_url": relay_url,
               "network_bind_host": "127.0.0.1", "library_limit": count, "start_at_logon": False,
               "collect_hourly": False}
+    if glossary:
+        preset["glossary"] = glossary  # this installation's 訳語の指定, so the tester's translations match (D-70)
     archive_path = out_dir / f"{FOLDER}-{stamp}.zip"
     with zipfile.ZipFile(archive_path, "w", compression=zipfile.ZIP_DEFLATED, compresslevel=9) as archive:
         for file_path in sorted(PROJECT_ROOT.rglob("*")):
@@ -194,7 +196,7 @@ def main(argv: list[str] | None = None) -> int:
         return 0
     stamp = datetime.now().astimezone().strftime("%Y%m%d-%H%M")
     token = relay.issue_token(f"テスト版 {stamp}", daily_chars=args.daily_chars)
-    archive = build(Path(args.out), files, relay_url, token, args.articles, stamp)
+    archive = build(Path(args.out), files, relay_url, token, args.articles, stamp, glossary=settings.glossary())
     print(f"テスト版を作成しました: {archive}")
     print("合言葉の digest をこのインストールの設定に記録しました（設定画面の「テスト版への翻訳の中継」で無効化できます）。")
     return 0
