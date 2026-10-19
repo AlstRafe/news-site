@@ -27,6 +27,12 @@
     }
   }, true);
 
+  // 1b. A long caption under the lead image is cut to two lines on phones; a tap shows it all.
+  document.addEventListener("click", event => {
+    const caption = event.target.closest?.(".lead-image figcaption");
+    if (caption) caption.classList.toggle("full");
+  });
+
   // 2. Theme: automatic (follow the OS) -> light -> dark -> automatic. The choice lives in
   //    localStorage("theme"); the inline boot script in <head> applies it before first paint.
   const THEMES = { auto: "自動（端末の設定に合わせる）", light: "ライト", dark: "ダーク" };

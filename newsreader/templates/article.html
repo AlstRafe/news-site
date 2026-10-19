@@ -15,13 +15,12 @@
 <button id="translate-whole" type="button" class="secondary">全文を翻訳</button></div>
 <label class="bi-auto"><input type="checkbox" id="bi-auto"> 記事を開いたら対訳で表示する</label>
 <span id="translation-status" role="status" aria-live="polite"></span>
-{% if translation_provider == 'azure' %}<p class="hint tc-note">English (UK) は翻訳サービスに DeepL を選んだときだけ使えます（Azure は地域別の英語を指定できません）。</p>{% endif %}
 </section>
 <section class="translation-result whole-result" id="whole-result" hidden aria-live="polite">
 <div class="translation-result-head"><h2 id="whole-title">全文翻訳</h2><div class="result-actions"><button class="close-result" id="copy-whole" type="button">訳文をコピー</button><button class="close-result" id="close-whole" type="button" aria-label="全文翻訳を閉じる">閉じる</button></div></div>
 <div id="whole-translation"></div>
 </section>
-<div class="reading" id="reading-content"><div class="reading-head"><h2>記事本文</h2><span>{{ article.paragraph_count }} 段落 · 単語をタップ（クリック）または文章を選ぶと翻訳</span></div>
+<div class="reading" id="reading-content"><div class="reading-head"><h2>記事本文</h2><span>{{ article.paragraph_count }} 段落<span class="hint-long"> · 単語をタップ（クリック）または文章を選ぶと翻訳</span><span class="hint-short"> · 単語をタップ／文章を選ぶと翻訳</span></span></div>
 {% for paragraph in article.paragraphs %}<p>{{ paragraph }}</p>{% endfor %}</div>
 {% if article.images|length > 1 %}<section class="more-images" aria-labelledby="images-head"><h2 id="images-head">この記事の画像 <span>{{ article.images|length - 1 }}</span></h2>
 <div class="article-images">{% for image in article.images[1:] %}<figure><img src="{{ image.url }}" alt="{{ image.alt }}" loading="lazy" decoding="async">{% if image.alt %}<figcaption>{{ image.alt }}</figcaption>{% endif %}</figure>{% endfor %}</div></section>{% endif %}
