@@ -61,8 +61,11 @@ def create_app(library_root: Path | str | None = None, db_path: Path | str | Non
     from newsreader import branding
     from newsreader.services import translation
     from newsreader.services.settings import get_settings
+    # The version this process serves (a deployment restarts it): pages carry it, /api/version
+    # answers it, and an open page offers a reload when the two differ.
+    app.config.setdefault("APP_VERSION", paths.deployed_version())
     app.jinja_env.globals.update(app_name=branding.APP_NAME, app_name_ja=branding.APP_NAME_JA,
-                                 app_tagline=branding.APP_TAGLINE)
+                                 app_tagline=branding.APP_TAGLINE, app_version=app.config["APP_VERSION"])
     app.add_template_filter(branding.source_language, "src_lang")
 
     @app.context_processor

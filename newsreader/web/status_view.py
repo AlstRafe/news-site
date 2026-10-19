@@ -11,7 +11,7 @@ import time
 from datetime import datetime
 from pathlib import Path
 
-from flask import current_app, render_template
+from flask import current_app, jsonify, render_template
 
 from newsreader import paths
 from newsreader.library import index, status, stories
@@ -77,6 +77,13 @@ def init_app(app) -> None:
     @app.context_processor
     def _badge():
         return {"status_badge": status.badge(status_data())}
+
+
+@routes.get("/api/version", "app_version")
+def app_version():
+    response = jsonify({"version": current_app.config.get("APP_VERSION", "")})
+    response.headers["Cache-Control"] = "no-store"
+    return response
 
 
 @routes.get("/status", "status_page")

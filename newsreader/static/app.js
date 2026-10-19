@@ -33,6 +33,25 @@
     if (caption) caption.classList.toggle("full");
   });
 
+  // 1c. A page left open on the phone while a new version was deployed: offer a reload when the
+  //     page is looked at again (one small request, only when the tab becomes visible).
+  const pageVersion = document.querySelector('meta[name="app-version"]')?.content || "";
+  let versionNotice = null;
+  document.addEventListener("visibilitychange", async () => {
+    if (document.visibilityState !== "visible" || !pageVersion || versionNotice) return;
+    try {
+      const response = await fetch("/api/version", { cache: "no-store", credentials: "same-origin" });
+      const { version } = await response.json();
+      if (!version || version === pageVersion) return;
+      versionNotice = document.createElement("button");
+      versionNotice.type = "button";
+      versionNotice.className = "version-notice";
+      versionNotice.textContent = "新しい版になりました。タップで再読み込み";
+      versionNotice.addEventListener("click", () => location.reload());
+      document.body.appendChild(versionNotice);
+    } catch (_) { /* offline or restarting: try again next time */ }
+  });
+
   // 2. Theme: automatic (follow the OS) -> light -> dark -> automatic. The choice lives in
   //    localStorage("theme"); the inline boot script in <head> applies it before first paint.
   const THEMES = { auto: "自動（端末の設定に合わせる）", light: "ライト", dark: "ダーク" };

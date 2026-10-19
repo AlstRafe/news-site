@@ -66,3 +66,19 @@ class DaySeparatorTests(unittest.TestCase):
         label = localday_filter(stamp, today=local + timedelta(days=5))
         self.assertEqual(label, f"{local.month}月{local.day}日（{'月火水木金土日'[local.weekday()]}）")
         self.assertEqual(localday_filter(""), "")
+
+
+class VersionTests(unittest.TestCase):
+    def test_pages_and_api_carry_the_served_version(self):
+        tmp = Path(tempfile.mkdtemp())
+        try:
+            (tmp / "articles").mkdir()
+            app = create_app(tmp / "articles", tmp / "library.sqlite3", start_background=False, secret_key=b"v" * 32)
+            client = app.test_client()
+            version = app.config["APP_VERSION"]
+            reply = client.get("/api/version", headers={"Host": "localhost"})
+            self.assertEqual(reply.get_json(), {"version": version})
+            self.assertEqual(reply.headers["Cache-Control"], "no-store")
+            self.assertIn(f'<meta name="app-version" content="{version}">', client.get("/", headers={"Host": "localhost"}).get_data(as_text=True))
+        finally:
+            shutil.rmtree(tmp, ignore_errors=True)
