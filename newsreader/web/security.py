@@ -157,6 +157,10 @@ def init_app(app: Flask, *, bind_host: str, secret_key: bytes) -> None:
             # Browsers mark cross-site requests; refuse them before even looking at the token.
             if request.headers.get("Sec-Fetch-Site", "") == "cross-site":
                 abort(403)
+            # The translation relay is called by other NewsBridge programs with a bearer token
+            # (relay_view.py), never by pages; browsers cannot add that header cross-site.
+            if request.path.startswith("/relay/") and request.headers.get("Authorization", "").startswith("Bearer "):
+                return None
             if not _csrf_ok():
                 abort(400)
 

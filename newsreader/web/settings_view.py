@@ -12,7 +12,8 @@ from flask import current_app, render_template, request
 from newsreader.services.cache import monthly_translation_usage
 from newsreader.services.settings import (
     SECRET_NAMES, STORY_DAILY_RANGE, SecretStoreError, configured_secrets, delete_secret, get_settings,
-    get_story_settings, save_library_dir, save_settings, save_start_at_logon, save_story_settings, set_secret,
+    get_story_settings, save_library_dir, save_settings, save_start_at_logon, save_story_settings,
+    save_translation_source, set_secret,
     start_at_logon, validate_library_dir,
     validate_network_settings,
 )
@@ -36,7 +37,16 @@ def _story_daily(raw: str) -> int:
 def translation_settings():
     message = ""
     error = ""
-    if request.method == "POST":  # CSRF already verified centrally
+    issued_token = ""
+    action = request.form.get("action", "") if request.method == "POST" else ""
+    if action in ("issue_relay_token", "revoke_relay_tokens"):  # CSRF already verified centrally
+        from newsreader.services import relay
+        if action == "issue_relay_token":
+            issued_token = relay.issue_token("テスト版")
+            message = "合言葉を発行しました。テスト版の設定画面（または配布物）に入れてください。"
+        else:
+            message = f"合言葉 {relay.revoke_all()} 件を無効にしました。"
+    elif request.method == "POST":  # CSRF already verified centrally
         provider = "azure"  # the only translation provider (D-44)
         deepl_endpoint = "auto"
         azure_region = request.form.get("azure_region", "").strip()
@@ -60,6 +70,8 @@ def translation_settings():
                 elif value:
                     set_secret(name, value)
             save_settings(provider, deepl_endpoint, azure_region, network_bind_host, network_port, naver_search_query)
+            if "translation_source" in request.form:
+                save_translation_source(request.form["translation_source"], request.form.get("relay_url", ""))
             if stories_form:
                 save_story_settings(request.form.get("stories_enabled") == "1", stories_daily)
             if library_form:
@@ -82,6 +94,7 @@ def translation_settings():
     return render_template(
         "settings.html", settings=get_settings(), secrets=secret_status, story_settings=get_story_settings(),
         story_range=STORY_DAILY_RANGE, library_dir=paths.configured_library_dir(), start_at_logon=start_at_logon(),
+        relay_tokens=_relay_tokens(), relay_usage=_relay_usage(), issued_token=issued_token,
         active_library=str(current_app.config["LIBRARY_ROOT"]), html_directory_env=bool(os.environ.get("HTML_DIRECTORY", "").strip()),
         secret_store_error=secret_store_error,
         csrf=csrf_token(), message=message, error=error,
@@ -90,3 +103,13 @@ def translation_settings():
         active_bind_host=os.environ.get("NEWS_BIND_HOST", DEFAULT_BIND_HOST),
         active_port=os.environ.get("NEWS_PORT", str(DEFAULT_PORT)),
     )
+
+
+def _relay_tokens() -> list[dict]:
+    from newsreader.services import relay
+    return relay.tokens()
+
+
+def _relay_usage() -> dict:
+    from newsreader.services import relay
+    return relay.usage_today()

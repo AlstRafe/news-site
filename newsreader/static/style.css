@@ -646,3 +646,10 @@ h1 .story-gloss{font-size:clamp(16px,2.4vw,20px);font-weight:600;margin-top:6px;
 .related-links{display:flex;flex-wrap:wrap;gap:4px 18px;}
 .version-notice{position:fixed;z-index:22;left:50%;transform:translateX(-50%);bottom:calc(20px + env(safe-area-inset-bottom));width:auto!important;padding:11px 18px;border-radius:99px;font-size:13px;box-shadow:0 6px 20px var(--shadow-20212430);}
 @media(max-width:650px){.version-notice{bottom:calc(74px + env(safe-area-inset-bottom));}}
+/* Settings: translation source choice and the relay for test builds */
+.choice{border:0;margin:0 0 6px;padding:0;}.choice legend{font-size:13px;font-weight:700;margin-bottom:8px;}
+.choice .check-row{margin:4px 0;}
+.settings-sub{font-size:15px;margin:22px 0 6px;}
+.button-row{display:flex;gap:10px;flex-wrap:wrap;margin-top:12px;}
+.button-row button{width:auto;}
+code.token{display:block;margin-top:6px;font-family:Consolas,monospace;font-size:13px;overflow-wrap:anywhere;user-select:all;}

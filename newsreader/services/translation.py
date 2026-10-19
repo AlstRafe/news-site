@@ -45,11 +45,14 @@ class TranslationError(Exception):
 
 
 def active_provider() -> str:
-    """Azure Translator is the only provider (the provider name stays part of every cache key)."""
-    return "azure"
+    """"azure" (this PC's key) or "relay" (another NewsBridge translates, relay.py). The provider
+    name is part of every cache key, so the two never mix."""
+    return "relay" if get_settings().get("translation_source") == "relay" else "azure"
 
 
 def provider_ready(provider: str | None = None) -> bool:
+    if (provider or active_provider()) == "relay":
+        return bool(get_settings().get("relay_url")) and bool(get_secret("relay_token"))
     return bool(get_secret("azure_api_key"))
 
 
@@ -124,6 +127,12 @@ def _post_json(url: str, headers: dict[str, str], data: bytes, provider: str) ->
 
 
 def _translate_batch(provider: str, texts: list[str], target: str) -> list[str]:
+    if provider == "relay":
+        from newsreader.services import relay
+        try:
+            return relay.translate(texts, target)
+        except (relay.RelayError, SecretStoreError) as exc:
+            raise TranslationError(str(exc)) from None
     if provider == "azure":
         try:
             key = get_secret("azure_api_key")
@@ -173,7 +182,7 @@ MAX_DICTIONARY_TERMS = 10
 
 def dictionary_available(text: str, target: str) -> bool:
     """English source (a word or short idiom), and a target the Azure dictionary covers."""
-    return (active_provider() == "azure" and target in ("ja", "ko", "zh-hant") and len(text.strip()) <= 40
+    return (active_provider() in ("azure", "relay") and target in ("ja", "ko", "zh-hant") and len(text.strip()) <= 40
             and _DICTIONARY_WORD.fullmatch(text.strip()) is not None)
 
 
@@ -182,10 +191,19 @@ def dictionary_lookup(text: str, target: str) -> list[dict]:
     ``[{"pos": "動詞", "terms": ["飛ぶ", "飛行する"]}, ...]`` (most likely first). Cached per word
     and target, including "not found" (an empty list), so a word is sent once."""
     word = text.strip().replace("’", "'")
-    key = hashlib.sha256(("azure\0" + target + "\0" + word.lower()).encode("utf-8")).hexdigest()
+    provider = active_provider()
+    key = hashlib.sha256((("azure" if provider == "azure" else "relay") + "\0" + target + "\0" + word.lower()).encode("utf-8")).hexdigest()
     cached = cache_get("dictionary", key)
     if isinstance(cached, list):
         return cached
+    if provider == "relay":
+        from newsreader.services import relay
+        try:
+            senses = relay.dictionary(word, target)
+        except (relay.RelayError, SecretStoreError) as exc:
+            raise TranslationError(str(exc)) from None
+        cache_put("dictionary", key, senses, max_entries=DICTIONARY_CACHE_ENTRIES)
+        return senses
     try:
         secret = get_secret("azure_api_key")
     except SecretStoreError as exc:

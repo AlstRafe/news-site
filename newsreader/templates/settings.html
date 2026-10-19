@@ -8,11 +8,27 @@
 {% if message %}<div class="success" role="status">{{ message }}</div>{% endif %}{% if error %}<div class="alert" role="alert">{{ error }}</div>{% endif %}{% if secret_store_error %}<div class="alert" role="alert">{{ secret_store_error }}</div>{% endif %}
 <form method="post" action="{{ url_for('translation_settings') }}" autocomplete="off">
 <input type="hidden" name="csrf" value="{{ csrf }}">
-<section class="panel settings-panel"><h2>翻訳サービス（Azure Translator）</h2>
+<section class="panel settings-panel"><h2>翻訳サービス</h2>
+<fieldset class="choice"><legend>翻訳の取得元</legend>
+<label class="check-row"><input type="radio" name="translation_source" value="own" {% if settings.translation_source != 'relay' %}checked{% endif %}> このPCの Azure Translator キーを使う</label>
+<label class="check-row"><input type="radio" name="translation_source" value="relay" {% if settings.translation_source == 'relay' %}checked{% endif %}> 配布元の NewsBridge に翻訳を頼む（キー不要）</label>
+</fieldset>
+<div class="relay-client">
+<label for="relay_url">中継先の NewsBridge のアドレス</label><input id="relay_url" name="relay_url" type="text" maxlength="200" value="{{ settings.relay_url }}" placeholder="例: http://100.x.x.x:5000" spellcheck="false" autocapitalize="off">
+<div class="credential-row"><div><label for="relay_token">合言葉（配布元が発行） <span class="configured">{% if secrets.relay_token %}設定済み{% else %}未設定{% endif %}</span></label><input id="relay_token" name="relay_token" type="password" autocomplete="new-password" placeholder="設定済みの場合は空欄のままで構いません"></div><label class="remove-key"><input type="checkbox" name="remove_relay_token" value="1"> 合言葉を削除</label></div>
+</div>
+<p class="hint">「配布元に頼む」を選ぶと、翻訳する文章は中継先の NewsBridge に送られ、そこで翻訳されます（このPCに翻訳キーは要りません）。</p>
+<h3 class="settings-sub">Azure Translator（このPCのキー）</h3>
 <p>本文・見出し・単語の翻訳と英単語の辞書に Azure Translator を使います。キーはこのPCの資格情報ストアに保存され、配布ZIPには含まれません。</p>
 <div class="credential-row"><div><label for="azure_api_key">Azure Translatorキー <span class="configured">{% if secrets.azure_api_key %}設定済み{% else %}未設定{% endif %}</span></label><input id="azure_api_key" name="azure_api_key" type="password" autocomplete="new-password" placeholder="設定済みの場合は空欄のままで構いません"><a href="https://portal.azure.com/" target="_blank" rel="noopener noreferrer">Azure Portal ↗</a></div><label class="remove-key"><input type="checkbox" name="remove_azure_api_key" value="1"> Azureキーを削除</label></div>
 <label for="azure_region">Azure Translatorリソースのリージョン（地域リソースの場合）</label><input id="azure_region" name="azure_region" type="text" maxlength="80" value="{{ settings.azure_region }}" placeholder="例: japaneast"><p class="hint">Azure PortalのKeys and Endpointに表示される値を入力します。単一サービスのGlobalリソースでは空欄で構いません。F0（無料）リソースを選んでください。</p>
 <button type="submit">翻訳設定を保存</button>
+</section>
+<section class="panel settings-panel" id="relay-server"><h2>テスト版への翻訳の中継</h2>
+<p>ほかの PC で動くテスト版の NewsBridge に、このPCの翻訳キーで翻訳を提供します。テスト版には合言葉を渡します（合言葉は発行時に一度だけ表示し、このPCには照合用の値だけを保存します）。1つの合言葉で1日に翻訳できる量に上限があります。</p>
+<p class="hint">発行済み: {{ relay_tokens|length }} 件{% if relay_tokens %}（{% for t in relay_tokens %}{{ t.name }} · 1日 {{ "{:,}".format(t.daily_chars) }} 文字{% if relay_usage.get(t.hash[:16]) %} · 今日 {{ "{:,}".format(relay_usage.get(t.hash[:16])) }} 文字{% endif %}{% if not loop.last %} / {% endif %}{% endfor %}）{% endif %}</p>
+{% if issued_token %}<div class="success" role="status"><strong>新しい合言葉（この画面を閉じると二度と表示されません）:</strong><br><code class="token">{{ issued_token }}</code></div>{% endif %}
+<div class="button-row"><button type="submit" name="action" value="issue_relay_token" class="secondary">合言葉を発行</button>{% if relay_tokens %}<button type="submit" name="action" value="revoke_relay_tokens" class="secondary">すべて無効にする</button>{% endif %}</div>
 </section>
 <section class="panel settings-panel" id="stories-settings"><h2>読み比べ（同じニュースのまとめ）</h2>
 <p>BBC・CNA・聯合ニュースの記事から同じニュースを探してまとめます。英語以外の見出しは、上で選んだ翻訳サービスで<strong>見出しだけ</strong>英訳して照合します（本文は送信しません）。英訳は1回きりで保存され、同じ見出しを再送信することはありません。</p>

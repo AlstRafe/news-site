@@ -16,7 +16,7 @@ from newsreader.netpolicy import is_allowed_bind_address
 SETTINGS_PATH = paths.SETTINGS_PATH
 SERVICE_NAME = "NewsHtmlReader"
 SECRET_NAMES = {
-    "deepl_api_key", "azure_api_key", "stdict_api_key",
+    "deepl_api_key", "azure_api_key", "stdict_api_key", "relay_token",
     "naver_api_key_id", "naver_api_key_secret",
 }
 #: Same-news grouping (§10/§11). Kept in the same settings.json; every writer merges, so saving
@@ -62,7 +62,30 @@ def get_settings() -> dict[str, str]:
         "network_bind_host": bind_host,
         "network_port": port,
         "naver_search_query": naver_query.strip()[:100] if isinstance(naver_query, str) and naver_query.strip() else DEFAULTS["naver_search_query"],
+        # "own": this PC's Azure key; "relay": ask another NewsBridge to translate (relay.py, D-50).
+        "translation_source": "relay" if isinstance(value, dict) and value.get("translation_source") == "relay" else "own",
+        "relay_url": relay_url(value.get("relay_url") if isinstance(value, dict) else ""),
     }
+
+
+def relay_url(value) -> str:
+    """An http(s) base URL without a trailing slash, or "" (anything else is ignored)."""
+    if not isinstance(value, str):
+        return ""
+    from urllib.parse import urlsplit
+    text = value.strip().rstrip("/")
+    parts = urlsplit(text)
+    if parts.scheme not in ("http", "https") or not parts.hostname or parts.query or parts.fragment or len(text) > 200:
+        return ""
+    return text
+
+
+def save_translation_source(source: str, url: str) -> None:
+    if source not in ("own", "relay"):
+        raise ValueError("翻訳の取得元が不正です。")
+    if source == "relay" and not relay_url(url):
+        raise ValueError("中継先の URL は http:// または https:// で始まる形で指定してください。")
+    _write_merged({"translation_source": source, "relay_url": relay_url(url)})
 
 
 def validate_bind_host(host: str) -> str:
