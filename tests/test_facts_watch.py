@@ -108,6 +108,16 @@ class FactsWatchTests(unittest.TestCase):
         self.assertIn("少なくとも 20人", page)
         self.assertNotIn("/stories/s3#facts", page)  # the outlets agree on 3
 
+    def test_group_list_and_page_flag_the_disagreement(self):
+        facts_watch.refresh(self.db, self.to_english)
+        self.assertEqual(list(facts_watch.disputed(self.db, ["s1", "s3"])), ["s1"])
+        client = create_app(self.tmp / "articles", self.db, start_background=False, secret_key=b"f" * 32).test_client()
+        with mock.patch.object(ts, "_translate_batch", lambda provider, texts, target: texts):
+            listing = client.get("/stories", headers=H).get_data(as_text=True)
+            page = client.get("/stories/s1", headers=H).get_data(as_text=True)
+        self.assertIn("死者の数字が違う", listing)
+        self.assertIn("死者の数字が媒体で違います", page)
+
     def test_summary_keeps_compared_counts_only(self):
         facts_watch.refresh(self.db, self.to_english)
         with closing(index.connect(self.db)) as db:

@@ -66,7 +66,10 @@ def stories_page():
     result = stories.list_stories(db_path(), scope=scope, page=page, query=query,
                                   pivot_words=index.search_words(english or query))
     result["english_query"] = english
+    from newsreader.library import facts_watch
+    disputes = facts_watch.disputed(db_path(), [story["key"] for story in result["stories"]])
     for story in result["stories"]:
+        story["disputes"] = disputes.get(story["key"], [])
         _with_thumbs(story["members"])
         # One picture per group: the lead's, else the newest member's that has one.
         ordered = sorted(story["members"], key=lambda m: m["id"] != story["lead_id"])
@@ -97,7 +100,10 @@ def story_page(key: str):
     if story is None:
         abort(404)
     _with_thumbs(story["members"])
-    response = current_app.make_response(render_template("story.html", story=story, chart=timeline_chart(story)))
+    from newsreader.library import facts_watch
+    disputes = facts_watch.disputed(db_path(), [story["key"]]).get(story["key"], [])
+    response = current_app.make_response(render_template("story.html", story=story, chart=timeline_chart(story),
+                                                         disputes=disputes))
     # Not reused from the browser cache: a group changes when it is corrected or re-grouped.
     response.headers["Cache-Control"] = "no-cache"
     return response

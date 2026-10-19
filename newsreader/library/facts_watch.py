@@ -134,6 +134,31 @@ def refresh(db_path: Path, translate_en: TranslateEn | None, *, daily_chars: int
     return result
 
 
+def disputed(db_path: Path, keys: list[str]) -> dict[str, list[dict]]:
+    """For the given groups, the kinds of count their outlets disagree on (closely matched
+    groups whose summary is still current): {key: [{"label", "trail"}]}."""
+    if not keys:
+        return {}
+    with closing(index.connect(db_path)) as db:
+        rows = db.execute(f"SELECT story_key, members, summary FROM story_facts WHERE differs = 1 AND cohesive = 1 "
+                          f"AND story_key IN ({','.join('?' * len(keys))})", keys).fetchall()
+        current = {}
+        for key in {row[0] for row in rows}:
+            ids = sorted(r[0] for r in db.execute("SELECT m.article_id FROM story_members m JOIN articles a ON a.id = m.article_id "
+                                                   "WHERE m.story_key = ? AND a.error = '' ORDER BY a.published DESC LIMIT ?",
+                                                   (key, MAX_MEMBERS)))
+            current[key] = ",".join(str(i) for i in ids)
+    out = {}
+    for key, members, raw in rows:
+        if current.get(key) != members:
+            continue
+        try:
+            out[key] = [k for k in json.loads(raw) if k.get("differs")]
+        except ValueError:
+            continue
+    return out
+
+
 def differing(db_path: Path, *, days: int = 3, limit: int = 4, now: datetime | None = None) -> list[dict]:
     """Recent groups whose outlets disagree on a count, newest first, for the home page:
     [{"key", "title", "lead_source", "kinds": [{"label", "trail": [...]}]}]."""
