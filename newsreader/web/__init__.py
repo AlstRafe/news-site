@@ -68,6 +68,7 @@ def create_app(library_root: Path | str | None = None, db_path: Path | str | Non
                                  app_tagline=branding.APP_TAGLINE, app_version=app.config["APP_VERSION"],
                                  build_channel=build_channel())
     app.add_template_filter(branding.source_language, "src_lang")
+    app.add_template_filter(branding.lang_attr, "lang_attr")
 
     @app.context_processor
     def _translation_targets():

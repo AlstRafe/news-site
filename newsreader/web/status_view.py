@@ -76,7 +76,8 @@ def _newer(candidate: dict, current: dict) -> bool:
 def init_app(app) -> None:
     @app.context_processor
     def _badge():
-        return {"status_badge": status.badge(status_data())}
+        from newsreader.services.settings import collects_hourly
+        return {"status_badge": status.badge(status_data(), collects=collects_hourly())}
 
 
 @routes.get("/api/version", "app_version")

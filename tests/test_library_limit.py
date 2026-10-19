@@ -61,6 +61,9 @@ class LibraryLimitTests(unittest.TestCase):
         autofetch.fetch_cycle(self.root, report=report, limit=3)
         badge = status.badge({"collector": {"finished": status.now_iso(), "ok": True, "sites": report}})
         self.assertEqual(badge["label"], "記事数の上限")
+        sample = status.badge({"collector": {}}, collects=False)
+        self.assertEqual(sample["label"], "サンプル記事")
+        self.assertEqual(status.badge({"collector": {}})["label"], "未取得")
         normal = status.badge({"collector": {"finished": status.now_iso(), "ok": True, "sites": {"A": {"saved": 2}}}})
         self.assertTrue(normal["label"].startswith("取得"))
 

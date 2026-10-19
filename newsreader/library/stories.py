@@ -192,6 +192,7 @@ def list_stories(db_path: Path, scope: str = "multi", page: int = 1, per_page: i
         lead_id = central["id"] if central else 0
         stories.append({"key": h["story_key"], "newest": h["newest"], "count": h["n"], "outlets": h["outlets"],
                         "members": group, "lead_title": central["title"] if central else "",
+                        "lead_source": central["source"] if central else "",
                         "lead_id": lead_id, "preview": preview(group, lead_id), **_summary(group)})
     return {"stories": stories, "total": total, "page": page, "pages": max(1, -(-total // per_page)), "scope": scope,
             "query": query}
@@ -269,6 +270,7 @@ def get_story(db_path: Path, key: str) -> dict | None:
     timeline = sorted(members, key=lambda m: (m["published"], m["id"]))
     return {"key": key, "members": members, "columns": sorted(columns.items(), key=lambda kv: kv[0].casefold()),
             "newest": members[0]["published"], "lead_title": central["title"], "lead_id": central["id"],
+            "lead_source": central["source"],
             "timeline": timeline, "languages": languages(members), **_summary(members)}
 
 

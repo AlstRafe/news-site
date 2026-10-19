@@ -38,14 +38,16 @@ DEFAULT_DAILY_CHARS = 100_000
 README = """NewsBridge テスト版（{version}）
 
 ■ 動かし方（Windows）
-1. Python 3.10 以上を入れておく（https://www.python.org/ 。インストール時に「Add python.exe to PATH」にチェック）。
-2. この ZIP を好きな場所に展開する。
-3. 展開したフォルダーの start_windows.bat をダブルクリック。初回は部品の準備に数分かかります。
-4. ブラウザーが開きます（http://127.0.0.1:{port}/ ）。このPCの中だけで動き、ほかの機器からは見えません。
+1. この ZIP を好きな場所に展開する（「すべて展開」。ZIP の中から直接は起動できません）。
+2. 展開したフォルダーの start_windows.bat をダブルクリック。
+   Python 3.10 以上が無い PC では、公式の Python を自動でダウンロードして入れます（このユーザーだけ、検証付き）。
+   初回は部品の準備に数分かかります。インターネット接続が必要です。
+3. ブラウザーが開きます（http://127.0.0.1:{port}/ ）。このPCの中だけで動き、ほかの機器からは見えません。
+4. 翻訳が使えるかは「設定」の「保存して接続を確認」で確かめられます。
 
 ■ 中身
 ・本番と同じプログラムです。違いは設定だけ: 翻訳は配布元の NewsBridge が中継（APIキーの取得は不要）、
-  記事はサンプル {count} 本（自動取得はこの本数で止まります）、PC ログオン時の自動起動はオフ。
+  記事はサンプル {count} 本（毎時の自動取得とログオン時の自動起動は登録しません）。
 ・翻訳の中継先: {relay_url}
   配布元の PC が起動していて、このPCからその宛先に届く必要があります（Tailscale で共有されたネットワークなど）。
   届かないときは翻訳ボタンで「中継先に接続できませんでした」と表示されます。
@@ -54,6 +56,8 @@ README = """NewsBridge テスト版（{version}）
 ・この ZIP には翻訳の中継用の合言葉が入っています。ほかの人に渡さないでください。
   初回起動時にこの PC の資格情報ストアへ移され、ファイルは消えます。配布元はいつでも無効にできます。
 ・終了はコマンドプロンプトの窓を閉じるか Ctrl+C。
+・使い終わったらフォルダーを削除するだけです（Windows のタスクは登録しません）。準備した部品は
+  %LOCALAPPDATA%\\NewsHtmlReader に、合言葉は Windows の資格情報マネージャー（NewsHtmlReader）に残るので、不要なら削除してください。
 """
 
 
@@ -117,7 +121,8 @@ def build(out_dir: Path, articles: list[tuple[Path, str]], relay_url: str, token
     """Write the ZIP. ``articles`` = (file on disk, path under articles/)."""
     version = (PROJECT_ROOT / "VERSION").read_text(encoding="utf-8").strip() if (PROJECT_ROOT / "VERSION").is_file() else "dev"
     preset = {"preset_id": stamp, "build_channel": "alpha", "translation_source": "relay", "relay_url": relay_url,
-              "network_bind_host": "127.0.0.1", "library_limit": count, "start_at_logon": False}
+              "network_bind_host": "127.0.0.1", "library_limit": count, "start_at_logon": False,
+              "collect_hourly": False}
     archive_path = out_dir / f"{FOLDER}-{stamp}.zip"
     with zipfile.ZipFile(archive_path, "w", compression=zipfile.ZIP_DEFLATED, compresslevel=9) as archive:
         for file_path in sorted(PROJECT_ROOT.rglob("*")):

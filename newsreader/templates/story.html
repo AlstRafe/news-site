@@ -5,15 +5,15 @@
 <a class="story-link" href="{{ url_for('show_article', article_id=m.id) }}">
 {% if m.thumb %}<img src="{{ m.thumb }}" alt="" loading="lazy" decoding="async">{% endif %}
 <span class="story-time">{% if show_source %}<span class="badge" data-lang="{{ m.source|src_lang }}">{{ m.source or '未分類' }}</span> {% endif %}{{ m.published|localtime }}</span>
-<strong data-gloss-id="{{ m.id }}">{{ m.title }}</strong></a>
-{% if m.lead %}<p class="story-lead" data-lead-for="{{ m.id }}">{{ m.lead }}</p>{% endif %}
+<strong data-gloss-id="{{ m.id }}"{{ m.source|lang_attr }}>{{ m.title }}</strong></a>
+{% if m.lead %}<p class="story-lead" data-lead-for="{{ m.id }}"{{ m.source|lang_attr }}>{{ m.lead }}</p>{% endif %}
 <p class="lead-tr" data-lead-tr-for="{{ m.id }}" hidden></p>
 <div class="cmp-tr" data-cmp-for="{{ m.id }}" hidden></div>
 <button type="button" class="text-button exclude-button" data-exclude-id="{{ m.id }}">別のニュース</button>
 </article>{% endmacro %}
 {% block content %}<a class="back" href="{{ url_for('stories_page') }}">← 読み比べの一覧へ</a>
 <div class="eyebrow">読み比べ · {{ story.columns|length }} 媒体 · {{ story.members|length }} 本</div>
-<h1><span data-gloss-id="{{ story.lead_id }}">{{ story.lead_title }}</span></h1>
+<h1><span data-gloss-id="{{ story.lead_id }}"{{ story.lead_source|lang_attr }}>{{ story.lead_title }}</span></h1>
 <p class="story-summary">{% if story.first %}最初の報道: <span class="badge" data-lang="{{ story.first.source|src_lang }}">{{ story.first.source }}</span> {{ story.first.published|localtime }}{% endif %}{% if story.newest_time and story.newest_time != story.oldest %} · 最新: {{ story.newest_time|localtime }}{% endif %}</p>
 <div class="story-tools">
 <div class="segmented" role="group" aria-label="並べ方"><button type="button" class="seg" data-view="outlets" aria-pressed="true">媒体ごと</button><button type="button" class="seg" data-view="timeline" aria-pressed="false">時系列</button></div>

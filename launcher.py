@@ -45,7 +45,8 @@ PRESET_SETTINGS_PATH = PROJECT_ROOT / "preset" / "settings.json"
 PRESET_RECORD_PATH = INSTANCE_DIRECTORY / "preset-applied.json"
 #: The only settings a preset may set; anything else in the file is ignored.
 PRESET_KEYS = frozenset({"translation_source", "relay_url", "network_bind_host", "network_port", "library_limit",
-                         "start_at_logon", "build_channel", "stories_enabled", "stories_daily_chars"})
+                         "start_at_logon", "collect_hourly", "build_channel", "stories_enabled",
+                         "stories_daily_chars"})
 CREATE_NO_WINDOW = 0x08000000
 
 
@@ -610,7 +611,8 @@ def main(argv: list[str] | None = None) -> int:
     update_dependencies(runtime_python)
     library_root = resolve_article_directory()
     persist_collector_config(library_root)
-    ensure_hourly_collector_task(runtime_python, library_root)
+    if settings.get("collect_hourly", True) is not False:  # a test build sets it off (D-55)
+        ensure_hourly_collector_task(runtime_python, library_root)
     ensure_logon_task(runtime_python, settings.get("start_at_logon", True) is not False)
     if not first_run_marker.exists():
         profile_root.mkdir(parents=True, exist_ok=True)

@@ -20,10 +20,10 @@
 <section class="story-card">
 <div class="story-meta"><span class="story-outlets">{% for name, n in story.outlet_counts %}<span class="badge" data-lang="{{ name|src_lang }}">{{ name }}{% if n > 1 %} ×{{ n }}{% endif %}</span>{% endfor %}</span>
 <span class="story-time">{{ story.oldest|localtime_short }}{% if story.newest_time and story.newest_time != story.oldest %} 〜 {{ story.newest_time|localtime_short }}{% endif %}</span></div>
-<div class="story-top"><h2 class="story-headline"><a href="{{ url_for('story_page', key=story.key) }}"><span data-gloss-id="{{ story.lead_id }}">{{ story.lead_title }}</span></a></h2>
+<div class="story-top"><h2 class="story-headline"><a href="{{ url_for('story_page', key=story.key) }}"><span data-gloss-id="{{ story.lead_id }}"{{ story.lead_source|lang_attr }}>{{ story.lead_title }}</span></a></h2>
 {% if story.picture %}<a class="story-thumb" href="{{ url_for('story_page', key=story.key) }}" tabindex="-1" aria-hidden="true"><img src="{{ story.picture }}" alt="" loading="lazy" decoding="async"></a>{% endif %}</div>
 <ul class="story-members">{% for m in story.preview %}
-<li><a href="{{ url_for('show_article', article_id=m.id) }}"><span class="badge" data-lang="{{ m.source|src_lang }}">{{ m.source or '未分類' }}</span><span class="story-title" data-gloss-id="{{ m.id }}">{{ m.title }}</span><span class="story-time">{{ m.published|localtime_short }}</span></a></li>
+<li><a href="{{ url_for('show_article', article_id=m.id) }}"><span class="badge" data-lang="{{ m.source|src_lang }}">{{ m.source or '未分類' }}</span><span class="story-title" data-gloss-id="{{ m.id }}"{{ m.source|lang_attr }}>{{ m.title }}</span><span class="story-time">{{ m.published|localtime_short }}</span></a></li>
 {% endfor %}</ul>
 {% set hidden = story.count - 1 - story.preview|length %}<a class="story-more" href="{{ url_for('story_page', key=story.key) }}">{% if hidden > 0 %}ほか {{ hidden }} 本 · {% endif %}{{ story.count }} 本を並べて読む →</a>
 </section>

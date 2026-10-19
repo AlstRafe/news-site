@@ -50,6 +50,24 @@ class ArticleNavigationTests(unittest.TestCase):
 
 
 
+
+class OriginalLanguageTests(unittest.TestCase):
+    """Original text carries its language (Traditional Chinese glyphs, Korean line breaking)."""
+    setUp = ArticleNavigationTests.setUp
+    tearDown = ArticleNavigationTests.tearDown
+
+    def test_original_text_is_marked_with_its_language(self):
+        library.sync(self.root, self.db, force=True)
+        items = {i["source"]: i["id"] for i in library.list_articles(self.db)["items"]}
+        home = self.client.get("/", headers={"Host": "localhost"}).get_data(as_text=True)
+        self.assertIn('<h2 lang="zh-Hant">', home)
+        self.assertIn('<h2 lang="en">', home)
+        page = self.client.get(f"/a/{items['CNA']}", headers={"Host": "localhost"}).get_data(as_text=True)
+        self.assertIn('<h1 lang="zh-Hant">', page)
+        self.assertIn('<p lang="zh-Hant">', page)
+        self.assertIn('<html lang="ja">', page)  # the interface itself stays Japanese
+
+
 if __name__ == "__main__":
     unittest.main()
 

@@ -87,6 +87,7 @@ class BuildTests(unittest.TestCase):
         self.assertEqual(preset_settings["network_bind_host"], "127.0.0.1")
         self.assertEqual(preset_settings["library_limit"], 5)
         self.assertFalse(preset_settings["start_at_logon"])
+        self.assertFalse(preset_settings["collect_hourly"])
         self.assertTrue(set(preset_settings) - {"preset_id"} <= launcher.PRESET_KEYS)
 
     def test_portable_zip_never_ships_a_preset(self):
@@ -131,6 +132,32 @@ class PresetTests(unittest.TestCase):
         self.write_preset(preset_id="p2", network_bind_host="0.0.0.0")
         with self.assertRaises(ValueError):
             launcher.apply_preset()
+
+    def run_main(self):
+        with mock.patch.dict(launcher.os.environ, {"LOCALAPPDATA": str(self.tmp / "local")}), \
+                mock.patch.object(launcher, "select_connection", return_value=("127.0.0.1", 5000, {"127.0.0.1"})), \
+                mock.patch.object(launcher, "find_runtime_python", return_value=Path("python")), \
+                mock.patch.object(launcher, "update_dependencies"), \
+                mock.patch.object(launcher, "persist_collector_config"), \
+                mock.patch.object(launcher, "ensure_logon_task") as logon, \
+                mock.patch.object(launcher, "ensure_hourly_collector_task") as hourly, \
+                mock.patch.object(launcher, "launch_app", return_value=0), \
+                mock.patch("builtins.input", side_effect=AssertionError("asked")):
+            self.assertEqual(launcher.main([]), 0)
+        return hourly, logon
+
+    def test_a_test_build_registers_no_windows_tasks(self):
+        self.write_preset(preset_id="p3", collect_hourly=False, start_at_logon=False)
+        hourly, logon = self.run_main()
+        hourly.assert_not_called()
+        self.assertFalse(logon.call_args.args[1])
+
+    def test_an_ordinary_copy_still_registers_the_hourly_task(self):
+        (self.tmp / "local" / launcher.APP_CONFIG["name"]).mkdir(parents=True)
+        (self.tmp / "local" / launcher.APP_CONFIG["name"] / "first-run-complete").write_text("x")
+        hourly, logon = self.run_main()
+        hourly.assert_called_once()
+        self.assertTrue(logon.call_args.args[1])
 
     def test_first_run_asks_nothing_in_a_preset_build(self):
         with mock.patch("builtins.input", side_effect=AssertionError("asked")):

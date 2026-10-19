@@ -106,14 +106,17 @@ def ago(iso_utc: str) -> str:
     return f"{minutes // (24 * 60)}日前"
 
 
-def badge(data: dict | None = None) -> dict:
-    """The header badge: label, tone (ok / warn / bad / idle) and a tooltip."""
+def badge(data: dict | None = None, collects: bool = True) -> dict:
+    """The header badge: label, tone (ok / warn / bad / idle) and a tooltip. ``collects`` False:
+    this copy registers no hourly collection (a test build, D-55)."""
     data = read() if data is None else data
     collector = data.get("collector") or {}
     finished = collector.get("finished", "")
     if collector.get("running"):
         return {"label": "取得中…", "tone": "ok", "title": "自動取得を実行中です"}
     if not finished:
+        if not collects:
+            return {"label": "サンプル記事", "tone": "idle", "title": "テスト版: 記事はサンプルのみで、自動取得はしません"}
         return {"label": "未取得", "tone": "idle", "title": "自動取得の記録がまだありません"}
     since = minutes_since(finished)
     if not collector.get("ok", False):

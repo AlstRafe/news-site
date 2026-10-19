@@ -161,6 +161,15 @@ def library_limit() -> int:
     return value if isinstance(value, int) and not isinstance(value, bool) and value > 0 else 0
 
 
+def collects_hourly() -> bool:
+    """launcher.py registers the hourly collection task unless "collect_hourly" is false (test builds)."""
+    try:
+        value = json.loads(SETTINGS_PATH.read_text(encoding="utf-8"))
+    except (OSError, ValueError, TypeError):
+        return True
+    return not (isinstance(value, dict) and value.get("collect_hourly") is False)
+
+
 def build_channel() -> str:
     """"alpha" / "beta" for a test build made by make_alpha_zip.py, else ""."""
     try:
