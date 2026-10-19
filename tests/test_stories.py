@@ -271,6 +271,17 @@ class WebTests(StoryTestCase):
         self.assertEqual(self.client.get("/stories/s999999", headers=H).status_code, 404)
         self.assertEqual(self.client.get("/stories?page=abc", headers=H).status_code, 200)
 
+    def test_search_keeps_the_groups_with_a_matching_article(self):
+        lead = stories.list_stories(self.db)["stories"][0]["lead_title"]
+        word = lead.split()[0]
+        self.assertEqual(stories.list_stories(self.db, query=word)["total"], 1)
+        self.assertEqual(stories.list_stories(self.db, query="zzzqqq")["total"], 0)
+        english = stories.list_stories(self.db, query="xx", pivot_words=index.search_words(NOBEL_ZH_EN))
+        self.assertEqual(english["total"], 1)  # found through the English headline of the CNA article
+        html = self.client.get("/stories?q=zzzqqq", headers=H).get_data(as_text=True)
+        self.assertIn("に当たるグループはありません", html)
+        self.assertIn("検索をやめる", html)
+
     def test_reader_correction_takes_an_article_out_for_good(self):
         z = self.id_of("CNA", "z.html")
         token = self.csrf()

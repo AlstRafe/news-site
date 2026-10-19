@@ -82,7 +82,7 @@ def _error_page(message: str, status: int):
 
 # ---- pages -------------------------------------------------------------------
 
-def _query_in_english(query: str) -> str:
+def query_in_english(query: str) -> str:
     """A non-English search, translated to English (cached; sent once per distinct search) so it
     also matches the English headlines kept for every article. "" without a key or on failure."""
     from newsreader.services import translation
@@ -105,7 +105,7 @@ def index_page():
         page = 1
     db = db_path()
     query = query.strip()[:100]
-    english = _query_in_english(query) if re.search(r"[^\x00-\x7f]", query) else ""
+    english = query_in_english(query) if re.search(r"[^\x00-\x7f]", query) else ""
     result = index.list_articles(db, source=source, query=query, page=page, per_page=PER_PAGE,
                                  pivot_words=index.search_words(english or query))
     from newsreader.library import stories

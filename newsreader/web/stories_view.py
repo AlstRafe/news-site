@@ -1,6 +1,7 @@
 """/stories (groups), /stories/<key> (one group, a column per outlet) and the refresh API (§10)."""
 from __future__ import annotations
 
+import re
 import threading
 
 from flask import abort, current_app, jsonify, render_template, request
@@ -29,7 +30,13 @@ def stories_page():
         page = int(request.args.get("page", "1"))
     except ValueError:
         page = 1
-    result = stories.list_stories(db_path(), scope=scope, page=page)
+    from newsreader.library import index
+    from newsreader.web.pages import query_in_english
+    query = request.args.get("q", "").strip()[:100]
+    english = query_in_english(query) if re.search(r"[^\x00-\x7f]", query) else ""
+    result = stories.list_stories(db_path(), scope=scope, page=page, query=query,
+                                  pivot_words=index.search_words(english or query))
+    result["english_query"] = english
     for story in result["stories"]:
         _with_thumbs(story["members"])
         # One picture per group: the lead's, else the newest member's that has one.

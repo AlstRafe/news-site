@@ -3,10 +3,16 @@
 {% block main_class %} stories-page{% endblock %}
 {% block content %}
 <div class="list-head"><h1>同じニュースの読み比べ</h1><span class="count">{{ result.total }} 件</span></div>
+<form class="searchbar" method="get" action="{{ url_for('stories_page') }}" role="search">
+{% if result.scope == 'all' %}<input type="hidden" name="scope" value="all">{% endif %}
+<input type="search" name="q" value="{{ result.query }}" placeholder="グループを検索（日本語も可）" aria-label="読み比べを検索" maxlength="100">
+<button type="submit">検索</button>
+</form>
 <nav class="chips" aria-label="表示範囲">
-<a class="chip{% if result.scope == 'multi' %} active{% endif %}" href="{{ url_for('stories_page') }}">複数の媒体が報道</a>
-<a class="chip{% if result.scope == 'all' %} active{% endif %}" href="{{ url_for('stories_page', scope='all') }}">すべてのグループ</a>
+<a class="chip{% if result.scope == 'multi' %} active{% endif %}" href="{{ url_for('stories_page', q=result.query or None) }}">複数の媒体が報道</a>
+<a class="chip{% if result.scope == 'all' %} active{% endif %}" href="{{ url_for('stories_page', scope='all', q=result.query or None) }}">すべてのグループ</a>
 </nav>
+{% if result.query %}<p class="hint search-note">「{{ result.query }}」を含む記事のあるグループ{% if result.english_query %}（英訳「{{ result.english_query }}」でも照合）{% endif %} · <a href="{{ url_for('stories_page', scope=result.scope if result.scope == 'all' else None) }}">検索をやめる</a></p>{% endif %}
 <p class="hint stories-note">{% if info.refreshed %}{{ refreshed_ago }}に集計{% else %}まだ集計していません{% endif %}{% if info.pending %} · 英訳待ちの見出し {{ info.pending }} 件{% endif %}{% if info.key_configured is defined and not info.key_configured %} · 翻訳キー未設定（英語の見出しのみで照合）{% endif %}
 <button type="button" class="link-button" data-action="stories-refresh">今すぐ更新</button><span class="refresh-state" role="status" aria-live="polite"></span>{% if result.stories %}<button type="button" class="gloss-toggle" id="story-gloss-toggle" aria-pressed="true" title="見出しの訳（見出しだけを翻訳サービスに送信。一度訳した見出しは再送信しません）">訳を隠す</button>{% endif %}</p>
 <p class="gloss-error hint" id="story-gloss-error" role="status" hidden></p>
@@ -22,12 +28,12 @@
 {% set hidden = story.count - 1 - story.preview|length %}<a class="story-more" href="{{ url_for('story_page', key=story.key) }}">{% if hidden > 0 %}ほか {{ hidden }} 本 · {% endif %}{{ story.count }} 本を並べて読む →</a>
 </section>
 {% else %}
-<p class="empty">{% if result.scope == 'multi' %}複数の媒体が報じたニュースはまだ見つかっていません。「すべてのグループ」も確認してください。{% else %}まだグループがありません。記事が増えると自動で集計されます。{% endif %}</p>
+<p class="empty">{% if result.query %}「{{ result.query }}」に当たるグループはありません。{% elif result.scope == 'multi' %}複数の媒体が報じたニュースはまだ見つかっていません。「すべてのグループ」も確認してください。{% else %}まだグループがありません。記事が増えると自動で集計されます。{% endif %}</p>
 {% endfor %}
 {% if result.pages > 1 %}<nav class="pager" aria-label="ページ送り">
-{% if result.page > 1 %}<a href="{{ url_for('stories_page', scope=result.scope if result.scope == 'all' else None, page=result.page-1) }}">← 新しい</a>{% else %}<span></span>{% endif %}
+{% if result.page > 1 %}<a href="{{ url_for('stories_page', scope=result.scope if result.scope == 'all' else None, q=result.query or None, page=result.page-1) }}">← 新しい</a>{% else %}<span></span>{% endif %}
 <span>{{ result.page }} / {{ result.pages }}</span>
-{% if result.page < result.pages %}<a href="{{ url_for('stories_page', scope=result.scope if result.scope == 'all' else None, page=result.page+1) }}">過去 →</a>{% else %}<span></span>{% endif %}
+{% if result.page < result.pages %}<a href="{{ url_for('stories_page', scope=result.scope if result.scope == 'all' else None, q=result.query or None, page=result.page+1) }}">過去 →</a>{% else %}<span></span>{% endif %}
 </nav>{% endif %}
 <p class="hint">見出しを英語にそろえて照合しています（英語以外の見出しは設定中の翻訳サービスで見出しだけを英訳、1日の上限あり）。無関係な記事を混ぜないことを優先しているため、同じニュースでも別グループになることがあります。違う記事が混ざっていたら、グループを開いて「別のニュース」で外せます。</p>
 {% endblock %}

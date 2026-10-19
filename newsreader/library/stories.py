@@ -164,16 +164,26 @@ def _members(db, keys: list[str]) -> dict[str, list[dict]]:
     return grouped
 
 
-def list_stories(db_path: Path, scope: str = "multi", page: int = 1, per_page: int = 20) -> dict:
-    """Groups, newest first. scope "multi" = reported by more than one outlet; "all" = any group."""
+def list_stories(db_path: Path, scope: str = "multi", page: int = 1, per_page: int = 20,
+                 query: str = "", pivot_words: list[str] | None = None) -> dict:
+    """Groups, newest first. scope "multi" = reported by more than one outlet; "all" = any group.
+    ``query`` keeps the groups with an article that matches it (as in the article search)."""
     having = "HAVING COUNT(DISTINCT a.source) > 1" if scope != "all" else ""
     page = max(1, page)
+    query = query.strip()[:100]
     with closing(index.connect(db_path)) as db:
+        restrict, params = "", []
+        if query:
+            ids = index.search_ids(db, query, pivot_words)[:900]
+            restrict = (f" AND m.story_key IN (SELECT story_key FROM story_members WHERE article_id IN"
+                        f" ({','.join('?' * len(ids)) or 'NULL'}))")
+            params = ids
         base = f"""SELECT m.story_key, MAX(a.published) AS newest, COUNT(*) AS n, COUNT(DISTINCT a.source) AS outlets
-                   FROM story_members m JOIN articles a ON a.id = m.article_id WHERE a.error = ''
+                   FROM story_members m JOIN articles a ON a.id = m.article_id WHERE a.error = ''{restrict}
                    GROUP BY m.story_key {having}"""
-        total = db.execute(f"SELECT COUNT(*) FROM ({base})").fetchone()[0]
-        heads = db.execute(f"{base} ORDER BY newest DESC LIMIT ? OFFSET ?", (per_page, (page - 1) * per_page)).fetchall()
+        total = db.execute(f"SELECT COUNT(*) FROM ({base})", params).fetchone()[0]
+        heads = db.execute(f"{base} ORDER BY newest DESC LIMIT ? OFFSET ?",
+                           params + [per_page, (page - 1) * per_page]).fetchall()
         members = _members(db, [h["story_key"] for h in heads])
     stories = []
     for h in heads:
@@ -183,7 +193,8 @@ def list_stories(db_path: Path, scope: str = "multi", page: int = 1, per_page: i
         stories.append({"key": h["story_key"], "newest": h["newest"], "count": h["n"], "outlets": h["outlets"],
                         "members": group, "lead_title": central["title"] if central else "",
                         "lead_id": lead_id, "preview": preview(group, lead_id), **_summary(group)})
-    return {"stories": stories, "total": total, "page": page, "pages": max(1, -(-total // per_page)), "scope": scope}
+    return {"stories": stories, "total": total, "page": page, "pages": max(1, -(-total // per_page)), "scope": scope,
+            "query": query}
 
 
 #: Headlines shown under the lead on the list page; the rest are on the group page.

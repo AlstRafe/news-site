@@ -500,6 +500,15 @@ def _pivot_matches(db: sqlite3.Connection, words: list[str]) -> list[int]:
     return found
 
 
+def search_ids(db: sqlite3.Connection, query: str, pivot_words: list[str] | None) -> list[int]:
+    """Articles whose headline or opening contains ``query``, or whose English headline matches
+    ``pivot_words`` (at most MAX_PIVOT_MATCHES of the latter)."""
+    ids = [row[0] for row in db.execute(
+        "SELECT id FROM articles WHERE error = '' AND (title LIKE ? ESCAPE '\\' OR lead LIKE ? ESCAPE '\\')",
+        (_like(query), _like(query)))]
+    return list(dict.fromkeys(ids + (_pivot_matches(db, pivot_words) if pivot_words else [])))
+
+
 def list_articles(db_path: Path, source: str = "", query: str = "", page: int = 1, per_page: int = 24,
                   pivot_words: list[str] | None = None) -> dict:
     """Newest first. Articles without a parsed date fall back to file time. Never loads bodies.
