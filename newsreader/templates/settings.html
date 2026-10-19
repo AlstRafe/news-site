@@ -24,12 +24,12 @@
 <label for="azure_region">Azure Translatorリソースのリージョン（地域リソースの場合）</label><input id="azure_region" name="azure_region" type="text" maxlength="80" value="{{ settings.azure_region }}" placeholder="例: japaneast"><p class="hint">Azure PortalのKeys and Endpointに表示される値を入力します。単一サービスのGlobalリソースでは空欄で構いません。F0（無料）リソースを選んでください。</p>
 <button type="submit">翻訳設定を保存</button>
 </section>
-<section class="panel settings-panel" id="relay-server"><h2>テスト版への翻訳の中継</h2>
+{% if settings.translation_source != "relay" %}<section class="panel settings-panel" id="relay-server"><h2>テスト版への翻訳の中継</h2>
 <p>ほかの PC で動くテスト版の NewsBridge に、このPCの翻訳キーで翻訳を提供します。テスト版には合言葉を渡します（合言葉は発行時に一度だけ表示し、このPCには照合用の値だけを保存します）。1つの合言葉で1日に翻訳できる量に上限があります。</p>
 <p class="hint">発行済み: {{ relay_tokens|length }} 件{% if relay_tokens %}（{% for t in relay_tokens %}{{ t.name }} · 1日 {{ "{:,}".format(t.daily_chars) }} 文字{% if relay_usage.get(t.hash[:16]) %} · 今日 {{ "{:,}".format(relay_usage.get(t.hash[:16])) }} 文字{% endif %}{% if not loop.last %} / {% endif %}{% endfor %}）{% endif %}</p>
 {% if issued_token %}<div class="success" role="status"><strong>新しい合言葉（この画面を閉じると二度と表示されません）:</strong><br><code class="token">{{ issued_token }}</code></div>{% endif %}
 <div class="button-row"><button type="submit" name="action" value="issue_relay_token" class="secondary">合言葉を発行</button>{% if relay_tokens %}<button type="submit" name="action" value="revoke_relay_tokens" class="secondary">すべて無効にする</button>{% endif %}</div>
-</section>
+</section>{% endif %}
 <section class="panel settings-panel" id="stories-settings"><h2>読み比べ（同じニュースのまとめ）</h2>
 <p>BBC・CNA・聯合ニュースの記事から同じニュースを探してまとめます。英語以外の見出しは、上で選んだ翻訳サービスで<strong>見出しだけ</strong>英訳して照合します（本文は送信しません）。英訳は1回きりで保存され、同じ見出しを再送信することはありません。</p>
 <label class="check-row"><input type="checkbox" name="stories_enabled" value="1" {% if story_settings.stories_enabled %}checked{% endif %}> 英語以外の見出しを英訳して照合する</label>
