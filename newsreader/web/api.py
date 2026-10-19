@@ -233,3 +233,17 @@ def translate_story_leads():
     except TranslationError as exc:
         return jsonify({"error": str(exc)}), 503
     return jsonify({"leads": {str(i): {"original": text, "translation": tr} for (i, text), tr in zip(found, translated)}})
+
+
+@routes.post("/api/topics", "follow_topic")
+def follow_topic():
+    """話題を追う (D-61): {"topic", "follow": true|false} -> {"topics": [...]}"""
+    from newsreader.services.settings import save_topic
+    payload = _json_request()
+    topic, follow = payload.get("topic"), payload.get("follow")
+    if not isinstance(topic, str) or not isinstance(follow, bool):
+        return jsonify({"error": "話題の指定が不正です。"}), 400
+    try:
+        return jsonify({"topics": save_topic(topic, follow)})
+    except ValueError as exc:
+        return jsonify({"error": str(exc)}), 400

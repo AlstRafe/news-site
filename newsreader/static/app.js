@@ -191,6 +191,37 @@
     if (readLocal(GLOSS_KEY) === "1") set(true);
   }
 
+  // 話題を追う (D-61): follow a search from its results; stop following from the home page.
+  document.addEventListener("click", async event => {
+    const button = event.target.closest?.("[data-topic-follow]");
+    if (!button) return;
+    const follow = button.getAttribute("aria-pressed") !== "true";
+    button.disabled = true;
+    try {
+      const response = await fetch("/api/topics", {
+        method: "POST", credentials: "same-origin",
+        headers: { "Content-Type": "application/json", "X-CSRF-Token": document.querySelector('meta[name="csrf-token"]')?.content || "" },
+        body: JSON.stringify({ topic: button.dataset.topicFollow, follow })
+      });
+      const payload = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(payload.error || "保存できませんでした。");
+      const card = button.closest("[data-topic-card]");
+      if (card && !follow) {
+        const section = card.closest(".topics");
+        card.remove();
+        if (section && !section.querySelector("[data-topic-card]")) section.remove();
+        return;
+      }
+      button.setAttribute("aria-pressed", String(follow));
+      button.textContent = follow ? "追跡中（やめる）" : "この話題を追う";
+    } catch (error) {
+      button.title = error.message;
+      button.textContent = error.message;
+    } finally {
+      button.disabled = false;
+    }
+  });
+
   // 4. Prefetch fallback for browsers without Speculation Rules (e.g. Safari on iPhone):
   //    warm the HTTP cache for an article / comparison page when a pointer rests on its link
   //    or a finger touches it. Those pages are "Cache-Control: private, max-age=60", so the
@@ -215,4 +246,5 @@
     const a = linkOf(event.target);
     if (wanted(a)) warm(a);
   }, { passive: true });
+
 })();

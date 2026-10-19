@@ -6,6 +6,7 @@ and the article come from the index; images are fetched lazily by ``/img`` (D-04
 from __future__ import annotations
 
 import re
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
 from flask import abort, current_app, jsonify, redirect, render_template, request, send_file, url_for
@@ -94,6 +95,23 @@ def query_in_english(query: str) -> str:
         return ""
 
 
+#: 話題を追う: how many articles per followed topic the home page looks at, and how many it lists.
+TOPIC_SCAN = 30
+TOPIC_SHOWN = 3
+
+
+def topic_digest(db: Path, topic: str) -> dict:
+    """The newest articles matching a followed topic in any language (the same search as the
+    list: headlines and openings, and the English headlines of every article)."""
+    english = query_in_english(topic) if re.search(r"[^\x00-\x7f]", topic) else ""
+    result = index.list_articles(db, query=topic, page=1, per_page=TOPIC_SCAN,
+                                 pivot_words=index.search_words(english or topic))
+    since = (datetime.now(timezone.utc) - timedelta(hours=24)).strftime("%Y-%m-%dT%H:%M:%SZ")
+    recent = sum(1 for item in result["items"] if (item.get("published") or "") >= since)
+    return {"q": topic, "total": result["total"], "recent": recent, "more": recent >= TOPIC_SCAN,
+            "articles": result["items"][:TOPIC_SHOWN]}
+
+
 @routes.get("/", "index")
 def index_page():
     source = request.args.get("source", "")[:100]
@@ -118,6 +136,9 @@ def index_page():
     # ...and those whose outlets disagree on a count (D-59), computed in the background.
     from newsreader.library import facts_watch
     disputes = [] if (source or query or result["page"] > 1) else facts_watch.differing(db, limit=3)
+    from newsreader.services.settings import topics as followed_topics
+    followed = followed_topics()
+    topic_cards = [] if (source or query or result["page"] > 1) else [topic_digest(db, t) for t in followed[:6]]
     state = index.sync_state(db)
     indexing = bool(state.get("running")) and not result["total"] and not source and not query
     response = current_app.make_response(render_template(
@@ -125,6 +146,7 @@ def index_page():
         progress=state.get("progress") or [0, 0], items=result["items"], sources=index.sources(db),
         source=source, query=query, english_query=english, page=result["page"], pages=result["pages"],
         total=result["total"], csrf=csrf_token(), highlights=highlights, disputes=disputes,
+        topic_cards=topic_cards, following=any(t.casefold() == query.casefold() for t in followed) if query else False,
     ))
     response.headers["Cache-Control"] = CACHE_LIST
     return response

@@ -170,6 +170,35 @@ def collects_hourly() -> bool:
     return not (isinstance(value, dict) and value.get("collect_hourly") is False)
 
 
+#: 話題を追う (D-61): searches kept to show on the home page.
+MAX_TOPICS = 10
+MAX_TOPIC_CHARS = 60
+
+
+def topics() -> list[str]:
+    try:
+        value = json.loads(SETTINGS_PATH.read_text(encoding="utf-8")).get("topics", [])
+    except (OSError, ValueError, TypeError, AttributeError):
+        return []
+    if not isinstance(value, list):
+        return []
+    return [t for t in value if isinstance(t, str) and 0 < len(t.strip()) <= MAX_TOPIC_CHARS][:MAX_TOPICS]
+
+
+def save_topic(topic: str, follow: bool) -> list[str]:
+    """Add (``follow``) or remove one topic; the newest added comes first."""
+    topic = " ".join(str(topic).split())
+    if not topic or len(topic) > MAX_TOPIC_CHARS:
+        raise ValueError(f"話題は1〜{MAX_TOPIC_CHARS}文字で指定してください。")
+    current = [t for t in topics() if t.casefold() != topic.casefold()]
+    if follow:
+        if len(current) >= MAX_TOPICS:
+            raise ValueError(f"追える話題は{MAX_TOPICS}件までです。どれかを外してください。")
+        current.insert(0, topic)
+    _write_merged({"topics": current})
+    return current
+
+
 def build_channel() -> str:
     """"alpha" / "beta" for a test build made by make_alpha_zip.py, else ""."""
     try:
