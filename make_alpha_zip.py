@@ -138,6 +138,7 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--articles", type=int, default=DEFAULT_ARTICLES)
     parser.add_argument("--daily-chars", type=int, default=DEFAULT_DAILY_CHARS, help="合言葉ごとの1日の翻訳上限（文字）")
     parser.add_argument("--out", default=str(PROJECT_ROOT.parent))
+    parser.add_argument("--library", default="", help="記事フォルダ（既定: このインストールの収集先）")
     parser.add_argument("--dry-run", action="store_true")
     args = parser.parse_args(argv)
 
@@ -151,7 +152,7 @@ def main(argv: list[str] | None = None) -> int:
     if not 1 <= args.articles <= 50:
         print("--articles は 1〜50 で指定してください。", file=sys.stderr)
         return 2
-    root = library_root()
+    root = Path(args.library) if args.library else library_root()
     chosen = choose_articles(paths.DEFAULT_LIBRARY_DB, args.articles)
     files = []
     for row in chosen:
