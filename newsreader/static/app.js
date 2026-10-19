@@ -15,6 +15,8 @@
       img.replaceWith(fallback);
       return;
     }
+    const thumb = img.closest(".story-thumb");
+    if (thumb) { thumb.remove(); return; }
     const item = img.closest(".story-item");
     if (item) { item.classList.remove("with-thumb"); img.remove(); return; }
     const figure = img.closest(".article-images figure");

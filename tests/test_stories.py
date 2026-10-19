@@ -215,6 +215,19 @@ class RefreshTests(StoryTestCase):
         self.assertIsNone(stories.get_story(self.db, "s999999"))
         self.assertEqual(stories.list_stories(self.db, page=99)["stories"], [])
 
+    def test_list_preview_puts_other_outlets_first(self):
+        # newest first, as _members returns them; the lead is a BBC article
+        group = [{"id": 1, "source": "BBC"}, {"id": 2, "source": "BBC"}, {"id": 3, "source": "BBC"},
+                 {"id": 4, "source": "CNA"}, {"id": 5, "source": "NAVER NEWS"}, {"id": 6, "source": "CNA"}]
+        self.assertEqual([m["id"] for m in stories.preview(group, 3)], [4, 5, 1])  # other outlets lead
+        self.assertEqual([m["id"] for m in stories.preview(group, 4)], [1, 5, 2])
+        self.assertEqual([m["id"] for m in stories.preview(group, 4, limit=9)], [1, 5, 2, 3, 6])
+        self.assertEqual(stories.preview(group[:1], 1), [])
+        self.refresh(FakeTranslator({NOBEL_ZH: NOBEL_ZH_EN}))
+        story = stories.list_stories(self.db)["stories"][0]
+        self.assertNotIn(story["lead_id"], [m["id"] for m in story["preview"]])
+        self.assertEqual(len(story["preview"]), 2)
+
     def test_pipeline_without_key_uses_english_only(self):
         result = pipeline.refresh_stories(self.db, self.status)  # conftest: empty in-memory keyring
         self.assertEqual(result["pending"], 1)

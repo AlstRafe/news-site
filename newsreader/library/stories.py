@@ -179,10 +179,30 @@ def list_stories(db_path: Path, scope: str = "multi", page: int = 1, per_page: i
     for h in heads:
         group = members.get(h["story_key"], [])
         central = max(group, key=lambda m: (m["score"], m["published"])) if group else None
+        lead_id = central["id"] if central else 0
         stories.append({"key": h["story_key"], "newest": h["newest"], "count": h["n"], "outlets": h["outlets"],
                         "members": group, "lead_title": central["title"] if central else "",
-                        "lead_id": central["id"] if central else 0, **_summary(group)})
+                        "lead_id": lead_id, "preview": preview(group, lead_id), **_summary(group)})
     return {"stories": stories, "total": total, "page": page, "pages": max(1, -(-total // per_page)), "scope": scope}
+
+
+#: Headlines shown under the lead on the list page; the rest are on the group page.
+PREVIEW_HEADLINES = 3
+
+
+def preview(members: list[dict], lead_id: int, limit: int = PREVIEW_HEADLINES) -> list[dict]:
+    """Headlines to show under the lead: first the newest article of every *other* outlet (how
+    the others headlined it), then the newest remaining ones. ``members`` is newest first."""
+    lead = next((m for m in members if m["id"] == lead_id), None)
+    rest = [m for m in members if m["id"] != lead_id]
+    seen = {lead["source"]} if lead else set()
+    chosen: list[dict] = []
+    for member in rest:
+        if member["source"] not in seen:
+            seen.add(member["source"])
+            chosen.append(member)
+    chosen += [m for m in rest if m not in chosen]
+    return chosen[:limit]
 
 
 def _summary(members: list[dict]) -> dict:

@@ -32,6 +32,9 @@ def stories_page():
     result = stories.list_stories(db_path(), scope=scope, page=page)
     for story in result["stories"]:
         _with_thumbs(story["members"])
+        # One picture per group: the lead's, else the newest member's that has one.
+        ordered = sorted(story["members"], key=lambda m: m["id"] != story["lead_id"])
+        story["picture"] = next((m["thumb"] for m in ordered if m["thumb"]), "")
     info = status.read(current_app.config["STATUS_PATH"]).get("stories") or {}
     response = current_app.make_response(render_template("stories.html", result=result, info=info,
                                                          refreshed_ago=status.ago(info.get("refreshed", ""))))
