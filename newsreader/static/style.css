@@ -551,3 +551,4 @@ h1 .story-gloss{font-size:clamp(16px,2.4vw,20px);font-weight:600;margin-top:6px;
 .next-card .story-time{font-size:11px;color:var(--fg-878b93);}
 .next-card:only-child{grid-column:1/-1;}
 @media(max-width:650px){.next-articles{grid-template-columns:1fr;gap:10px;margin-top:20px;}.next-card.newer{order:0;}}
+.facts dd.note-path{overflow-wrap:anywhere;font-size:12px;}

@@ -119,6 +119,7 @@ class CollectionEndToEndTests(unittest.TestCase):
         self.assertEqual(collector["sites"]["CNA"]["saved"], 1)
         self.assertEqual(collector["sites"]["NAVER NEWS"]["error"], "APIキー未設定")
         self.assertFalse(collector["naver_configured"])
+        self.assertTrue(collector["library_root"])  # lets a copy showing this folder follow this task
         self.assertEqual(data["library"]["result"]["added"], 2)
 
         app = create_app(self.root, self.instance / "library.sqlite3", start_background=False, secret_key=b"k" * 32)
@@ -302,6 +303,51 @@ class StatusFileTests(unittest.TestCase):
         self.assertEqual(status.badge({"collector": {"ok": True, "finished": old}})["tone"], "warn")
         self.assertEqual(status.badge({"collector": {"ok": True, "finished": status.now_iso()}})["tone"], "ok")
         self.assertEqual(status.badge({"collector": {"running": True}})["label"], "取得中…")
+
+
+class SharedLibraryStatusTests(unittest.TestCase):
+    """A second copy of the app showing another installation's article folder follows that
+    installation's hourly collection in its header badge (its own task may not run at all)."""
+
+    def setUp(self):
+        self.tmp = Path(tempfile.mkdtemp())
+        self.root = self.tmp / "live" / "articles"
+        self.root.mkdir(parents=True)
+        self.live_status = self.tmp / "live" / "instance" / "status.json"
+        self.own_status = self.tmp / "dev" / "instance" / "status.json"
+        from newsreader.web import create_app
+        self.app = create_app(self.root, self.tmp / "dev" / "library.sqlite3", start_background=False, secret_key=b"k" * 32)
+        self.app.config["STATUS_PATH"] = self.own_status
+        self.client = self.app.test_client()
+
+    def tearDown(self):
+        shutil.rmtree(self.tmp, ignore_errors=True)
+
+    def page(self, url="/status"):
+        return self.client.get(url, headers={"Host": "localhost"}).get_data(as_text=True)
+
+    def test_badge_and_status_page_follow_the_newer_collection_beside_the_folder(self):
+        status.update("collector", {"ok": True, "finished": "2000-01-01T00:00:00Z"}, path=self.own_status)
+        status.update("collector", {"ok": True, "finished": status.now_iso(), "library_root": str(self.root),
+                                    "sites": {"BBC": {"saved": 2}}}, path=self.live_status)
+        with self.app.test_request_context(headers={"Host": "localhost"}):
+            from newsreader.web import status_view
+            self.assertEqual(status.badge(status_view.status_data())["tone"], "ok")
+        self.assertIn("記事フォルダ側の収集タスク", self.page())
+        # a newer run of this copy's own task wins again
+        status.update("collector", {"ok": True, "finished": "2999-01-01T00:00:00Z"}, path=self.own_status)
+        self.assertNotIn("記事フォルダ側の収集タスク", self.page())
+
+    def test_a_task_collecting_into_another_folder_is_ignored(self):
+        status.update("collector", {"ok": True, "finished": status.now_iso(), "library_root": str(self.tmp / "elsewhere")},
+                      path=self.live_status)
+        self.assertNotIn("記事フォルダ側の収集タスク", self.page())
+        self.assertIn("まだ記録がありません", self.page())
+
+    def test_own_status_beside_the_folder_is_not_read_twice(self):
+        from newsreader.web import status_view
+        self.assertIsNone(status_view.library_collector(self.root, self.live_status))
+        self.assertIsNone(status_view.library_collector(self.tmp / "nowhere" / "articles", self.own_status))
 
 
 if __name__ == "__main__":

@@ -9,6 +9,7 @@ import platform
 import re
 import time
 from datetime import datetime
+from pathlib import Path
 
 from flask import current_app, render_template
 
@@ -36,7 +37,38 @@ def local_version(text: str) -> str:
 
 
 def status_data() -> dict:
-    return status.read(current_app.config["STATUS_PATH"])
+    data = status.read(current_app.config["STATUS_PATH"])
+    other = library_collector(Path(current_app.config["LIBRARY_ROOT"]), Path(current_app.config["STATUS_PATH"]))
+    if other and _newer(other, data.get("collector") or {}):
+        data = {**data, "collector": other}
+    return data
+
+
+def library_collector(library_root: Path, own_status: Path) -> dict | None:
+    """The collection record kept beside the article folder (``<folder>/../instance/status.json``)
+    when this app shows another installation's articles: that installation's hourly task is what
+    fills the folder, so the header badge should follow it. Read only; None when not applicable."""
+    candidate = library_root.parent / "instance" / "status.json"
+    try:
+        if candidate.resolve() == own_status.resolve() or not candidate.is_file():
+            return None
+    except OSError:
+        return None
+    collector = status.read(candidate).get("collector")
+    if not isinstance(collector, dict) or not collector.get("finished") and not collector.get("running"):
+        return None
+    recorded = collector.get("library_root")
+    if recorded and not paths.same_path(Path(recorded), library_root):
+        return None  # that task collects into another folder
+    return {**collector, "elsewhere": str(candidate.parent.parent)}
+
+
+def _newer(candidate: dict, current: dict) -> bool:
+    if current.get("running"):
+        return False
+    if candidate.get("running"):
+        return True
+    return str(candidate.get("finished", "")) > str(current.get("finished", ""))
 
 
 def init_app(app) -> None:

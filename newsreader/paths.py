@@ -69,8 +69,14 @@ def articles_dir() -> Path:
     return Path(configured).expanduser() if configured else DEFAULT_ARTICLES_DIR
 
 
-def _same_path(text: str, path: Path) -> bool:
+def same_path(a: Path | str, b: Path | str) -> bool:
+    """Same folder after resolving (and, on Windows, ignoring case)."""
     try:
-        return Path(text).expanduser().resolve() == path.resolve()
+        return (os.path.normcase(str(Path(a).expanduser().resolve()))
+                == os.path.normcase(str(Path(b).expanduser().resolve())))
     except (OSError, RuntimeError):
         return False
+
+
+def _same_path(text: str, path: Path) -> bool:
+    return same_path(text, path)

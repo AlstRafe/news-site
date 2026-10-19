@@ -101,7 +101,8 @@ def main() -> int:
         log.info("Standalone scheduled collection complete: %s", totals)
         status.update("collector", {"running": False, "finished": status.now_iso(), "ok": True, "error": "",
                                     "seconds": round(time.perf_counter() - started, 1), "sites": report,
-                                    "naver_configured": naver_credentials is not None}, path=status_path())
+                                    "naver_configured": naver_credentials is not None,
+                                    "library_root": str(library_root)}, path=status_path())
         update_library_index(library_root)
         from newsreader.library import pipeline  # imported late: translation/keyring only when needed
         pipeline.refresh_stories(library.DEFAULT_DB_PATH, status_path())

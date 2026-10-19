@@ -9,6 +9,7 @@
 <dt>前回</dt><dd>{% if collector.running %}実行中…{% else %}{{ collector.finished|localtime }}（{{ collector_ago }}）{% endif %}</dd>
 <dt>結果</dt><dd>{% if collector.running %}—{% elif collector.ok %}<span class="tone-ok">正常</span>{% else %}<span class="tone-bad">{{ collector.error or '失敗' }}</span>{% endif %}</dd>
 {% if collector.seconds is defined %}<dt>所要</dt><dd>{{ collector.seconds }} 秒</dd>{% endif %}
+{% if collector.elsewhere %}<dt>記録</dt><dd class="note-path">記事フォルダ側の収集タスク（{{ collector.elsewhere }}）</dd>{% endif %}
 </dl>
 {% if sites %}<div class="table-wrap"><table class="stats"><thead><tr><th>サイト</th><th>保存</th><th>既存</th><th>対象外</th><th>失敗</th><th>注記</th></tr></thead><tbody>
 {% for s in sites %}<tr><th scope="row">{{ s.name }}</th><td>{{ s.saved }}</td><td>{{ s.duplicates }}</td><td>{{ s.skipped }}</td><td>{{ s.failed }}</td><td>{{ s.error }}</td></tr>{% endfor %}
