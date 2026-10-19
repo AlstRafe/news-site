@@ -1,7 +1,7 @@
 {% extends "base.html" %}
 {% block head %}<title>{{ article.title }} | {{ app_name }}</title>{% endblock %}
 {% block main_class %} article{% endblock %}
-{% block content %}<a class="back" href="{{ url_for('index', source=record.source or None) }}">← {{ record.source or '記事一覧' }}の一覧へ戻る</a>
+{% block content %}<div class="read-progress" aria-hidden="true"><span id="read-progress"></span></div><a class="back" href="{{ url_for('index', source=record.source or None) }}">← {{ record.source or '記事一覧' }}の一覧へ戻る</a>
 <div class="eyebrow">{{ article.kind }} · {{ article.paragraph_count }} 段落</div><h1>{{ article.title }}</h1>
 <p class="title-tr" id="bi-title" hidden></p>
 <div class="meta">{{ record.source }}{% if record.published %} · {{ record.published|localtime }}{% endif %}{% if related %} · <a class="related-jump" href="#related-head">同じニュースの他の記事 {{ related.members|length }} 本 ↓</a>{% endif %}</div>

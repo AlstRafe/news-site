@@ -92,6 +92,7 @@ def status_page():
         sync=index.sync_state(db), usage=monthly_translation_usage(),
         version=local_version(paths.deployed_version()) or "（開発版）", python=platform.python_version(),
         started=time.strftime("%Y-%m-%d %H:%M", time.localtime(_STARTED)),
+        logon_task=paths.LOGON_TASK_RECORD.is_file(),
     ))
     response.headers["Cache-Control"] = CACHE_LIST
     return response

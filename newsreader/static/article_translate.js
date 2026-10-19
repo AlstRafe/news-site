@@ -686,6 +686,21 @@
     biButton.click();
   }
 
+  // Reading progress: a thin bar under the header that fills as the text is read.
+  const progress = document.getElementById("read-progress");
+  if (progress) {
+    let queued = false;
+    const measure = () => {
+      queued = false;
+      const box = reader.getBoundingClientRect();
+      const total = box.height - window.innerHeight * 0.6;
+      const done = total > 0 ? Math.min(1, Math.max(0, -box.top / total)) : 1;
+      progress.style.transform = `scaleX(${done.toFixed(3)})`;
+    };
+    window.addEventListener("scroll", () => { if (!queued) { queued = true; requestAnimationFrame(measure); } }, { passive: true });
+    measure();
+  }
+
   // Remembered per device: open every article directly in the side-by-side view.
   const BI_AUTO_KEY = "news-html-reader-bilingual-auto";
   const biAuto = document.getElementById("bi-auto");

@@ -18,7 +18,7 @@
 <div class="card-grid">{% set ns = namespace(day=none) %}{% for item in items %}
 {% set day = item.published|localday %}{% if day != ns.day %}<h2 class="day-sep">{{ day or '日付不明' }}</h2>{% set ns.day = day %}{% endif %}
 <a class="card" data-id="{{ item.id }}" href="{{ url_for('show_article', article_id=item.id) }}">
-<div class="card-thumb" data-initial="{{ (item.source or 'N')[:1] }}">{% if item.thumb %}<img src="{{ item.thumb }}" alt="" loading="lazy" decoding="async">{% else %}<span class="thumb-fallback">{{ (item.source or 'N')[:1] }}</span>{% endif %}</div>
+{% set short = (item.source or 'News').split()[0] %}<div class="card-thumb" data-initial="{{ short }}" data-lang="{{ item.source|src_lang }}">{% if item.thumb %}<img src="{{ item.thumb }}" alt="" loading="lazy" decoding="async">{% else %}<span class="thumb-fallback">{{ short }}</span>{% endif %}</div>
 <div class="card-body"><div class="card-meta"><span class="badge" data-lang="{{ item.source|src_lang }}">{{ item.source or '未分類' }}</span><span>{{ (item.published|localclock) if item.published else '' }}</span>{% if item.story %}<span class="story-chip" title="{{ item.story.outlets }}つの媒体が報道（記事の下で読み比べ）">読み比べ {{ item.story.outlets }}媒体</span>{% endif %}</div>
 <h2>{{ item.title }}</h2>{% if item.lead %}<p>{{ item.lead }}</p>{% endif %}</div></a>{% endfor %}</div>
 {% if pages > 1 %}<nav class="pager" aria-label="ページ送り">

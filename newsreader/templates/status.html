@@ -42,5 +42,6 @@
 <section class="panel"><h2>翻訳の利用量（{{ usage.month }}）</h2>
 <dl class="facts"><dt>Azure</dt><dd>{{ "{:,}".format(usage.providers.azure.metered_chars) }} 文字 · {{ usage.providers.azure.requests }} 回</dd>
 <section class="panel"><h2>アプリ</h2>
-<dl class="facts"><dt>バージョン</dt><dd>{{ version }}</dd><dt>起動</dt><dd>{{ started }}</dd><dt>Python</dt><dd>{{ python }}</dd></dl></section>
+<dl class="facts"><dt>バージョン</dt><dd>{{ version }}</dd><dt>起動</dt><dd>{{ started }}</dd>
+<dt>自動起動</dt><dd>{% if logon_task %}ログオン時に起動（Windows タスク登録済み）{% else %}未登録（Windows 以外、または設定でオフ）{% endif %}</dd><dt>Python</dt><dd>{{ python }}</dd></dl></section>
 {% endblock %}

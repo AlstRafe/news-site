@@ -27,6 +27,8 @@ STATUS_PATH = INSTANCE_DIR / "status.json"
 SECRET_KEY_PATH = INSTANCE_DIR / "secret_key"
 COLLECTOR_SETTINGS_PATH = INSTANCE_DIR / "collector.json"
 COLLECTOR_LOCK_PATH = INSTANCE_DIR / "collector.lock"
+#: Written by launcher.py once the start-at-logon task is registered (launcher keeps its own copy of the name).
+LOGON_TASK_RECORD = INSTANCE_DIR / "server-task.json"
 #: Written last by a deployment. A supervised server that sees it change restarts
 #: itself into the new code (see web/run.py and launcher.py).
 VERSION_PATH = PROJECT_ROOT / "VERSION"

@@ -618,3 +618,12 @@ h1 .story-gloss{font-size:clamp(16px,2.4vw,20px);font-weight:600;margin-top:6px;
  .bi-float{bottom:calc(70px + env(safe-area-inset-bottom));}
  body.tr-sheet-open .tabbar{display:none;}
 }
+/* No picture: the outlet's name on its language colour */
+.card-thumb[data-lang="en"]{background:var(--lang-en-bg);}.card-thumb[data-lang="en"] .thumb-fallback{color:var(--lang-en-fg);}
+.card-thumb[data-lang="zh"]{background:var(--lang-zh-bg);}.card-thumb[data-lang="zh"] .thumb-fallback{color:var(--lang-zh-fg);}
+.card-thumb[data-lang="ko"]{background:var(--lang-ko-bg);}.card-thumb[data-lang="ko"] .thumb-fallback{color:var(--lang-ko-fg);}
+.thumb-fallback{font-size:22px;letter-spacing:.04em;opacity:.75;}
+@media(max-width:650px){.thumb-fallback{font-size:15px;}}
+/* Reading progress on article pages */
+.read-progress{position:fixed;z-index:17;left:0;right:0;top:0;height:3px;pointer-events:none;}
+.read-progress span{display:block;height:100%;background:var(--bg-b51d24);transform-origin:0 50%;transform:scaleX(0);}
