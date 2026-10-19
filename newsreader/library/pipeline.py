@@ -31,20 +31,17 @@ def refresh_stories(db_path: Path, status_path: Path | None = None) -> dict | No
         log.exception("Same-news grouping failed")
         return None
     if settings["stories_enabled"]:
-        refresh_facts(db_path, status_path, english=translate is not None)
+        refresh_facts(db_path, status_path)
     return result
 
 
-def refresh_facts(db_path: Path, status_path: Path | None = None, *, english: bool = True) -> dict | None:
-    """Compare the figures of new multi-outlet groups (D-59); never fails the caller."""
+def refresh_facts(db_path: Path, status_path: Path | None = None) -> dict | None:
+    """Compare the counts of people in new multi-outlet groups (D-59, D-65: no translation);
+    never fails the caller."""
     from newsreader.library import facts_watch, status
-    from newsreader.services.translation import translate_titles
-
-    def to_english(texts: list[str]) -> list[str]:
-        return translate_titles(texts, "en", kind="facts_src", max_chars=facts_watch.FACT_CHARS)
 
     try:
-        result = facts_watch.refresh(db_path, to_english if english else None)
+        result = facts_watch.refresh(db_path)
     except Exception:
         log.exception("Comparing figures failed")
         return None

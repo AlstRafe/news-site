@@ -196,6 +196,74 @@ def facts_in(text: str) -> list[Fact]:
     return found
 
 
+# ---- counts read in Korean and Chinese directly (D-65) -------------------------------------------
+# Counts of people are written in a few fixed ways ("최소 53명이 숨졌다", "至少53人死亡",
+# "4軍人罹難"), so they are read from the original text: no translation, no MT drift in numbers.
+
+_KO_KIND = (("dead", ("사망", "숨지", "숨졌", "숨진", "죽", "목숨", "희생")), ("injured", ("부상", "다치", "다쳤", "중상", "경상")),
+            ("missing", ("실종",)), ("detained", ("체포", "구금", "연행", "구속")), ("displaced", ("대피", "이재민", "피란")))
+_ZH_KIND = (("dead", ("死亡", "罹難", "喪生", "身亡", "遇難", "死", "殞命")), ("injured", ("受傷", "輕重傷", "重傷", "輕傷", "傷")),
+            ("missing", ("失蹤", "下落不明")), ("detained", ("被捕", "逮捕", "拘留", "拘捕", "羈押")),
+            ("displaced", ("撤離", "疏散", "流離失所")))
+_ZH_DIGITS = {"一": 1, "兩": 2, "二": 2, "三": 3, "四": 4, "五": 5, "六": 6, "七": 7, "八": 8, "九": 9, "十": 10}
+_KO_COUNT = re.compile(r"(?P<pre>최소|적어도|약)?\s*(?P<num>\d[\d,]*)\s*(?P<unit>만|천)?\s*(?P<about>여)?\s*명"
+                       r"(?:\s*(?P<post>이상|넘게|넘는|가량|안팎|이))?")
+_KO_VAGUE = re.compile(r"(?P<word>수십|수백|수천)\s*명")
+_ZH_COUNT = re.compile(r"(?P<pre>至少|最少|逾|超過|超|約|近)?\s*(?P<num>\d[\d,]*|[一兩二三四五六七八九十])\s*(?P<unit>萬|千)?"
+                       r"\s*(?P<about>多|餘)?\s*(?P<who>名|人|位)?")
+_ZH_VAGUE = re.compile(r"(?P<word>數十|數百|數千|上百|上千)\s*(?:名|人)")
+_NATIVE_SENTENCE = re.compile(r"(?<=[.!?。！？])\s*")
+
+
+def _native_kind(text: str, table) -> str:
+    for kind, words in table:
+        if any(word in text for word in words):
+            return kind
+    return ""
+
+
+def native_facts(text: str, lang: str) -> list[Fact]:
+    """Counts of people (COMPARED kinds) in Korean ("ko") or Chinese ("zh") text."""
+    if lang not in ("ko", "zh"):
+        return []
+    table = _KO_KIND if lang == "ko" else _ZH_KIND
+    found: list[Fact] = []
+    for sentence in (s.strip() for s in _NATIVE_SENTENCE.split(text) if s.strip()):
+        pattern = _KO_COUNT if lang == "ko" else _ZH_COUNT
+        for match in pattern.finditer(sentence):
+            raw = match.group("num")
+            if lang == "zh" and not raw[0].isdigit() and (not match.group("who") or sentence[max(0, match.start("num") - 1):match.start("num")] in ("數", "幾", "上", "第")):
+                continue  # a lone 一/三… is a word; 數十人 is "dozens", read below
+            after = sentence[match.end():match.end() + (12 if lang == "ko" else 6)]
+            before = sentence[max(0, match.start() - 8):match.start()]
+            if lang == "zh":
+                if re.match(r"\s*(?:年|月|日|時|點|分|歲|%|％|公里|公尺|億|元|美元)", sentence[match.end("num"):match.end("num") + 3]):
+                    continue
+                # "4軍人罹難": up to three characters between the count and what happened
+                kind = _native_kind(after[:6], table) if match.group("who") else _native_kind(after[:5], table)
+            else:
+                kind = _native_kind(after, table)
+            kind = kind or _native_kind(before.replace("사망자", "사망").replace("死者", "死亡"), table)
+            if not kind:
+                continue
+            value = float(raw.replace(",", "")) if raw[0].isdigit() else float(_ZH_DIGITS[raw])
+            value *= {"만": 1e4, "천": 1e3, "萬": 1e4, "千": 1e3}.get(match.group("unit") or "", 1)
+            pre, post, about = match.group("pre") or "", (match.groupdict().get("post") or ""), match.group("about")
+            qualifier = ("少なくとも" if pre in ("최소", "적어도", "至少", "最少") else
+                         "超" if pre in ("逾", "超過", "超") or post in ("이상", "넘게", "넘는") else
+                         "約" if pre in ("약", "約") or post in ("가량", "안팎") or about in ("여", "多", "餘") else
+                         "近く" if pre == "近" else "")
+            found.append(Fact(kind, value, _with_qualifier(_format(value) + "人", qualifier), raw, sentence))
+        vague = _KO_VAGUE if lang == "ko" else _ZH_VAGUE
+        for match in vague.finditer(sentence):
+            kind = _native_kind(sentence[match.end():match.end() + 8], table)
+            if kind:
+                label = {"수십": "数十", "수백": "数百", "수천": "数千", "數十": "数十", "數百": "数百", "數千": "数千",
+                         "上百": "百", "上千": "千"}[match.group("word")]
+                found.append(Fact(kind, None, f"{label}人", match.group("word"), sentence))
+    return found
+
+
 def compare(members: list[dict]) -> list[dict]:
     """Group the facts of several articles by kind. ``members``: dicts with id, source, published,
     and ``english`` (headline + opening in English). Returns, in ORDER:
@@ -204,7 +272,11 @@ def compare(members: list[dict]) -> list[dict]:
     per_kind: dict[str, dict[int, dict]] = {}
     for member in members:
         seen: set[tuple[str, str]] = set()
-        for fact in facts_in(member.get("english", "")):
+        found = facts_in(member.get("english", ""))
+        if member.get("native"):  # counts of people from the outlet's own Korean/Chinese text (D-65)
+            native = native_facts(member["native"], member.get("lang", ""))
+            found = native + [fact for fact in found if fact.kind not in COMPARED]
+        for fact in found:
             key = (fact.kind, fact.text)
             if key in seen:
                 continue
@@ -213,7 +285,7 @@ def compare(members: list[dict]) -> list[dict]:
                 "id": member["id"], "source": member.get("source") or "", "published": member.get("published", ""),
                 "facts": []})
             row["facts"].append({"text": fact.text, "value": fact.value, "number": fact.number,
-                                 "sentence": fact.sentence})
+                                 "sentence": fact.sentence, "native": bool(member.get("native")) and fact.kind in COMPARED})
     out = []
     for kind in ORDER:
         rows = list(per_kind.get(kind, {}).values())

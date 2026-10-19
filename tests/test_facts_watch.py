@@ -76,10 +76,10 @@ class FactsWatchTests(unittest.TestCase):
         self.assertEqual(facts_watch.refresh(self.db, self.to_english)["compared"], 0)  # nothing new
         self.assertEqual(len(self.translated), calls)
 
-    def test_daily_budget_and_no_key(self):
-        self.assertEqual(facts_watch.refresh(self.db, None)["skipped_budget"], 2)  # both groups need a translation
-        result = facts_watch.refresh(self.db, self.to_english, daily_chars=20)
-        self.assertEqual((result["compared"], result["skipped_budget"]), (1, 1))
+    def test_nothing_is_translated(self):
+        result = facts_watch.refresh(self.db)  # Korean and Chinese counts are read as written
+        self.assertEqual((result["compared"], result["differs"]), (2, 1))
+        self.assertEqual(self.translated, [])
 
     def test_a_regrouped_story_is_not_listed_with_an_old_summary(self):
         facts_watch.refresh(self.db, self.to_english)

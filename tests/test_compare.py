@@ -64,6 +64,38 @@ class FactExtractionTests(unittest.TestCase):
         self.assertEqual(compare.compare(members), [])
 
 
+class NativeCountTests(unittest.TestCase):
+    """D-65: counts of people read in Korean and Chinese without translation."""
+
+    def native(self, text, lang):
+        return [(f.kind, f.text) for f in compare.native_facts(text, lang)]
+
+    def test_korean(self):
+        self.assertEqual(self.native("이날 공격으로 최소 20명이 사망했으며 24명 이상의 부상자도 발생했다.", "ko"),
+                         [("dead", "少なくとも 20人"), ("injured", "24人超")])
+        self.assertEqual(self.native("50명 이상이 죽고 200여명이 부상하는 등 피해가 발생했다.", "ko"),
+                         [("dead", "50人超"), ("injured", "約 200人")])
+        self.assertEqual(self.native("아이티 갱단, 유엔지원군 공격…4명 실종", "ko"), [("missing", "4人")])
+        self.assertEqual(self.native("수십 명이 다쳤다.", "ko"), [("injured", "数十人")])
+        self.assertEqual(self.native("2026년 10월 19일 3명이 회의에 참석했다.", "ko"), [])
+
+    def test_chinese(self):
+        self.assertEqual(self.native("總理：已知4軍人罹難數十人重傷", "zh"), [("dead", "4人"), ("injured", "数十人")])
+        self.assertEqual(self.native("至少53人死亡，逾200人受傷。", "zh"), [("dead", "少なくとも 53人"), ("injured", "200人超")])
+        self.assertEqual(self.native("火災造成3人死亡、10多人受傷。", "zh"), [("dead", "3人"), ("injured", "約 10人")])
+        self.assertEqual(self.native("兩人遭逮捕", "zh"), [("detained", "2人")])
+        self.assertEqual(self.native("有5000人參加示威。這是1名男子的故事。", "zh"), [])
+        self.assertEqual(self.native("anything", "en"), [])
+
+    def test_native_counts_replace_translated_ones(self):
+        members = [{"id": 1, "source": "BBC", "published": "1", "english": "50 people were killed."},
+                   {"id": 2, "source": "Yonhap", "lang": "ko", "published": "2", "english": "At least 5 people died.",
+                    "native": "최소 53명이 숨졌다."}]
+        dead = compare.compare(members)[0]
+        self.assertEqual([f["text"] for row in dead["rows"] for f in row["facts"]], ["50人", "少なくとも 53人"])
+        self.assertTrue(dead["rows"][1]["facts"][0]["native"])
+
+
 class FramingTests(unittest.TestCase):
     def test_words_only_one_outlet_uses_and_shared_ones(self):
         members = [

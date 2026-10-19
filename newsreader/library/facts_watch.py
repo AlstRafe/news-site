@@ -23,9 +23,6 @@ TranslateEn = Callable[[list[str]], list[str]]
 FACT_PARAGRAPHS = 3
 FACT_CHARS = 1_000
 MAX_MEMBERS = 12
-#: Background budget for translating openings to English, per local day (the group page's own
-#: button is not counted: the reader asked for it).
-DAILY_CHARS = 15_000
 RECENT_HOURS = 48
 #: Only groups whose every member is this close to the rest (stories_core mean similarity) are
 #: put on the home page: a loosely chained group can mix two events and show a false disagreement.
@@ -94,41 +91,38 @@ def store(db_path: Path, key: str, members: list[dict], categories: list[dict]) 
                             json.dumps(found, ensure_ascii=False), datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")))])
 
 
-def _today() -> str:
-    return time.strftime("%Y-%m-%d")
+def native_texts(db_path: Path, members: list[dict]) -> dict[int, str]:
+    """{id: own headline + opening} for Korean and Chinese articles: their counts of people are
+    read in the original (compare.native_facts), without translation."""
+    return {m["id"]: f"{opening(index.get_content(db_path, m['id']))}\n{m['title']}"
+            for m in members if m.get("lang") in ("ko", "zh")}
 
 
-def refresh(db_path: Path, translate_en: TranslateEn | None, *, daily_chars: int = DAILY_CHARS,
-            now: datetime | None = None) -> dict:
-    """Compare the figures of recent multi-outlet groups not compared yet (or whose members
-    changed). Without ``translate_en`` only groups whose articles are all English are done."""
+def refresh(db_path: Path, translate_en: TranslateEn | None = None, *, now: datetime | None = None) -> dict:
+    """Compare the counts of people in recent multi-outlet groups not compared yet (or whose
+    members changed). Nothing is translated: English articles are read as they are, Korean
+    and Chinese ones in their own language (D-65). ``translate_en`` is not used any more."""
     now = now or datetime.now(timezone.utc)
     since = (now - timedelta(hours=RECENT_HOURS)).strftime("%Y-%m-%dT%H:%M:%SZ")
     groups = stories.list_stories(db_path, scope="multi", per_page=MAX_GROUPS_PER_RUN)["stories"]
     with closing(index.connect(db_path)) as db:
         done = {row[0]: row[1] for row in db.execute("SELECT story_key, members FROM story_facts")}
-        used = (db.execute("SELECT chars FROM facts_usage WHERE day = ?", (_today(),)).fetchone() or (0,))[0]
-    result = {"compared": 0, "differs": 0, "skipped_budget": 0, "chars": 0}
+    result = {"compared": 0, "differs": 0}
     for group in groups:
         if (group["newest"] or "") < since:
             continue
         members = newest_members(group)
         if done.get(group["key"]) == _signature(members):
             continue
-        foreign_chars = sum(len(opening(index.get_content(db_path, m["id"])))
-                            for m in members if m.get("lang") != "en" and m.get("pivot"))
-        if foreign_chars and (translate_en is None or used + foreign_chars > daily_chars):
-            result["skipped_budget"] += 1
-            continue
-        english, _ = english_of(db_path, members, translate_en or (lambda texts: []))
-        categories = compare.compare([dict(m, english=english[m["id"]]) for m in members if m["id"] in english])
+        native = native_texts(db_path, members)
+        texts = []
+        for member in members:
+            if member["id"] in native:
+                texts.append(dict(member, native=native[member["id"]]))
+            elif member.get("lang") == "en":
+                texts.append(dict(member, english=f"{opening(index.get_content(db_path, member['id']))}\n{member['title']}"))
+        categories = compare.compare(texts)
         store(db_path, group["key"], members, categories)
-        if foreign_chars:
-            used += foreign_chars
-            result["chars"] += foreign_chars
-            with closing(index.connect(db_path)) as db:
-                index._write(db, [("INSERT INTO facts_usage(day, chars) VALUES(?, ?) "
-                                   "ON CONFLICT(day) DO UPDATE SET chars = excluded.chars", (_today(), used))])
         result["compared"] += 1
         result["differs"] += int(any(c["differs"] for c in categories if c["compared"]))
     return result
