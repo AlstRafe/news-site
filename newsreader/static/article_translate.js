@@ -577,6 +577,7 @@
     biTarget = "";
     biButton.textContent = "対訳で読む";
     biButton.setAttribute("aria-pressed", "false");
+    syncFloat();
   }
 
   targetSelect.addEventListener("change", () => {
@@ -588,10 +589,12 @@
     else status.textContent = "翻訳先を変えたため対訳を閉じました。";
   });
 
-  biButton.addEventListener("click", async () => {
-    if (biTarget) { clearBilingual(); status.textContent = ""; return; }
+  biButton.addEventListener("click", toggleBilingual);
+  async function toggleBilingual() {
+    if (biTarget) { clearBilingual(); status.textContent = ""; syncFloat(); return; }
     const target = targetSelect.value;
     biButton.disabled = true;
+    syncFloat();
     status.textContent = "対訳を作成しています…";
     try {
       const { ok, payload } = await postJson("/api/translate-paragraphs", { id: articleId, target });
@@ -620,8 +623,37 @@
       status.textContent = error.message || "翻訳に失敗しました。";
     } finally {
       biButton.disabled = false;
+      syncFloat();
     }
-  });
+  }
+
+  // Once the translation bar has scrolled away, a small floating button turns the 対訳 view on
+  // or off from anywhere in the article, and keeps the paragraph being read where it was
+  // (translations are inserted above it, which would otherwise push it down the screen).
+  const biFloat = document.getElementById("bi-float");
+  function syncFloat() {
+    if (!biFloat) return;
+    biFloat.disabled = biButton.disabled;
+    biFloat.textContent = biButton.disabled ? "訳しています…" : biTarget ? "訳を隠す" : "対訳";
+    biFloat.setAttribute("aria-pressed", biTarget ? "true" : "false");
+    biFloat.title = biButton.disabled ? "" : (biTarget ? "対訳を閉じる" : "この記事を対訳で表示") + (status.textContent ? `（${status.textContent}）` : "");
+  }
+  if (biFloat && "IntersectionObserver" in window) {
+    const controls = document.getElementById("translation-controls");
+    let barVisible = true;
+    let textVisible = false;
+    const update = () => { biFloat.hidden = barVisible || !textVisible; };
+    new IntersectionObserver(entries => { barVisible = entries[0].isIntersecting; update(); }).observe(controls);
+    new IntersectionObserver(entries => { textVisible = entries[0].isIntersecting; update(); }).observe(reader);
+    biFloat.addEventListener("click", async () => {
+      const anchorParagraph = [...reader.querySelectorAll(":scope > p:not(.bi-tr)")]
+        .find(p => p.getBoundingClientRect().bottom > 80);
+      const before = anchorParagraph?.getBoundingClientRect().top ?? 0;
+      await toggleBilingual();
+      if (anchorParagraph?.isConnected) window.scrollBy(0, anchorParagraph.getBoundingClientRect().top - before);
+    });
+    syncFloat();
+  }
 
   // Remembered per device: open every article directly in the side-by-side view.
   const BI_AUTO_KEY = "news-html-reader-bilingual-auto";

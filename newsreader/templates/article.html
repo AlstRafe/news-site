@@ -25,6 +25,7 @@
 {% if article.images|length > 1 %}<section class="more-images" aria-labelledby="images-head"><h2 id="images-head">この記事の画像 <span>{{ article.images|length - 1 }}</span></h2>
 <div class="article-images">{% for image in article.images[1:] %}<figure><img src="{{ image.url }}" alt="{{ image.alt }}" loading="lazy" decoding="async">{% if image.alt %}<figcaption>{{ image.alt }}</figcaption>{% endif %}</figure>{% endfor %}</div></section>{% endif %}
 <div class="selection-toolbar" id="selection-toolbar" hidden><button id="translate-selection" type="button">選択範囲を翻訳</button></div>
+<button type="button" class="bi-float" id="bi-float" aria-pressed="false" hidden>対訳</button>
 <aside class="selection-result" id="selection-result" role="dialog" aria-label="翻訳" hidden>
 <div class="sheet-grip" aria-hidden="true"></div>
 <div class="tr-head"><p class="selected-original" id="selected-original"></p>
