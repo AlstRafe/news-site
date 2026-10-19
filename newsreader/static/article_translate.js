@@ -578,11 +578,29 @@
     biButton.textContent = "対訳で読む";
     biButton.setAttribute("aria-pressed", "false");
     syncFloat();
+    showTitleGloss();
+  }
+
+  // With the list's "見出しを訳す" on (per device), the headline here is translated too, from the
+  // same per-headline cache as the list (coming from the list costs nothing more).
+  async function showTitleGloss() {
+    let on = false;
+    try { on = localStorage.getItem("news-html-reader-list-gloss") === "1"; } catch (_) { on = false; }
+    if (!on || biTarget || !articleId) return;
+    const target = targetSelect.value;
+    try {
+      const { ok, payload } = await postJson("/api/translate-titles", { ids: [articleId], target });
+      const text = ok && payload.translations ? payload.translations[String(articleId)] : "";
+      if (!text || biTarget || target !== targetSelect.value) return;
+      biTitle.textContent = text;
+      biTitle.lang = langTags[target] || "";
+      biTitle.hidden = false;
+    } catch (_) { /* the headline stays untranslated */ }
   }
 
   targetSelect.addEventListener("change", () => {
     reader.querySelectorAll(".bi-one").forEach(node => node.remove()); // single paragraphs, old language
-    if (!biTarget) return;
+    if (!biTarget) { showTitleGloss(); return; }
     clearBilingual();
     // With "open in 対訳" on, follow the new language instead of just closing.
     if (document.getElementById("bi-auto")?.checked) biButton.click();
@@ -654,6 +672,8 @@
     });
     syncFloat();
   }
+
+  showTitleGloss();
 
   // Remembered per device: open every article directly in the side-by-side view.
   const BI_AUTO_KEY = "news-html-reader-bilingual-auto";
