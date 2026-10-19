@@ -142,6 +142,7 @@ class FactsWatchTests(unittest.TestCase):
         self.assertIn('<span class="lag first">最初</span>', page)
         self.assertIn("死者の数字が違う", page)
         self.assertEqual(client.get("/digest?hours=x", headers=H).status_code, 200)
+        self.assertNotIn("よく出た名前", page)  # no name in two headlines here
 
     def test_summary_keeps_compared_counts_only(self):
         facts_watch.refresh(self.db, self.to_english)

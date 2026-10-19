@@ -438,3 +438,98 @@ def quote_groups(members: list[dict], limit: int = 8) -> list[dict]:
         out.append({"outlets": len({q["source"] for q in group}), "quotes": group})
     out.sort(key=lambda g: (-g["outlets"], -len(g["quotes"])))
     return out[:limit]
+
+
+# ---- names -------------------------------------------------------------------------------------
+
+_NAME_WORD = r"(?:[A-Z][a-z]+(?:[A-Z][A-Za-z]*)?(?:-[a-z]+)?|[A-Z]{2,}[a-z]*)"  # Zelensky, OpenAI, Jae-myung, NATO
+#: "Iran-backed", "Saudi-led": the tail is no part of the name.
+_ADJECTIVE_TAIL = re.compile(r"-(?:backed|led|based|made|born|owned|run|funded|linked|style|era|related|wide|bound|"
+                             r"controlled|allied|occupied|held|affiliated|aligned|friendly|majority|speaking)$")
+_NAME = re.compile(rf"(?<![A-Za-z'’])({_NAME_WORD}(?:[ -]{_NAME_WORD}){{0,2}})")
+_NOT_NAMES = frozenset(
+    "The A An In On At For To Of And But Or As By With From After Before Over Under Into Amid Why How What Who When "
+    "Where Which This That These Those It Its He She They We I You His Her Their Our My Your Is Are Was Were Be Will "
+    "Would Could Can May Might Has Have Had Not No New More Most First Last Says Said Live Watch Photos Video Analysis "
+    "Ex Former Ex-PM Mr Mrs Ms Dr President Prime Minister PM "
+    "Monday Tuesday Wednesday Thursday Friday Saturday Sunday January February March April May June July August "
+    "September October November December BBC Yonhap CNA AP AFP Reuters".split())
+
+
+def names_in(pivot: str, with_initial: bool = False) -> list[str]:
+    """Names in an English headline: runs of capitalised words ("Kim Jong Un", "Zelensky",
+    "Lee Jae-myung", "OpenAI"), possessive dropped; "Iran-backed" gives Iran, "US-Japan" two names.
+    A single capitalised first word is left out unless ``with_initial`` ("Missile strike…")."""
+    found: list[str] = []
+
+    def add(words: list[str]) -> None:
+        words = [w for w in words if w not in _NOT_NAMES]
+        name = re.sub(r"['’]s$", "", " ".join(words))
+        if len(name) >= 3 and name not in found and name.lower() not in _STOP:
+            found.append(name)
+
+    for match in _NAME.finditer(pivot):
+        if match.start() == 0 and " " not in match.group(1) and "-" not in match.group(1) \
+                and match.group(1)[1:].islower() and not with_initial:
+            continue  # "Missile strike…": capitalised because it starts the headline
+        current: list[str] = []
+        for token in match.group(1).split(" "):
+            parts = re.split(r"-(?=[A-Z])", token)  # "US-Japan": two names
+            for index, part in enumerate(parts):
+                if index:
+                    add(current)
+                    current = []
+                stripped = _ADJECTIVE_TAIL.sub("", part)
+                current.append(stripped)
+                if stripped != part:  # "Iran-backed Houthis": the name ends at the adjective
+                    add(current)
+                    current = []
+        add(current)
+    return found
+
+
+def _name_key(name: str) -> str:
+    """"Ukrainian" counts as "Ukraine", "Houthis" as "Houthi"."""
+    lowered = _CANON.get(name.lower(), name.lower())
+    return lowered[:-1] if lowered.endswith("s") and len(lowered) > 4 and " " not in lowered else lowered
+
+
+def top_names(items: list[dict], limit: int = 15) -> list[dict]:
+    """The names the most outlets and headlines mention: [{"name", "articles", "outlets": [...]}];
+    ``items`` have "pivot" (English headline) and "source". "Houthis" counts as "Houthi"."""
+    counts: dict[str, dict] = {}
+    # A headline's first word counts only if some headline has it as a name mid-sentence.
+    # Headlines In Title Case capitalise every word: their names count only if known from others.
+    from newsreader.library.stories_core import is_title_case
+    known = {_name_key(name) for item in items if not is_title_case(item.get("pivot") or "")
+             for name in names_in(item.get("pivot") or "")}
+    for item in items:
+        seen: set[str] = set()
+        pivot = item.get("pivot") or ""
+        titled = is_title_case(pivot)
+        for name in names_in(pivot, with_initial=True):
+            if (titled or name not in names_in(pivot)) and _name_key(name) not in known:
+                continue
+            key = _name_key(name)
+            if key in seen:
+                continue
+            seen.add(key)
+            entry = counts.setdefault(key, {"forms": {}, "articles": 0, "outlets": set()})
+            entry["forms"][name] = entry["forms"].get(name, 0) + 1
+            entry["articles"] += 1
+            entry["outlets"].add(item.get("source") or "")
+    ranked = sorted(counts.values(), key=lambda e: (-len(e["outlets"]), -e["articles"]))
+    out: list[dict] = []
+    for entry in ranked:
+        if entry["articles"] < 2:
+            continue
+        canonical = [form for form in entry["forms"] if _CANON.get(form.lower(), form.lower()) == form.lower()]
+        forms = {form: n for form, n in entry["forms"].items() if form in canonical} or entry["forms"]
+        name = max(forms.items(), key=lambda kv: (kv[1], -len(kv[0])))[0]
+        # a part of a longer name already listed ("Jong Un" in "Kim Jong Un") is left out
+        if any(f" {name} " in f" {other['name']} " for other in out):
+            continue
+        out.append({"name": name, "articles": entry["articles"], "outlets": sorted(entry["outlets"])})
+        if len(out) >= limit:
+            break
+    return out

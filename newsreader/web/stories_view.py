@@ -107,7 +107,14 @@ def digest_page():
     groups.sort(key=lambda g: g["newest"] or "", reverse=True)
     groups.sort(key=lambda g: (-len(g["firsts"]), not g["disputes"]))  # stable: newest first within
     stats = outlets.stats(db_path(), days=max(1, hours // 24))
-    response = current_app.make_response(render_template("digest.html", groups=groups, stats=stats, hours=hours))
+    from contextlib import closing
+    from newsreader.library import compare, index
+    with closing(index.connect(db_path())) as db:
+        headlines = [{"pivot": pivot, "source": source} for pivot, source in db.execute(
+            "SELECT s.pivot, a.source FROM articles a JOIN story_items s ON s.article_id = a.id "
+            "WHERE a.error = '' AND s.pivot IS NOT NULL AND a.published >= ?", (since,))]
+    response = current_app.make_response(render_template("digest.html", groups=groups, stats=stats, hours=hours,
+                                                         names=compare.top_names(headlines)))
     response.headers["Cache-Control"] = "no-cache"
     return response
 

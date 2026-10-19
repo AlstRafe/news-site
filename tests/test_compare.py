@@ -102,6 +102,30 @@ class NativeCountTests(unittest.TestCase):
         self.assertTrue(dead["rows"][1]["facts"][0]["native"])
 
 
+class NameTests(unittest.TestCase):
+    def test_names_in_headlines(self):
+        self.assertEqual(compare.names_in("Yemen's Iran-backed Houthis fire missile"), ["Iran", "Houthis"])
+        self.assertEqual(compare.names_in("Yemen's Iran-backed Houthis fire missile", with_initial=True), ["Yemen", "Iran", "Houthis"])
+        self.assertEqual(compare.names_in("President Lee Jae-myung meets Prime Minister Takaichi"), ["Lee Jae-myung", "Takaichi"])
+        self.assertEqual(compare.names_in("Ex-OpenAI worker had Saudi links"), ["OpenAI", "Saudi"])
+        self.assertEqual(compare.names_in("Trump on whether he will meet Kim Jong Un"), ["Kim Jong Un"])
+        self.assertEqual(compare.names_in("The Louvre is blockaded in Paris on Monday"), ["Louvre", "Paris"])
+
+    def test_top_names_merge_forms_and_need_two_headlines(self):
+        items = [{"pivot": "Ukrainian drones hit Russia", "source": "BBC"}, {"pivot": "Talks with Ukraine stall", "source": "CNA"},
+                 {"pivot": "Yemen's Houthis fire missile", "source": "Yonhap"}, {"pivot": "Houthi strike kills 50", "source": "BBC"},
+                 {"pivot": "Ultimately Driven By Houthi Offensive Saudi Postpones Event", "source": "Yonhap"},
+                 {"pivot": "Lone Name here", "source": "BBC"}]
+        found = {e["name"]: e for e in compare.top_names(items)}
+        self.assertEqual(found["Ukraine"]["articles"], 2)
+        self.assertEqual(found["Ukraine"]["outlets"], ["BBC", "CNA"])
+        self.assertIn("Houthi", found)
+        self.assertNotIn("Russia", found)  # one headline only
+        self.assertNotIn("Talks", found)  # a first word, never a name mid-sentence
+        self.assertEqual(found["Houthi"]["articles"], 2)  # a first word known as a name elsewhere (Title Case runs are not)
+        self.assertNotIn("Ultimately Driven", found)
+
+
 class FramingTests(unittest.TestCase):
     def test_words_only_one_outlet_uses_and_shared_ones(self):
         members = [
