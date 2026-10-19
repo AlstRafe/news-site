@@ -65,6 +65,17 @@ def issue_token(name: str, daily_chars: int = DEFAULT_DAILY_CHARS) -> str:
     return token
 
 
+def revoke(prefix: str) -> bool:
+    """Revoke the one token whose digest starts with ``prefix`` (16 hex characters)."""
+    if len(prefix) != 16 or any(c not in "0123456789abcdef" for c in prefix):
+        return False
+    kept = [t for t in tokens() if not t["hash"].startswith(prefix)]
+    if len(kept) == len(tokens()):
+        return False
+    _write_merged({"relay_tokens": kept})
+    return True
+
+
 def revoke_all() -> int:
     count = len(tokens())
     _write_merged({"relay_tokens": []})
@@ -115,15 +126,26 @@ def usage_today() -> dict[str, int]:
 
 # ---- client ------------------------------------------------------------------------
 
+def _token() -> str:
+    """The relay token: from the credential store, else (store unusable) the one shipped in preset/."""
+    from newsreader.services.preset import shipped_token
+    from newsreader.services.settings import SecretStoreError
+    try:
+        token = get_secret("relay_token") or ""
+    except SecretStoreError:
+        token = ""
+    return token or shipped_token()
+
+
 def client_configured() -> bool:
     settings = get_settings()
-    return settings.get("translation_source") == "relay" and bool(settings.get("relay_url")) and bool(get_secret("relay_token"))
+    return settings.get("translation_source") == "relay" and bool(settings.get("relay_url")) and bool(_token())
 
 
 def _post(path: str, body: dict) -> dict:
     settings = get_settings()
     base = str(settings.get("relay_url", "")).rstrip("/")
-    token = get_secret("relay_token") or ""
+    token = _token()
     if not base or not token:
         raise RelayError("翻訳の中継先が設定されていません。設定画面を確認してください。")
     request = urllib.request.Request(

@@ -27,7 +27,8 @@
 </section>
 {% if settings.translation_source != "relay" %}<section class="panel settings-panel" id="relay-server"><h2>テスト版への翻訳の中継</h2>
 <p>ほかの PC で動くテスト版の NewsBridge に、このPCの翻訳キーで翻訳を提供します。テスト版には合言葉を渡します（合言葉は発行時に一度だけ表示し、このPCには照合用の値だけを保存します）。1つの合言葉で1日に翻訳できる量に上限があります。</p>
-<p class="hint">発行済み: {{ relay_tokens|length }} 件{% if relay_tokens %}（{% for t in relay_tokens %}{{ t.name }} · 1日 {{ "{:,}".format(t.daily_chars) }} 文字{% if relay_usage.get(t.hash[:16]) %} · 今日 {{ "{:,}".format(relay_usage.get(t.hash[:16])) }} 文字{% endif %}{% if not loop.last %} / {% endif %}{% endfor %}）{% endif %}</p>
+<p class="hint">発行済み: {{ relay_tokens|length }} 件</p>
+{% if relay_tokens %}<ul class="token-list">{% for t in relay_tokens %}<li><span>{{ t.name }}<small>{% if t.created %}発行 {{ t.created }} · {% endif %}1日 {{ "{:,}".format(t.daily_chars) }} 文字 · 今日 {{ "{:,}".format(relay_usage.get(t.hash[:16], 0)) }} 文字</small></span><button type="submit" name="action" value="revoke_token:{{ t.hash[:16] }}" class="secondary">無効にする</button></li>{% endfor %}</ul>{% endif %}
 {% if issued_token %}<div class="success" role="status"><strong>新しい合言葉（この画面を閉じると二度と表示されません）:</strong><br><code class="token">{{ issued_token }}</code></div>{% endif %}
 <div class="button-row"><button type="submit" name="action" value="issue_relay_token" class="secondary">合言葉を発行</button>{% if relay_tokens %}<button type="submit" name="action" value="revoke_relay_tokens" class="secondary">すべて無効にする</button>{% endif %}</div>
 </section>{% endif %}

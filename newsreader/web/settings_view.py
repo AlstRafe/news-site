@@ -39,9 +39,12 @@ def translation_settings():
     error = ""
     issued_token = ""
     action = request.form.get("action", "") if request.method == "POST" else ""
-    if action in ("issue_relay_token", "revoke_relay_tokens"):  # CSRF already verified centrally
+    if action in ("issue_relay_token", "revoke_relay_tokens") or action.startswith("revoke_token:"):  # CSRF verified centrally
         from newsreader.services import relay
-        if action == "issue_relay_token":
+        if action.startswith("revoke_token:"):
+            message = "合言葉を無効にしました。" if relay.revoke(action.split(":", 1)[1]) else ""
+            error = "" if message else "その合言葉は見つかりませんでした。"
+        elif action == "issue_relay_token":
             issued_token = relay.issue_token("テスト版")
             message = "合言葉を発行しました。テスト版の設定画面（または配布物）に入れてください。"
         else:

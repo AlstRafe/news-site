@@ -97,6 +97,12 @@ class ServerTests(RelayTestCase):
         html = page.get_data(as_text=True)
         self.assertIn('<code class="token">nbr_', html)
         self.assertNotIn('<code class="token">', self.client.get("/translation-settings", headers=H).get_data(as_text=True))
+        relay.issue_token("二本目")
+        first = relay.tokens()[0]["hash"][:16]
+        self.assertIn(f'value="revoke_token:{first}"', self.client.get("/translation-settings", headers=H).get_data(as_text=True))
+        self.client.post("/translation-settings", headers=H, data={"csrf": csrf, "action": f"revoke_token:{first}"})
+        self.assertEqual([t["name"] for t in relay.tokens()], ["二本目"])
+        self.assertFalse(relay.revoke("zz"))
         self.client.post("/translation-settings", headers=H, data={"csrf": csrf, "action": "revoke_relay_tokens"})
         self.assertEqual(relay.tokens(), [])
 

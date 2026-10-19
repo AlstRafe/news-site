@@ -51,7 +51,8 @@ def active_provider() -> str:
 
 def provider_ready(provider: str | None = None) -> bool:
     if (provider or active_provider()) == "relay":
-        return bool(get_settings().get("relay_url")) and bool(get_secret("relay_token"))
+        from newsreader.services import relay
+        return relay.client_configured()
     return bool(get_secret("azure_api_key"))
 
 

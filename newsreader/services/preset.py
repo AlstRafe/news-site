@@ -7,9 +7,18 @@ from __future__ import annotations
 import logging
 
 from newsreader import paths
-from newsreader.services.settings import SecretStoreError, set_secret
+from newsreader.services.settings import SecretStoreError, get_secret, set_secret
 
 log = logging.getLogger(__name__)
+
+
+def shipped_token() -> str:
+    """The token still in preset/ (only when the credential store could not take it)."""
+    try:
+        token = paths.PRESET_TOKEN_PATH.read_text(encoding="utf-8").strip()
+    except OSError:
+        return ""
+    return token if token.startswith("nbr_") else ""
 
 
 def import_relay_token() -> bool:
@@ -23,6 +32,8 @@ def import_relay_token() -> bool:
         return False
     try:
         set_secret("relay_token", token)
+        if get_secret("relay_token") != token:  # a store that silently keeps nothing
+            raise SecretStoreError("not kept")
     except (SecretStoreError, ValueError) as exc:
         log.warning("Could not store the shipped relay token (%s); it stays in preset/ for the next start",
                     type(exc).__name__)

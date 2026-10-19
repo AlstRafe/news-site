@@ -156,6 +156,18 @@ class TokenImportTests(unittest.TestCase):
         self.assertEqual(settings.get_secret("relay_token"), "nbr_abc")
         self.assertFalse(self.token.exists())
 
+    def test_token_stays_when_the_store_keeps_nothing(self):
+        self.token.write_text("nbr_abc", encoding="utf-8")
+        with mock.patch.object(preset, "set_secret"), mock.patch.object(preset, "get_secret", return_value=None):
+            self.assertFalse(preset.import_relay_token())
+        self.assertTrue(self.token.exists())
+
+    def test_a_token_left_in_preset_is_still_used(self):
+        from newsreader.services import relay
+        self.token.write_text("nbr_left", encoding="utf-8")
+        with mock.patch.object(relay, "get_secret", side_effect=settings.SecretStoreError("x")):
+            self.assertEqual(relay._token(), "nbr_left")
+
     def test_token_stays_when_the_store_fails(self):
         self.token.write_text("nbr_abc", encoding="utf-8")
         with mock.patch.object(preset, "set_secret", side_effect=settings.SecretStoreError("x")):
