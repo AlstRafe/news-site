@@ -26,6 +26,9 @@ YONHAP = '''<html><head>
 <div class="comp-box photo-group"><figure class="image-zone01"><div class="img-con01"><span class="img">
 <img src="//img4.yna.co.kr/photo/yna/YH/2026/10/19/PYH2026101909510001300_P4.jpg" alt="개인종목 출전하는 황선우"></span></div></figure></div>
 <p> 관건은 체력이다. </p>
+<p>yunzhen@yna.co.kr</p>
+<p class="txt-copyright adrs"><a href="https://www.yna.co.kr/">제보는 카카오톡 okjebo</a> &lt;저작권자(c) 연합뉴스, 무단 전재-재배포 금지&gt; 2026/10/19 20:06 송고</p>
+<p>제보는 카카오톡 okjebo &lt;저작권자(c) 연합뉴스, 무단 전재-재배포, AI 학습 및 활용 금지&gt; 2026/10/19 20:06 송고 2026년10월19일 20시06분 송고</p>
 </div></article></body></html>'''.encode("utf-8")
 
 
@@ -39,7 +42,7 @@ class YonhapTests(unittest.TestCase):
             "황선우는 19일 자유형 200ｍ 결승에서 우승했다.",
             "그는 20일 2개 종목에 출전한다.",
             "관건은 체력이다.",
-        ])  # captions, reporter card and ad slots are not body text
+        ])  # captions, reporter card, ad slots, the reporter's e-mail and the copyright line are not body text
         self.assertEqual([image["src"] for image in article["images"]], [
             "https://img1.yna.co.kr/photo/yna/YH/2026/10/19/PYH2026101909630001300_P4.jpg",
             "https://img4.yna.co.kr/photo/yna/YH/2026/10/19/PYH2026101909510001300_P4.jpg",

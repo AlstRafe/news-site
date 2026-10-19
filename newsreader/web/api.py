@@ -135,7 +135,11 @@ def translate_article_paragraphs():
         translated = translate_paragraphs([article["title"], *article["paragraphs"]], target, limit=MAX_ARTICLE_CHARS)
     except TranslationError as exc:
         return jsonify({"error": str(exc)}), 503
-    return jsonify({"title": translated[0], "paragraphs": translated[1:]})
+    from newsreader.services import sentences
+    # Sentence lengths (UTF-16) so the page can pair each original sentence with its translation (D-57).
+    pairs = [sentences.spans(target, original.strip(), text) if text else None
+             for original, text in zip(article["paragraphs"], translated[1:])]
+    return jsonify({"title": translated[0], "paragraphs": translated[1:], "sentences": pairs})
 
 
 #: One list page (24 cards) plus room; more ids in one request are refused.

@@ -571,7 +571,51 @@
   const langTags = Object.fromEntries(Object.entries(targetMenu).map(([code, t]) => [code, t.tag]));
   let biTarget = "";
 
+  // Sentence pairs (D-57): with the sentence lengths the server sends, each original sentence and
+  // its translation become spans sharing data-pair; pointing at (or tapping) either lights both.
+  const sum = list => list.reduce((total, n) => total + n, 0);
+  function fitsSentences(node, lengths) {
+    return Array.isArray(lengths) && lengths.length > 1 && lengths.every(Number.isInteger)
+      && sum(lengths) === node.textContent.length;
+  }
+  function wrapSentences(node, lengths, prefix) {
+    const text = node.textContent;
+    const pieces = document.createDocumentFragment();
+    let at = 0;
+    lengths.forEach((n, k) => {
+      const span = document.createElement("span");
+      span.className = "sent";
+      span.dataset.pair = `${prefix}-${k}`;
+      span.textContent = text.slice(at, at + n);
+      at += n;
+      pieces.append(span);
+    });
+    node.replaceChildren(pieces);
+  }
+  function unwrapSentences() {
+    reader.querySelectorAll(":scope > p:not(.bi-tr)").forEach(node => {
+      if (node.querySelector(".sent")) node.textContent = node.textContent;
+    });
+    reader.classList.remove("paired");
+  }
+  let litPair = "";
+  function lightPair(pair) {
+    if ((pair || "") === litPair) return;
+    reader.querySelectorAll(".sent-on").forEach(node => node.classList.remove("sent-on"));
+    litPair = pair || "";
+    if (litPair) reader.querySelectorAll(`.sent[data-pair="${litPair}"]`).forEach(node => node.classList.add("sent-on"));
+  }
+  reader.addEventListener("pointerover", event => {
+    if (event.pointerType === "mouse" && reader.classList.contains("paired")) lightPair(event.target.closest?.(".sent")?.dataset.pair);
+  });
+  reader.addEventListener("pointerleave", event => { if (event.pointerType === "mouse") lightPair(""); });
+  reader.addEventListener("pointerdown", event => {
+    if (event.pointerType !== "mouse" && reader.classList.contains("paired")) lightPair(event.target.closest?.(".sent")?.dataset.pair);
+  });
+
   function clearBilingual() {
+    lightPair("");
+    unwrapSentences();
     reader.querySelectorAll(".bi-tr").forEach(node => node.remove());
     reader.classList.remove("bilingual");
     biTitle.hidden = true;
@@ -624,6 +668,8 @@
         throw new Error("段落の対応が取れませんでした。「全文を翻訳」をお試しください。");
       }
       reader.querySelectorAll(".bi-tr").forEach(node => node.remove()); // single-paragraph ones
+      unwrapSentences();
+      let paired = 0;
       originals.forEach((paragraph, index) => {
         const text = payload.paragraphs[index];
         if (!text) return;
@@ -632,13 +678,22 @@
         translated.lang = langTags[target] || "";
         translated.textContent = text;
         paragraph.after(translated);
+        const spans = payload.sentences?.[index];
+        if (spans && fitsSentences(paragraph, spans.src) && fitsSentences(translated, spans.tr)
+            && spans.src.length === spans.tr.length) {
+          wrapSentences(paragraph, spans.src, `p${index}`);
+          wrapSentences(translated, spans.tr, `p${index}`);
+          paired += 1;
+        }
       });
+      reader.classList.toggle("paired", paired > 0);
       if (payload.title) { biTitle.textContent = payload.title; biTitle.lang = langTags[target] || ""; biTitle.hidden = false; }
       reader.classList.add("bilingual");
       biTarget = target;
       biButton.textContent = "対訳を閉じる";
       biButton.setAttribute("aria-pressed", "true");
-      status.textContent = `${targetNames[target]}の対訳を表示しました。`;
+      status.textContent = `${targetNames[target]}の対訳を表示しました。` +
+        (reader.classList.contains("paired") ? "文にカーソルを合わせる（タップする）と、対応する訳文が光ります。" : "");
     } catch (error) {
       status.textContent = error.message || "翻訳に失敗しました。";
     } finally {

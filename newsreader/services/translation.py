@@ -141,7 +141,9 @@ def _translate_batch(provider: str, texts: list[str], target: str) -> list[str]:
         if not key:
             raise TranslationError("Azure Translatorのキーが未設定です。設定画面から登録してください。")
         region = get_settings().get("azure_region", "").strip()
-        query = urllib.parse.urlencode({"api-version": "3.0", "to": _codes(target)["azure"]})
+        # Sentence lengths cost nothing extra; kept for sentence-by-sentence pairing (sentences.py).
+        query = urllib.parse.urlencode({"api-version": "3.0", "to": _codes(target)["azure"],
+                                        "includeSentenceLength": "true"})
         body = json.dumps([{"Text": text} for text in texts], ensure_ascii=False).encode("utf-8")
         headers = {"Ocp-Apim-Subscription-Key": key, "Content-Type": "application/json; charset=utf-8"}
         if region:
@@ -154,11 +156,15 @@ def _translate_batch(provider: str, texts: list[str], target: str) -> list[str]:
         if not isinstance(payload, list) or len(payload) != len(texts):
             raise TranslationError("Azure Translatorから予期しない形式の応答がありました。")
         results = []
-        for item in payload:
+        from newsreader.services import sentences
+        for source, item in zip(texts, payload):
             translations = item.get("translations") if isinstance(item, dict) else None
             translated = translations[0].get("text") if isinstance(translations, list) and translations and isinstance(translations[0], dict) else None
             if not isinstance(translated, str):
                 raise TranslationError("Azure Translatorから予期しない形式の応答がありました。")
+            lengths = translations[0].get("sentLen")
+            if isinstance(lengths, dict):
+                sentences.remember(target, source, translated, lengths.get("srcSentLen"), lengths.get("transSentLen"))
             results.append(translated)
         estimated_chars = sum(len(text) for text in texts)
         raw_metered = response_headers.get("x-metered-usage", "").strip()

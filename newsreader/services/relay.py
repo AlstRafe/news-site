@@ -197,6 +197,12 @@ def _translate_batch(texts: list[str], target: str) -> list[str]:
     out = payload.get("translations")
     if not isinstance(out, list) or len(out) != len(texts) or not all(isinstance(t, str) for t in out):
         raise RelayError("中継先から予期しない応答がありました。")
+    lengths = payload.get("sentences")  # sentence lengths, from a 本体 that has them (D-57)
+    if isinstance(lengths, list) and len(lengths) == len(texts):
+        from newsreader.services import sentences
+        for source, translated, found in zip(texts, out, lengths):
+            if isinstance(found, dict):
+                sentences.remember(target, source, translated, found.get("src"), found.get("tr"))
     return out
 
 

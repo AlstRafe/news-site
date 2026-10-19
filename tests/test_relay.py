@@ -60,7 +60,8 @@ class ServerTests(RelayTestCase):
         self.assertEqual(self.post("/relay/v1/translate", {"texts": ["hello"], "target": "ja"}, "nbr_wrong").status_code, 401)
         reply = self.post("/relay/v1/translate", {"texts": ["hello", "world"], "target": "ja"}, token)
         self.assertEqual(reply.status_code, 200)
-        self.assertEqual(reply.get_json(), {"translations": ["[ja] hello", "[ja] world"]})
+        self.assertEqual(reply.get_json()["translations"], ["[ja] hello", "[ja] world"])
+        self.assertEqual(reply.get_json()["sentences"], [None, None])  # the fake provider reports no lengths
         # the same texts again come from the 本体's cache (no provider call) but still count
         self.post("/relay/v1/translate", {"texts": ["hello", "world"], "target": "ja"}, token)
         self.assertEqual(len(self.calls), 1)

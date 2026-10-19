@@ -27,7 +27,8 @@ SITES = (bbc, naver, cna, yonhap)
 #: in the background, so improved extraction reaches already-indexed articles
 #: without anyone deleting the index.
 #: 2 = images inside <template> are ignored (O-03).
-PARSER_VERSION = 2
+#: 3 = Yonhap: the reporter's e-mail and the closing copyright / tip-line are not body text.
+PARSER_VERSION = 3
 
 
 def detect(page: Page):

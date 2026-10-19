@@ -39,7 +39,8 @@ def create_app(library_root: Path | str | None = None, db_path: Path | str | Non
     """
     from newsreader.library import index
     from newsreader.library.files import validate_directory
-    from newsreader.web import api, assets, pages, security, settings_view, status_view, stories_view, relay_view
+    from newsreader.web import (api, assets, compare_view, pages, relay_view, security, settings_view, status_view,
+                                stories_view)
 
     app = Flask("newsreader", template_folder=str(paths.TEMPLATES_DIR), static_folder=None)
     root = Path(library_root).expanduser() if library_root else paths.articles_dir()
@@ -76,7 +77,7 @@ def create_app(library_root: Path | str | None = None, db_path: Path | str | Non
         menu = translation.target_menu(get_settings()["provider"])
         return {"translation_targets": menu, "translation_targets_json": json.dumps(menu, ensure_ascii=False)}
 
-    for module in (pages, api, settings_view, status_view, stories_view, relay_view):
+    for module in (pages, api, settings_view, status_view, stories_view, relay_view, compare_view):
         module.routes.register(app)
     pages.register_error_handlers(app)
 

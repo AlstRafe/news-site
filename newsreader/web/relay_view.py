@@ -55,7 +55,10 @@ def relay_translate():
         translated = translate_titles(texts, target, kind="relay", max_chars=relay.MAX_REQUEST_CHARS)
     except TranslationError:
         return jsonify({"error": "translation failed"}), 503
-    return jsonify({"translations": translated})
+    from newsreader.services import sentences
+    return jsonify({"translations": translated,
+                    "sentences": [sentences.reported(target, text.strip()[:relay.MAX_REQUEST_CHARS], out)
+                                  for text, out in zip(texts, translated)]})
 
 
 @routes.route("/relay/v1/dictionary", "relay_dictionary", methods=("POST",))
