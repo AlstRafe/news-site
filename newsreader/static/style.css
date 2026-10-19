@@ -503,3 +503,5 @@ h1 .story-gloss{font-size:clamp(16px,2.4vw,20px);font-weight:600;margin-top:6px;
 .story-tools #story-gloss-toggle{order:2;margin-left:auto;}
 .story-tools #translate-leads{order:3;}
 @media(max-width:650px){.story-tools #translate-leads{flex:1 1 100%;}}
+.bi-auto{display:flex;align-items:center;gap:8px;flex-basis:100%;margin:0;font-size:12px;font-weight:600;color:var(--fg-60636c);}
+.bi-auto input{flex:none;width:18px;height:18px;margin:0;}

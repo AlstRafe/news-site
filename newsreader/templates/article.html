@@ -13,6 +13,7 @@
 <select id="translation-target" aria-label="翻訳先"><option value="ja">日本語</option><option value="en-gb" {% if translation_provider == 'azure' %}disabled{% endif %}>English (UK){% if translation_provider == 'azure' %}（DeepL選択時のみ）{% endif %}</option><option value="ko">한국어</option><option value="zh-hant">繁體中文</option></select></div>
 <div class="tc-buttons"><button id="translate-bilingual" type="button" aria-pressed="false">対訳で読む</button>
 <button id="translate-whole" type="button" class="secondary">全文を翻訳</button></div>
+<label class="bi-auto"><input type="checkbox" id="bi-auto"> 記事を開いたら対訳で表示する</label>
 <span id="translation-status" role="status" aria-live="polite"></span>
 {% if translation_provider == 'azure' %}<p class="hint tc-note">English (UK) は翻訳サービスに DeepL を選んだときだけ使えます（Azure は地域別の英語を指定できません）。</p>{% endif %}
 </section>

@@ -490,7 +490,13 @@
     biButton.setAttribute("aria-pressed", "false");
   }
 
-  targetSelect.addEventListener("change", () => { if (biTarget) { clearBilingual(); status.textContent = "翻訳先を変えたため対訳を閉じました。"; } });
+  targetSelect.addEventListener("change", () => {
+    if (!biTarget) return;
+    clearBilingual();
+    // With "open in 対訳" on, follow the new language instead of just closing.
+    if (document.getElementById("bi-auto")?.checked) biButton.click();
+    else status.textContent = "翻訳先を変えたため対訳を閉じました。";
+  });
 
   biButton.addEventListener("click", async () => {
     if (biTarget) { clearBilingual(); status.textContent = ""; return; }
@@ -525,6 +531,18 @@
       biButton.disabled = false;
     }
   });
+
+  // Remembered per device: open every article directly in the side-by-side view.
+  const BI_AUTO_KEY = "news-html-reader-bilingual-auto";
+  const biAuto = document.getElementById("bi-auto");
+  if (biAuto) {
+    try { biAuto.checked = localStorage.getItem(BI_AUTO_KEY) === "1"; } catch (_) { /* optional */ }
+    biAuto.addEventListener("change", () => {
+      try { localStorage.setItem(BI_AUTO_KEY, biAuto.checked ? "1" : "0"); } catch (_) { /* optional */ }
+      if (biAuto.checked && !biTarget) biButton.click();
+    });
+    if (biAuto.checked) biButton.click();
+  }
 
   wholeButton.addEventListener("click", async () => {
     const target = targetSelect.value;
