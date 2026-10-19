@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import re
 import ssl
 import urllib.error
 import urllib.parse
@@ -172,6 +173,73 @@ def _translate_batch(provider: str, texts: list[str], target: str) -> list[str]:
         record_translation_usage("azure", target, estimated_chars, metered_chars)
         return results
     raise TranslationError("翻訳サービスの設定が不正です。")
+
+
+#: An English word or short idiom ("fly", "carry out", "Prime Minister's") — what the Azure
+#: dictionary answers. Anything longer is translated only.
+_DICTIONARY_WORD = re.compile(r"[A-Za-z][A-Za-z'’.-]*(?: [A-Za-z][A-Za-z'’.-]*){0,2}")
+DICTIONARY_POS = {"ADJ": "形容詞", "ADV": "副詞", "CONJ": "接続詞", "DET": "限定詞", "MODAL": "助動詞",
+                  "NOUN": "名詞", "PREP": "前置詞", "PRON": "代名詞", "VERB": "動詞", "OTHER": "その他"}
+DICTIONARY_CACHE_ENTRIES = 20_000
+MAX_DICTIONARY_TERMS = 10
+
+
+def dictionary_available(text: str, target: str) -> bool:
+    """Azure only (DeepL has no dictionary); English source, and a target the dictionary covers."""
+    return (active_provider() == "azure" and target in ("ja", "ko", "zh-hant") and len(text.strip()) <= 40
+            and _DICTIONARY_WORD.fullmatch(text.strip()) is not None)
+
+
+def dictionary_lookup(text: str, target: str) -> list[dict]:
+    """Senses of an English word from the Azure Translator dictionary, grouped by part of speech:
+    ``[{"pos": "動詞", "terms": ["飛ぶ", "飛行する"]}, ...]`` (most likely first). Cached per word
+    and target, including "not found" (an empty list), so a word is sent once."""
+    word = text.strip().replace("’", "'")
+    key = hashlib.sha256(("azure\0" + target + "\0" + word.lower()).encode("utf-8")).hexdigest()
+    cached = cache_get("dictionary", key)
+    if isinstance(cached, list):
+        return cached
+    try:
+        secret = get_secret("azure_api_key")
+    except SecretStoreError as exc:
+        raise TranslationError(str(exc)) from None
+    if not secret:
+        raise TranslationError("Azure Translatorのキーが未設定です。設定画面から登録してください。")
+    query = urllib.parse.urlencode({"api-version": "3.0", "from": "en", "to": _codes(target)["azure"]})
+    headers = {"Ocp-Apim-Subscription-Key": secret, "Content-Type": "application/json; charset=utf-8"}
+    region = get_settings().get("azure_region", "").strip()
+    if region:
+        headers["Ocp-Apim-Subscription-Region"] = region
+    payload, response_headers = _post_json(
+        "https://api.cognitive.microsofttranslator.com/dictionary/lookup?" + query, headers,
+        json.dumps([{"Text": word}], ensure_ascii=False).encode("utf-8"), "azure")
+    entry = payload[0] if isinstance(payload, list) and len(payload) == 1 and isinstance(payload[0], dict) else None
+    translations = entry.get("translations") if entry else None
+    if not isinstance(translations, list):
+        raise TranslationError("Azure Translatorから予期しない形式の応答がありました。")
+    try:
+        metered = int(response_headers.get("x-metered-usage", "").strip() or len(word))
+    except ValueError:
+        metered = len(word)
+    record_translation_usage("azure", target, len(word), metered)
+    senses = _group_senses(translations)
+    cache_put("dictionary", key, senses, max_entries=DICTIONARY_CACHE_ENTRIES)
+    return senses
+
+
+def _group_senses(translations: list) -> list[dict]:
+    """Most confident first; one row per part of speech in the order it first appears."""
+    usable = [t for t in translations if isinstance(t, dict) and isinstance(t.get("displayTarget"), str)
+              and t["displayTarget"].strip()]
+    usable.sort(key=lambda t: -(t.get("confidence") if isinstance(t.get("confidence"), (int, float)) else 0))
+    groups: dict[str, list[str]] = {}
+    for item in usable[:MAX_DICTIONARY_TERMS]:
+        pos = DICTIONARY_POS.get(str(item.get("posTag", "OTHER")).upper(), "その他")
+        prefix = item.get("prefixWord") if isinstance(item.get("prefixWord"), str) else ""
+        term = f"{prefix} {item['displayTarget'].strip()}".strip()
+        if term not in groups.setdefault(pos, []):
+            groups[pos].append(term)
+    return [{"pos": pos, "terms": terms} for pos, terms in groups.items()]
 
 
 def _codes(target: str) -> dict[str, str]:

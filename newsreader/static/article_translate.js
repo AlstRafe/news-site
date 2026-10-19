@@ -350,6 +350,38 @@
     }
     addDetails(payload);
     placePopup({ reveal: true });
+    if (payload.dictionary && payload.translation) loadSenses(normalized, targetSelect.value, sequence);
+  }
+
+  // Meanings by part of speech for an English word (Azure dictionary), shown under the
+  // translation once they arrive; nothing is shown when the word is not in the dictionary.
+  async function loadSenses(text, target, sequence) {
+    const details = document.getElementById("language-details");
+    const box = document.createElement("div");
+    box.className = "senses loading";
+    box.textContent = "辞書を引いています…";
+    details.prepend(box);
+    let result = null;
+    try { result = await postJson("/api/dictionary", { text, target }); } catch (_) { result = null; }
+    if (sequence !== requestCounter || !box.isConnected) return;
+    const senses = result?.ok && Array.isArray(result.payload.senses) ? result.payload.senses : [];
+    if (!senses.length) { box.remove(); placePopup({ reveal: true }); return; }
+    box.className = "senses";
+    box.replaceChildren();
+    for (const sense of senses) {
+      if (!sense || !Array.isArray(sense.terms) || !sense.terms.length) continue;
+      const row = document.createElement("p");
+      const pos = document.createElement("span");
+      pos.className = "pos";
+      pos.textContent = String(sense.pos || "");
+      row.append(pos, document.createTextNode(sense.terms.map(String).join("、")));
+      box.appendChild(row);
+    }
+    const source = document.createElement("p");
+    source.className = "senses-source";
+    source.textContent = String(result.payload.label || "辞書");
+    box.appendChild(source);
+    placePopup({ reveal: true }); // the card grew: keep the word in view above a phone's sheet
   }
 
   function wordAtPoint(x, y) {

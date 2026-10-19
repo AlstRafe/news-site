@@ -12,8 +12,8 @@ from flask import abort, jsonify, request
 from newsreader.library import index
 from newsreader.services.dictionary import british_ipa, lookup_chinese, lookup_korean_hanja
 from newsreader.services.translation import (
-    MAX_ARTICLE_CHARS, MAX_SELECTION_CHARS, TARGETS, TranslationError, translate_paragraphs, translate_text,
-    translate_titles,
+    MAX_ARTICLE_CHARS, MAX_SELECTION_CHARS, TARGETS, TranslationError, dictionary_available, dictionary_lookup,
+    translate_paragraphs, translate_text, translate_titles,
 )
 from newsreader.sources import ReaderError
 from newsreader.web.pages import db_path, load_article
@@ -90,7 +90,25 @@ def translate_selection():
     elif latin:
         response["ipa"] = british_ipa(text)
         response["ipa_label"] = "英国英語 · eSpeak NG IPA"
+        # The senses come from a second request (/api/dictionary) so the translation shows first.
+        response["dictionary"] = dictionary_available(text, target)
     return jsonify(response)
+
+
+@routes.post("/api/dictionary", "dictionary_senses")
+def dictionary_senses():
+    """Senses of one English word or short idiom by part of speech (Azure Translator dictionary)."""
+    payload = _json_request()
+    text, target = payload.get("text"), payload.get("target")
+    if not isinstance(text, str) or not isinstance(target, str) or target not in TARGETS:
+        return jsonify({"error": "語または翻訳先の指定が不正です。"}), 400
+    if not dictionary_available(text, target):
+        return jsonify({"senses": [], "available": False})
+    try:
+        senses = dictionary_lookup(text, target)
+    except TranslationError as exc:
+        return jsonify({"error": str(exc)}), 503
+    return jsonify({"senses": senses, "available": True, "label": "Azure Translator 辞書"})
 
 
 @routes.post("/api/translate-article", "translate_whole_article")

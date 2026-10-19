@@ -50,8 +50,12 @@ def isolated_instance():
     def provider_guard(provider, texts, target):
         raise AssertionError("a test reached the real translation provider")
 
-    saved_keyring, saved_batch = settings.keyring, translation._translate_batch
+    def network_guard(url, headers, data, provider):
+        raise AssertionError("a test reached the real translation provider")
+
+    saved_keyring, saved_batch, saved_post = settings.keyring, translation._translate_batch, translation._post_json
     settings.keyring, translation._translate_batch = MemoryKeyring, provider_guard
+    translation._post_json = network_guard  # the dictionary lookup calls it directly
     cache.CACHE_PATH = tmp / "translation_cache.sqlite3"
     settings.SETTINGS_PATH = tmp / "settings.json"
     saved_paths_settings = paths.SETTINGS_PATH
@@ -63,6 +67,7 @@ def isolated_instance():
     cache.CACHE_PATH, settings.SETTINGS_PATH, paths.SECRET_KEY_PATH, index.DEFAULT_DB_PATH, status.STATUS_PATH = saved
     paths.SETTINGS_PATH = saved_paths_settings
     settings.keyring, translation._translate_batch = saved_keyring, saved_batch
+    translation._post_json = saved_post
     shutil.rmtree(tmp, ignore_errors=True)
     after = sorted(p.name for p in instance.iterdir()) if instance.is_dir() else None
     assert after == before, f"tests created files in the real instance/: {after} (before: {before})"
