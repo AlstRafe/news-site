@@ -116,6 +116,10 @@ class FactsWatchTests(unittest.TestCase):
             listing = client.get("/stories", headers=H).get_data(as_text=True)
             page = client.get("/stories/s1", headers=H).get_data(as_text=True)
         self.assertIn("死者の数字が違う", listing)
+        with mock.patch.object(ts, "_translate_batch", lambda provider, texts, target: texts):
+            only = client.get("/stories?scope=disputes", headers=H).get_data(as_text=True)
+        self.assertIn("/stories/s1", only)
+        self.assertNotIn("/stories/s3", only)
         self.assertIn("死者の数字が媒体で違います", page)
 
     def test_summary_keeps_compared_counts_only(self):

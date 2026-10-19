@@ -4,13 +4,14 @@
 {% block content %}
 <div class="list-head"><h1>同じニュースの読み比べ</h1><span class="count">{{ result.total }} 件</span><a class="list-head-link" href="{{ url_for('outlets_page') }}">媒体くらべ →</a></div>
 <form class="searchbar" method="get" action="{{ url_for('stories_page') }}" role="search">
-{% if result.scope == 'all' %}<input type="hidden" name="scope" value="all">{% endif %}
+{% if result.scope in ('all', 'disputes') %}<input type="hidden" name="scope" value="{{ result.scope }}">{% endif %}
 <input type="search" name="q" value="{{ result.query }}" placeholder="グループを検索（日本語も可）" aria-label="読み比べを検索" maxlength="100">
 <button type="submit">検索</button>
 </form>
 <nav class="chips" aria-label="表示範囲">
 <a class="chip{% if result.scope == 'multi' %} active{% endif %}" href="{{ url_for('stories_page', q=result.query or None) }}">複数の媒体が報道</a>
 <a class="chip{% if result.scope == 'all' %} active{% endif %}" href="{{ url_for('stories_page', scope='all', q=result.query or None) }}">すべてのグループ</a>
+<a class="chip{% if result.scope == 'disputes' %} active{% endif %}" href="{{ url_for('stories_page', scope='disputes', q=result.query or None) }}">数字が違う</a>
 </nav>
 {% if result.query %}<p class="hint search-note">「{{ result.query }}」を含む記事のあるグループ{% if result.english_query %}（英訳「{{ result.english_query }}」でも照合）{% endif %} · <a href="{{ url_for('stories_page', scope=result.scope if result.scope == 'all' else None) }}">検索をやめる</a></p>{% endif %}
 <p class="hint stories-note">{% if info.refreshed %}{{ refreshed_ago }}に集計{% else %}まだ集計していません{% endif %}{% if info.pending %} · 英訳待ちの見出し {{ info.pending }} 件{% endif %}{% if info.key_configured is defined and not info.key_configured %} · 翻訳キー未設定（英語の見出しのみで照合）{% endif %}

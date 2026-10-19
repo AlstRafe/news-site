@@ -165,9 +165,10 @@ def _members(db, keys: list[str]) -> dict[str, list[dict]]:
 
 
 def list_stories(db_path: Path, scope: str = "multi", page: int = 1, per_page: int = 20,
-                 query: str = "", pivot_words: list[str] | None = None) -> dict:
+                 query: str = "", pivot_words: list[str] | None = None, keys: list[str] | None = None) -> dict:
     """Groups, newest first. scope "multi" = reported by more than one outlet; "all" = any group.
-    ``query`` keeps the groups with an article that matches it (as in the article search)."""
+    ``query`` keeps the groups with an article that matches it (as in the article search);
+    ``keys`` only those groups (数字が違う, D-67)."""
     having = "HAVING COUNT(DISTINCT a.source) > 1" if scope != "all" else ""
     page = max(1, page)
     query = query.strip()[:100]
@@ -178,6 +179,9 @@ def list_stories(db_path: Path, scope: str = "multi", page: int = 1, per_page: i
             restrict = (f" AND m.story_key IN (SELECT story_key FROM story_members WHERE article_id IN"
                         f" ({','.join('?' * len(ids)) or 'NULL'}))")
             params = ids
+        if keys is not None:
+            restrict += f" AND m.story_key IN ({','.join('?' * len(keys)) or 'NULL'})"
+            params = params + list(keys)
         base = f"""SELECT m.story_key, MAX(a.published) AS newest, COUNT(*) AS n, COUNT(DISTINCT a.source) AS outlets
                    FROM story_members m JOIN articles a ON a.id = m.article_id WHERE a.error = ''{restrict}
                    GROUP BY m.story_key {having}"""

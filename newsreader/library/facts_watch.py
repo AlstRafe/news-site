@@ -153,6 +153,13 @@ def disputed(db_path: Path, keys: list[str]) -> dict[str, list[dict]]:
     return out
 
 
+def disputed_keys(db_path: Path) -> list[str]:
+    """Every group whose outlets disagree on a count (closely matched, summary still current)."""
+    with closing(index.connect(db_path)) as db:
+        keys = [row[0] for row in db.execute("SELECT story_key FROM story_facts WHERE differs = 1 AND cohesive = 1")]
+    return list(disputed(db_path, keys))
+
+
 def differing(db_path: Path, *, days: int = 3, limit: int = 4, now: datetime | None = None) -> list[dict]:
     """Recent groups whose outlets disagree on a count, newest first, for the home page:
     [{"key", "title", "lead_source", "kinds": [{"label", "trail": [...]}]}]."""

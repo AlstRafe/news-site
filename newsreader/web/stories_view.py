@@ -54,7 +54,7 @@ def _with_thumbs(members: list[dict]) -> list[dict]:
 
 @routes.get("/stories", "stories_page")
 def stories_page():
-    scope = "all" if request.args.get("scope") == "all" else "multi"
+    scope = request.args.get("scope") if request.args.get("scope") in ("all", "disputes") else "multi"
     try:
         page = int(request.args.get("page", "1"))
     except ValueError:
@@ -63,8 +63,11 @@ def stories_page():
     from newsreader.web.pages import query_in_english
     query = request.args.get("q", "").strip()[:100]
     english = query_in_english(query) if re.search(r"[^\x00-\x7f]", query) else ""
-    result = stories.list_stories(db_path(), scope=scope, page=page, query=query,
-                                  pivot_words=index.search_words(english or query))
+    from newsreader.library import facts_watch
+    keys = facts_watch.disputed_keys(db_path()) if scope == "disputes" else None
+    result = stories.list_stories(db_path(), scope="multi" if scope == "disputes" else scope, page=page, query=query,
+                                  pivot_words=index.search_words(english or query), keys=keys)
+    result["scope"] = scope
     result["english_query"] = english
     from newsreader.library import facts_watch
     disputes = facts_watch.disputed(db_path(), [story["key"] for story in result["stories"]])
