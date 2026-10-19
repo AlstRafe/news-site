@@ -69,6 +69,12 @@ def articles_dir() -> Path:
     return Path(configured).expanduser() if configured else DEFAULT_ARTICLES_DIR
 
 
+def status_path_beside(library_root: Path) -> Path:
+    """Where the installation that owns ``library_root`` keeps its status (the standard layout:
+    ``<project>/articles`` next to ``<project>/instance``)."""
+    return library_root.parent / INSTANCE_DIR.name / STATUS_PATH.name
+
+
 def same_path(a: Path | str, b: Path | str) -> bool:
     """Same folder after resolving (and, on Windows, ignoring case)."""
     try:

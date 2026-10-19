@@ -48,7 +48,7 @@ def library_collector(library_root: Path, own_status: Path) -> dict | None:
     """The collection record kept beside the article folder (``<folder>/../instance/status.json``)
     when this app shows another installation's articles: that installation's hourly task is what
     fills the folder, so the header badge should follow it. Read only; None when not applicable."""
-    candidate = library_root.parent / "instance" / "status.json"
+    candidate = paths.status_path_beside(library_root)
     try:
         if candidate.resolve() == own_status.resolve() or not candidate.is_file():
             return None
