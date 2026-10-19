@@ -119,7 +119,9 @@
     const clear = () => document.querySelectorAll(".card-gloss, .gloss-error").forEach(node => node.remove());
     const show = async () => {
       clear();
-      const ids = cards().map(card => Number(card.dataset.id)).filter(Boolean);
+      const highlights = [...document.querySelectorAll(".highlight [data-gloss-id]")];
+      const ids = [...new Set([...cards().map(card => Number(card.dataset.id)),
+                               ...highlights.map(el => Number(el.dataset.glossId))].filter(Boolean))].slice(0, 40);
       if (!ids.length) return;
       glossToggle.disabled = true;
       try {
@@ -140,6 +142,15 @@
           line.lang = target() === "zh-hant" ? "zh-Hant" : target(); // BCP 47
           line.textContent = text;
           heading.after(line);
+        }
+        for (const el of highlights) {
+          const text = payload.translations?.[el.dataset.glossId];
+          if (!text || text === el.textContent.trim()) continue;
+          const line = document.createElement("span");
+          line.className = "card-gloss";
+          line.lang = target() === "zh-hant" ? "zh-Hant" : target();
+          line.textContent = text;
+          el.after(line);
         }
       } catch (error) {
         const note = document.createElement("p");

@@ -167,6 +167,10 @@
     }
   }
   alignButtons.forEach(button => button.addEventListener("click", () => alignTo(button.dataset.align, button)));
+  // "?align=en" (from an article's "…にそろえて比べる"): start in that language.
+  const askedAlign = new URLSearchParams(location.search).get("align");
+  const askedButton = alignButtons.find(button => button.dataset.align === askedAlign);
+  if (askedButton) alignTo(askedAlign, askedButton);
 
   // 4. "別のニュース": two taps (the first one asks), then the group is corrected and re-grouped.
   const key = document.querySelector('meta[name="story-key"]')?.content || "";

@@ -138,9 +138,15 @@ def show_article(article_id: int):
         return _error_page(str(exc) if isinstance(exc, ReaderError) else "記事ファイルを読み取れません。", 400)
     article = {**article, "images": image_entries(article_id, article)}
     from newsreader.library import stories
+    related = stories.related(db_path(), article_id)
+    if related:
+        # Offer "read the others in this article's language" when the group mixes languages.
+        own = stories.LANG_TARGETS.get(stories.headline_language(db_path(), article_id), "")
+        others = {stories.LANG_TARGETS.get(m.get("lang") or "", "") for m in related["members"]}
+        related["align"] = own if own and others - {own, ""} else ""
     response = current_app.make_response(render_template(
         "article.html", article=article, record=record, article_id=article_id, csrf=csrf_token(),
-        related=stories.related(db_path(), article_id), neighbours=index.neighbours(db_path(), article_id),
+        related=related, neighbours=index.neighbours(db_path(), article_id),
     ))
     response.headers["Cache-Control"] = CACHE_PAGE
     return response

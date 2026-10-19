@@ -642,3 +642,5 @@ h1 .story-gloss{font-size:clamp(16px,2.4vw,20px);font-weight:600;margin-top:6px;
 /* Keyboard focus is always visible; motion is dropped for readers who ask for less */
 :where(a,button,input,select,textarea,summary,[tabindex]):focus-visible{outline:2px solid var(--line-b51d24);outline-offset:2px;border-radius:6px;}
 @media (prefers-reduced-motion: reduce){*,*::before,*::after{transition:none!important;animation:none!important;scroll-behavior:auto!important;}}
+.highlight .card-gloss{display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;font-size:12px;line-height:1.5;color:var(--fg-5d616a);}
+.related-links{display:flex;flex-wrap:wrap;gap:4px 18px;}

@@ -358,6 +358,13 @@ class WebTests(StoryTestCase):
         self.assertEqual(self.client.post("/api/compare-translate", headers={**H, "X-CSRF-Token": token},
                                           json={"ids": [bbc], "target": "xx"}).status_code, 400)
 
+    def test_article_offers_the_others_in_its_own_language(self):
+        bbc, cna = self.id_of("BBC", "a.html"), self.id_of("CNA", "z.html")
+        html = self.client.get(f"/a/{bbc}", headers=H).get_data(as_text=True)
+        self.assertIn(f'/stories/{self.key}?align=en', html)
+        self.assertIn("ほかの記事をEnglishにそろえて比べる", html)
+        self.assertIn(f'/stories/{self.key}?align=zh-hant', self.client.get(f"/a/{cna}", headers=H).get_data(as_text=True))
+
     def test_list_cards_mark_articles_reported_by_several_outlets(self):
         html = self.client.get("/", headers=H).get_data(as_text=True)
         self.assertEqual(html.count("読み比べ 2媒体"), 3)  # the two BBC Nobel articles and the CNA one
