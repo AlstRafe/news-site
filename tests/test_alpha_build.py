@@ -49,6 +49,12 @@ class ChooseArticlesTests(unittest.TestCase):
         self.assertNotIn(8, ids)  # too short to read
         self.assertEqual(ids[3:], [10, 6])  # then simply the newest (ties: higher id)
 
+    def test_a_clearly_matched_group_is_preferred(self):
+        with closing(index.connect(self.db)) as db:
+            db.execute("UPDATE story_members SET score = 0.5 WHERE story_key = 's2'")
+        chosen = make_alpha_zip.choose_articles(self.db, 5)
+        self.assertEqual([c["id"] for c in chosen][:2], [5, 6])  # s2: two outlets, all members close
+
     def test_only_outlets_still_collected(self):
         chosen = make_alpha_zip.choose_articles(self.db, 5, {"BBC", "Yonhap"})
         self.assertEqual({c["source"] for c in chosen}, {"BBC", "Yonhap"})

@@ -34,6 +34,8 @@ from make_portable_zip import PROJECT_ROOT, should_include
 FOLDER = "NewsBridge-alpha"
 DEFAULT_ARTICLES = 5
 DEFAULT_DAILY_CHARS = 100_000
+#: Mean similarity every member of the sample's 読み比べ group should reach (stories_core scores).
+COHESIVE_SCORE = 0.3
 
 README = """NewsBridge テスト版（{version}）
 
@@ -80,9 +82,15 @@ def choose_articles(db_path: Path, count: int, sources: set[str] | None = None) 
         readable = "a.error = '' AND a.paragraph_count >= 3"
         if sources:  # only outlets that are still collected (saved NAVER pages are not)
             readable += " AND a.source IN (" + ",".join("'" + s.replace("'", "''") + "'" for s in sorted(sources)) + ")"
-        story = db.execute(f"""SELECT m.story_key FROM story_members m JOIN articles a ON a.id = m.article_id
-                              WHERE {readable} GROUP BY m.story_key
-                              ORDER BY COUNT(DISTINCT a.source) DESC, MAX(a.published) DESC LIMIT 1""").fetchone()
+        # A clearly matched group if there is one (every member close to the rest), so the sample
+        # shows 読み比べ at its best; otherwise any group of the most outlets.
+        story = None
+        for cohesion in (COHESIVE_SCORE, -1.0):
+            story = story or db.execute(f"""SELECT m.story_key FROM story_members m JOIN articles a ON a.id = m.article_id
+                                         WHERE {readable} GROUP BY m.story_key
+                                         HAVING COUNT(DISTINCT a.source) > 1 AND MIN(m.score) >= ?
+                                         ORDER BY COUNT(DISTINCT a.source) DESC, MAX(a.published) DESC LIMIT 1""",
+                                        (cohesion,)).fetchone()
         chosen: list[dict] = []
         if story:
             for row in db.execute(f"""SELECT a.id, a.source, a.filename, a.title FROM story_members m
