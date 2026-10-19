@@ -52,3 +52,17 @@ class ArticleNavigationTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class DaySeparatorTests(unittest.TestCase):
+    def test_local_day_labels(self):
+        from datetime import datetime, timezone
+        from newsreader.web.assets import localday_filter
+        stamp = "2026-10-19T03:00:00Z"
+        local = datetime.strptime(stamp, "%Y-%m-%dT%H:%M:%SZ").replace(tzinfo=timezone.utc).astimezone()
+        self.assertTrue(localday_filter(stamp, today=local).startswith("今日 · "))
+        from datetime import timedelta
+        self.assertTrue(localday_filter(stamp, today=local + timedelta(days=1)).startswith("昨日 · "))
+        label = localday_filter(stamp, today=local + timedelta(days=5))
+        self.assertEqual(label, f"{local.month}月{local.day}日（{'月火水木金土日'[local.weekday()]}）")
+        self.assertEqual(localday_filter(""), "")

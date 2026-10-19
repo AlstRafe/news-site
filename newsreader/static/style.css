@@ -563,3 +563,5 @@ h1 .story-gloss{font-size:clamp(16px,2.4vw,20px);font-weight:600;margin-top:6px;
 .bi-float[hidden],body.tr-sheet-open .bi-float{display:none;}
 @media(max-width:650px){.bi-float{width:auto!important;}}
 .search-note{margin:-6px 0 14px;}
+.day-sep{grid-column:1/-1;margin:6px 0 -8px;font-size:13px;font-weight:800;color:var(--fg-60636c);letter-spacing:.02em;}
+@media(max-width:650px){.day-sep{margin:4px 0 -4px;}}

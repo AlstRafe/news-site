@@ -119,6 +119,29 @@ def localtime_short_filter(iso_utc: str) -> str:
         return ""
 
 
+def localclock_filter(iso_utc: str) -> str:
+    """"21:00" in the server's timezone (the day is shown by the list's day separators)."""
+    try:
+        moment = datetime.strptime(iso_utc, "%Y-%m-%dT%H:%M:%SZ").replace(tzinfo=timezone.utc)
+        return moment.astimezone().strftime("%H:%M")
+    except (ValueError, TypeError):
+        return ""
+
+
+_WEEKDAYS = "月火水木金土日"
+
+
+def localday_filter(iso_utc: str, today=None) -> str:
+    """The local day of a UTC timestamp for list separators: "今日 · 10月19日（月）"."""
+    try:
+        moment = datetime.strptime(iso_utc, "%Y-%m-%dT%H:%M:%SZ").replace(tzinfo=timezone.utc).astimezone()
+    except (ValueError, TypeError):
+        return ""
+    label = f"{moment.month}月{moment.day}日（{_WEEKDAYS[moment.weekday()]}）"
+    days = ((today or datetime.now().astimezone()).date() - moment.date()).days
+    return {0: "今日 · ", 1: "昨日 · "}.get(days, "") + label
+
+
 def init_app(app: Flask, *, dev: bool) -> None:
     static = StaticFiles(paths.STATIC_DIR, frozen=not dev)
     app.extensions["static_files"] = static
@@ -153,6 +176,8 @@ def init_app(app: Flask, *, dev: bool) -> None:
     app.jinja_env.globals["asset"] = asset
     app.add_template_filter(localtime_filter, "localtime")
     app.add_template_filter(localtime_short_filter, "localtime_short")
+    app.add_template_filter(localday_filter, "localday")
+    app.add_template_filter(localclock_filter, "localclock")
 
     @app.after_request
     def _cache_and_compress(response: Response):
