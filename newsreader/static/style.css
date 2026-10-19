@@ -562,3 +562,4 @@ h1 .story-gloss{font-size:clamp(16px,2.4vw,20px);font-weight:600;margin-top:6px;
 .bi-float[aria-pressed="true"]{background:var(--bg-ffffff);color:var(--fg-a41b22);border:1px solid var(--line-e0e3e9);}
 .bi-float[hidden],body.tr-sheet-open .bi-float{display:none;}
 @media(max-width:650px){.bi-float{width:auto!important;}}
+.search-note{margin:-6px 0 14px;}

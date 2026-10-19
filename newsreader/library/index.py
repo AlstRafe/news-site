@@ -14,6 +14,7 @@ from __future__ import annotations
 
 import json
 import logging
+import re
 import sqlite3
 import threading
 import time
@@ -462,19 +463,62 @@ def _like(text: str) -> str:
 _LIST_ORDER = "CASE WHEN published = '' THEN 1 ELSE 0 END, published DESC, mtime DESC, id DESC"
 
 
-def list_articles(db_path: Path, source: str = "", query: str = "", page: int = 1, per_page: int = 24) -> dict:
-    """Newest first. Articles without a parsed date fall back to file time. Never loads bodies."""
+_SEARCH_STOP = frozenset("the and for with from into over after about than that this what when where who why how "
+                         "are was were has have had its his her their our not but says said will would can could "
+                         "new news".split())
+
+
+def search_words(text: str) -> list[str]:
+    """Lower-case English words of a search (at most 6) for matching the English headlines that
+    same-news grouping keeps for every article (story_items.pivot)."""
+    words: list[str] = []
+    for raw in re.findall(r"[A-Za-z][A-Za-z0-9'’-]*|\d{2,}", text):
+        word = re.sub(r"['’]s$", "", raw.lower()).strip("'’-")
+        if len(word) > 4 and word.endswith("s") and not word.endswith("ss"):
+            word = word[:-1]
+        if len(word) >= 3 and word not in _SEARCH_STOP and word not in words:
+            words.append(word)
+    return words[:6]
+
+
+#: At most this many articles are found through their English headline (an SQL parameter list).
+MAX_PIVOT_MATCHES = 900
+
+
+def _pivot_matches(db: sqlite3.Connection, words: list[str]) -> list[int]:
+    """Articles whose English headline has the words at word starts ("strike" finds "strikes").
+    One or two words must all be there; of more, two thirds."""
+    patterns = [re.compile(r"(?<![A-Za-z0-9])" + re.escape(word), re.IGNORECASE) for word in words]
+    need = len(patterns) if len(patterns) <= 2 else -(-2 * len(patterns) // 3)
+    found = []
+    for article_id, pivot in db.execute(
+            "SELECT article_id, pivot FROM story_items WHERE pivot IS NOT NULL ORDER BY article_id DESC"):
+        if sum(1 for pattern in patterns if pattern.search(pivot)) >= need:
+            found.append(article_id)
+            if len(found) >= MAX_PIVOT_MATCHES:
+                break
+    return found
+
+
+def list_articles(db_path: Path, source: str = "", query: str = "", page: int = 1, per_page: int = 24,
+                  pivot_words: list[str] | None = None) -> dict:
+    """Newest first. Articles without a parsed date fall back to file time. Never loads bodies.
+
+    ``pivot_words`` (from ``search_words``) also finds articles whose English headline matches,
+    so an English (or translated) search reaches headlines written in Chinese or Korean."""
     where, params = ["error = ''"], []
     if source:
         where.append("source = ?")
         params.append(source)
     query = query.strip()[:100]
-    if query:
-        where.append("(title LIKE ? ESCAPE '\\' OR lead LIKE ? ESCAPE '\\')")
-        params += [_like(query), _like(query)]
-    clause = " AND ".join(where)
     page = max(1, page)
     with closing(connect(db_path)) as db:
+        if query:
+            matches = _pivot_matches(db, pivot_words) if pivot_words else []
+            extra = f" OR id IN ({','.join('?' * len(matches))})" if matches else ""
+            where.append(f"(title LIKE ? ESCAPE '\\' OR lead LIKE ? ESCAPE '\\'{extra})")
+            params += [_like(query), _like(query), *matches]
+        clause = " AND ".join(where)
         total = db.execute(f"SELECT COUNT(*) FROM articles WHERE {clause}", params).fetchone()[0]
         rows = db.execute(
             f"""SELECT {_LIST_COLUMNS} FROM articles WHERE {clause}

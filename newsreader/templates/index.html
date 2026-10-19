@@ -5,7 +5,7 @@
 {% if warning %}<div class="alert" role="status">{{ warning }}</div>{% endif %}
 <form class="searchbar" method="get" action="{{ url_for('index') }}" role="search">
 {% if source %}<input type="hidden" name="source" value="{{ source }}">{% endif %}
-<input type="search" name="q" value="{{ query }}" placeholder="見出し・冒頭文から検索" aria-label="記事を検索" maxlength="100">
+<input type="search" name="q" value="{{ query }}" placeholder="見出し・冒頭文から検索（日本語も可）" aria-label="記事を検索" maxlength="100">
 <button type="submit">検索</button>
 </form>
 <nav class="chips" aria-label="ニュースソース">
@@ -13,6 +13,7 @@
 {% for s in sources %}<a class="chip{% if source == s.name %} active{% endif %}" href="{{ url_for('index', source=s.name, q=query or None) }}">{{ s.name or '未分類' }}<span>{{ s.count }}</span></a>{% endfor %}
 </nav>
 <div class="list-head"><h1>{% if query %}「{{ query }}」の検索結果{% elif source %}{{ source }}{% else %}新着記事{% endif %}</h1><span class="count">{{ total }} 件</span>{% if items %}<button type="button" class="gloss-toggle" id="gloss-toggle" aria-pressed="false" title="各見出しの下に訳を表示（見出しだけを翻訳サービスに送信。一度訳した見出しは保存して再送信しません）">見出しを訳す</button>{% endif %}</div>
+{% if query %}<p class="hint search-note">{% if english_query %}英語に訳した「{{ english_query }}」でも、全記事の見出し（英訳）を検索しています。{% else %}見出し・冒頭文と、全記事の見出しの英訳を検索しています。日本語などで検索すると英語に訳して探します（翻訳キーが必要）。{% endif %}</p>{% endif %}
 {% if items %}
 <div class="card-grid">{% for item in items %}
 <a class="card" data-id="{{ item.id }}" href="{{ url_for('show_article', article_id=item.id) }}">

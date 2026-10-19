@@ -5,6 +5,7 @@ and the article come from the index; images are fetched lazily by ``/img`` (D-04
 """
 from __future__ import annotations
 
+import re
 from pathlib import Path
 
 from flask import abort, current_app, jsonify, redirect, render_template, request, send_file, url_for
@@ -81,6 +82,19 @@ def _error_page(message: str, status: int):
 
 # ---- pages -------------------------------------------------------------------
 
+def _query_in_english(query: str) -> str:
+    """A non-English search, translated to English (cached; sent once per distinct search) so it
+    also matches the English headlines kept for every article. "" without a key or on failure."""
+    from newsreader.services import translation
+    from newsreader.services.settings import SecretStoreError
+    try:
+        if not translation.provider_ready():
+            return ""
+        return translation.translate_titles_to_english([query])[0].strip()
+    except (translation.TranslationError, SecretStoreError):
+        return ""
+
+
 @routes.get("/", "index")
 def index_page():
     source = request.args.get("source", "")[:100]
@@ -90,7 +104,10 @@ def index_page():
     except ValueError:
         page = 1
     db = db_path()
-    result = index.list_articles(db, source=source, query=query, page=page, per_page=PER_PAGE)
+    query = query.strip()[:100]
+    english = _query_in_english(query) if re.search(r"[^\x00-\x7f]", query) else ""
+    result = index.list_articles(db, source=source, query=query, page=page, per_page=PER_PAGE,
+                                 pivot_words=index.search_words(english or query))
     from newsreader.library import stories
     marks = stories.badges(db, [item["id"] for item in result["items"]])
     for item in result["items"]:
@@ -102,7 +119,7 @@ def index_page():
     response = current_app.make_response(render_template(
         "index.html", error=state.get("error", ""), warning=state.get("warning", ""), indexing=indexing,
         progress=state.get("progress") or [0, 0], items=result["items"], sources=index.sources(db),
-        source=source, query=query.strip()[:100], page=result["page"], pages=result["pages"],
+        source=source, query=query, english_query=english, page=result["page"], pages=result["pages"],
         total=result["total"], csrf=csrf_token(),
     ))
     response.headers["Cache-Control"] = CACHE_LIST
