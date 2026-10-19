@@ -349,10 +349,13 @@ class SharedLibraryStatusTests(unittest.TestCase):
             self.assertFalse(runner.collected_elsewhere(self.root))  # nothing recorded there yet
             status.update("collector", {"ok": True, "finished": status.now_iso(), "library_root": str(self.root)},
                           path=self.live_status)
+            status._cache.clear()  # same-second rewrites: some file systems keep the mtime
             self.assertTrue(runner.collected_elsewhere(self.root))
             status.update("collector", {"ok": True, "finished": "2000-01-01T00:00:00Z"}, path=self.live_status)
+            status._cache.clear()  # same-second rewrites: some file systems keep the mtime
             self.assertFalse(runner.collected_elsewhere(self.root))  # stale: collect here
             status.update("collector", {"ok": False, "finished": status.now_iso()}, path=self.live_status)
+            status._cache.clear()  # same-second rewrites: some file systems keep the mtime
             self.assertFalse(runner.collected_elsewhere(self.root))  # failed there: collect here
         # the skip record defers to the owner's record on the status page
         status.update("collector", {"ok": True, "finished": status.now_iso(), "library_root": str(self.root),
