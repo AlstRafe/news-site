@@ -7,6 +7,7 @@
 <span class="story-time">{% if show_source %}<span class="badge" data-lang="{{ m.source|src_lang }}">{{ m.source or '未分類' }}</span> {% endif %}{{ m.published|localtime }}{% set lag = m.published|lag(story.oldest) %}{% if lag %} <span class="lag" title="最初の報道から">{{ lag }}</span>{% elif story.oldest and m.published == story.oldest and story.members|length > 1 %} <span class="lag first">最初の報道</span>{% endif %}</span>
 <strong data-gloss-id="{{ m.id }}"{{ m.source|lang_attr }}>{{ m.title }}</strong></a>
 {% if m.lead %}<p class="story-lead" data-lead-for="{{ m.id }}"{{ m.source|lang_attr }}>{{ m.lead }}</p>{% endif %}
+{% if provenance.lines[m.id] %}<p class="story-prov">{{ provenance.lines[m.id] }}</p>{% endif %}
 <p class="lead-tr" data-lead-tr-for="{{ m.id }}" hidden></p>
 <div class="cmp-tr" data-cmp-for="{{ m.id }}" hidden></div>
 <button type="button" class="text-button exclude-button" data-exclude-id="{{ m.id }}">別のニュース</button>
@@ -28,6 +29,11 @@
 <div class="insight-panel" id="words-panel" hidden></div>
 <div class="insight-panel" id="quotes-panel" hidden></div>
 </section>{% endif %}
+{% if provenance.outlets %}<section class="provenance-box" aria-labelledby="prov-title"><h2 id="prov-title">情報の出どころ</h2>
+<ul class="prov-outlets">{% for o in provenance.outlets %}<li><span class="badge" data-lang="{{ o.source|src_lang }}">{{ o.source }}</span> <span>{{ (o.datelines[:3] + o.own)|join(' · ') }}{% if o.cites %}{% if o.datelines or o.own %} · {% endif %}出典: {{ o.cites[:4]|join('・') }}{% endif %}</span></li>{% endfor %}</ul>
+{% for s in provenance.shared[:3] %}<p class="prov-note">{{ s.label }}を {{ s.outlets|join('・') }} が{{ 'どちらも' if s.outlets|length == 2 else 'いずれも' }}出典にしています。同じ元の情報をもとにした記事かもしれません。</p>{% endfor %}
+{% for i in provenance.internal %}<p class="prov-note">{{ i.from }} の記事は、このグループの {{ i.to }} の報道を引用しています。</p>{% endfor %}
+<p class="hint">本文の書き出し（発信地）と、本文で引用している報道機関から判断した目安です（翻訳は使いません）。</p></section>{% endif %}
 <p class="gloss-error hint" id="story-gloss-error" role="status" hidden></p>
 {% if chart %}<figure class="story-chart" aria-labelledby="chart-caption">
 <div class="chart-body"><div class="chart-labels">{% for row in chart.rows %}<span class="badge" data-lang="{{ row.source|src_lang }}">{{ row.source }}</span>{% endfor %}</div>

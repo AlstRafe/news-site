@@ -127,7 +127,9 @@ def outlets_page():
         days = min(30, max(1, int(request.args.get("days", "7"))))
     except ValueError:
         days = 7
-    response = current_app.make_response(render_template("outlets.html", stats=outlets.stats(db_path(), days=days)))
+    from newsreader.library import provenance
+    response = current_app.make_response(render_template("outlets.html", stats=outlets.stats(db_path(), days=days),
+                                                         profiles=provenance.profiles(db_path(), days=days)))
     response.headers["Cache-Control"] = "no-cache"
     return response
 
@@ -140,8 +142,10 @@ def story_page(key: str):
     _with_thumbs(story["members"])
     from newsreader.library import facts_watch
     disputes = facts_watch.disputed(db_path(), [story["key"]]).get(story["key"], [])
+    from newsreader.library import provenance
     response = current_app.make_response(render_template("story.html", story=story, chart=timeline_chart(story),
-                                                         disputes=disputes))
+                                                         disputes=disputes,
+                                                         provenance=provenance.story(db_path(), story["members"])))
     # Not reused from the browser cache: a group changes when it is corrected or re-grouped.
     response.headers["Cache-Control"] = "no-cache"
     return response

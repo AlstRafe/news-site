@@ -172,9 +172,18 @@ def show_article(article_id: int):
         # The group's outlets disagree on a count (background comparison, D-59): say so up top.
         from newsreader.library import facts_watch
         related["disputes"] = facts_watch.disputed(db_path(), [related["key"]]).get(related["key"], [])
+    # 情報の出どころ (D-73): dateline, cited organisations, own reporting — read from the text.
+    from newsreader.library import provenance
+    prov = provenance.analyze(record.get("source") or "", article.get("paragraphs") or [])
+    cited_outlets = {c["key"] for c in prov["cites"]}
+    prov_links, seen = [], set()
+    for m in (related or {}).get("members", []):
+        if provenance.SELF.get(m.get("source")) in cited_outlets and m["source"] not in seen:
+            seen.add(m["source"])
+            prov_links.append(m)
     response = current_app.make_response(render_template(
         "article.html", article=article, record=record, article_id=article_id, csrf=csrf_token(),
-        related=related, neighbours=index.neighbours(db_path(), article_id),
+        related=related, neighbours=index.neighbours(db_path(), article_id), prov=prov, prov_links=prov_links,
         similar=stories.similar(db_path(), article_id),
     ))
     response.headers["Cache-Control"] = CACHE_PAGE

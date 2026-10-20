@@ -15,8 +15,11 @@
 <dt>最初に報じた</dt><dd>{% if o.races %}<strong>{{ o.first }}</strong> / {{ o.races }} 件{% else %}—{% endif %}</dd>
 <dt>遅れの中央値</dt><dd>{% if o.median_lag_hours is not none %}<strong>{{ o.median_lag_hours }}</strong> 時間{% else %}—{% endif %}</dd>
 <dt>数字の食い違い</dt><dd>{% if o.disputes %}<strong>{{ o.disputes }}</strong> 件{% else %}—{% endif %}</dd>
+{% set pr = profiles.get(o.source) %}{% if pr %}{% if pr.kind_rows %}<dt>取材のかたち</dt><dd class="prov-kinds">{% for label, n in pr.kind_rows %}<span>{{ label }} <strong>{{ n }}</strong></span>{% endfor %}</dd>{% endif %}
+{% if pr.own %}<dt>独自取材の跡</dt><dd><strong>{{ pr.own }}</strong> 本</dd>{% endif %}
+<dt>他社を出典に</dt><dd>{% if pr.citing %}<strong>{{ pr.citing }}</strong> 本{% if pr.top_cites %}<small class="prov-top">{% for label, n in pr.top_cites[:4] %}{{ label }} {{ n }}{% if not loop.last %}・{% endif %}{% endfor %}</small>{% endif %}{% else %}—{% endif %}</dd>{% endif %}
 </dl>{% if o.recent_scoops %}<h3 class="outlet-sub">この媒体だけが報じた（新しい順）</h3><ul class="outlet-scoops">{% for a in o.recent_scoops %}<li><a href="{{ url_for('show_article', article_id=a.id) }}"{{ o.source|lang_attr }}>{{ a.title }}</a><span class="story-time">{{ a.published|localtime_short }}</span></li>{% endfor %}</ul>{% endif %}</section>{% endfor %}</div>
 {% if stats.pairs %}<section class="outlet-pairs" aria-labelledby="pairs-head"><h2 id="pairs-head">一緒に報じたニュース</h2>
 <ul>{% for p in stats.pairs %}<li><span class="badge" data-lang="{{ p.a|src_lang }}">{{ p.a }}</span> × <span class="badge" data-lang="{{ p.b|src_lang }}">{{ p.b }}</span> <strong>{{ p.news }}</strong> 件</li>{% endfor %}</ul></section>{% endif %}
-<p class="hint">「最初に報じた」は複数の媒体が報じたニュースのうち、その媒体の記事がいちばん早かった件数（その媒体が報じた件数のうち）。「遅れの中央値」は最初の報道から、その媒体の最初の記事までの時間。「数字の食い違い」はホームに出した食い違い（よく一致したグループのみ）に関わった件数です。媒体ごとに収集を始めた時期が違う間は、遅れが大きく出ることがあります。</p>
+<p class="hint">「最初に報じた」は複数の媒体が報じたニュースのうち、その媒体の記事がいちばん早かった件数（その媒体が報じた件数のうち）。「遅れの中央値」は最初の報道から、その媒体の最初の記事までの時間。「数字の食い違い」はホームに出した食い違い（よく一致したグループのみ）に関わった件数です。「取材のかたち」は本文の書き出し（発信地）から、「独自取材の跡」は「told the BBC」「接受中央社訪問」などの表現から、「他社を出典に」は本文で他の報道機関を引用している記事の数です。媒体ごとに収集を始めた時期が違う間は、遅れが大きく出ることがあります。</p>
 {% endif %}{% endblock %}
