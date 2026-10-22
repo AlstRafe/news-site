@@ -2,6 +2,8 @@
 // group, translated openings side by side, and "別のニュース" corrections. No inline scripts (CSP).
 (() => {
   "use strict";
+  // the path the site is served under ("/news" behind the front page; "" on its own)
+  const base = document.querySelector('meta[name="app-base"]')?.content || "";
   const csrf = document.querySelector('meta[name="csrf-token"]')?.content || "";
   const readLocal = key => { try { return localStorage.getItem(key); } catch (_) { return null; } };
   const writeLocal = (key, value) => { try { localStorage.setItem(key, value); } catch (_) { /* private mode */ } };
@@ -35,7 +37,7 @@
     const translations = {};
     try {
       for (let i = 0; i < ids.length; i += 40) {
-        const payload = await post("/api/translate-titles", { ids: ids.slice(i, i + 40), target: targetLang() });
+        const payload = await post(base + "/api/translate-titles", { ids: ids.slice(i, i + 40), target: targetLang() });
         Object.assign(translations, payload.translations || {});
       }
       say("");
@@ -86,7 +88,7 @@
     leadsButton.disabled = true;
     leadsButton.textContent = "翻訳しています…";
     try {
-      const payload = await post("/api/translate-leads", { ids: ids.slice(0, 12), target: targetLang() });
+      const payload = await post(base + "/api/translate-leads", { ids: ids.slice(0, 12), target: targetLang() });
       for (const [id, lead] of Object.entries(payload.leads || {})) {
         document.querySelectorAll(`[data-lead-for="${id}"]`).forEach(el => { el.textContent = lead.original; el.classList.add("full"); });
         document.querySelectorAll(`[data-lead-tr-for="${id}"]`).forEach(el => {
@@ -126,7 +128,7 @@
       try {
         aligned[target] = {};
         for (let i = 0; i < ids.length; i += 12) {
-          const payload = await post("/api/compare-translate", { ids: ids.slice(i, i + 12), target });
+          const payload = await post(base + "/api/compare-translate", { ids: ids.slice(i, i + 12), target });
           Object.assign(aligned[target], payload.items || {});
         }
         say("");
@@ -158,7 +160,7 @@
         }
         const full = document.createElement("a");
         full.className = "cmp-full";
-        full.href = `/a/${id}?tr=${encodeURIComponent(target)}`;
+        full.href = `${base}/a/${id}?tr=${encodeURIComponent(target)}`;
         full.textContent = `全文を${targetMenu[target]?.label || target}の対訳で読む →`;
         box.appendChild(full);
         box.lang = langTag(target);
@@ -188,8 +190,8 @@
     button.disabled = true;
     button.textContent = "外しています…";
     try {
-      const payload = await post("/api/stories/exclude", { id: Number(button.dataset.excludeId), key });
-      location.replace(payload.redirect || "/stories");
+      const payload = await post(base + "/api/stories/exclude", { id: Number(button.dataset.excludeId), key });
+      location.replace(payload.redirect || base + "/stories");
     } catch (error) {
       button.disabled = false;
       button.classList.remove("confirm");
@@ -305,7 +307,7 @@
         const values = el("strong", "fact-values", row.facts.map(f => f.text).join(" / "));
         meta.append(values);
         const link = el("a", "fact-link", "記事");
-        link.href = `/a/${row.id}`;
+        link.href = `${base}/a/${row.id}`;
         meta.append(link);
         item.append(meta);
         for (const fact of row.facts) {
@@ -373,7 +375,7 @@
         const meta = el("div", "fact-meta");
         meta.append(badge(quote.source, quote.lang), el("time", "", when(quote.published)));
         const link = el("a", "fact-link", "記事");
-        link.href = `/a/${quote.id}`;
+        link.href = `${base}/a/${quote.id}`;
         meta.append(link);
         const shown = el("blockquote", "quote-shown", quote.shown || quote.sentence);
         shown.lang = quote.shown ? tag : "en";
@@ -419,11 +421,11 @@
       }
     });
   }
-  wire("compare-facts", "facts-panel", "/api/story-facts", renderFacts,
+  wire("compare-facts", "facts-panel", base + "/api/story-facts", renderFacts,
        { show: "数字を比べる", hide: "数字を隠す", loading: "記事の数字を集めています…", failed: "数字を比べられませんでした" });
-  wire("compare-words", "words-panel", "/api/story-words", renderWords,
+  wire("compare-words", "words-panel", base + "/api/story-words", renderWords,
        { show: "言葉の違い", hide: "言葉の違いを隠す", loading: "見出しの言葉を比べています…", failed: "言葉を比べられませんでした" });
-  wire("compare-quotes", "quotes-panel", "/api/story-quotes", renderQuotes,
+  wire("compare-quotes", "quotes-panel", base + "/api/story-quotes", renderQuotes,
        { show: "発言を比べる", hide: "発言を隠す", loading: "引用された発言を探しています…", failed: "発言を比べられませんでした" });
   // Keys on a group page: F 数字 / W 言葉 / Q 発言 / T 時系列と媒体ごとの切り替え.
   document.addEventListener("keydown", event => {

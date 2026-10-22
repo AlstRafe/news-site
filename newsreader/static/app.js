@@ -1,6 +1,8 @@
 // Small behaviours every page shares. No inline scripts (CSP), no dependencies.
 (() => {
   "use strict";
+  // the path the site is served under ("/news" behind the front page; "" on its own)
+  const base = document.querySelector('meta[name="app-base"]')?.content || "";
 
   // 1. Images that cannot be fetched (offline, removed upstream) must not leave a broken-image
   //    icon or an empty grey box: cards fall back to the site initial, article figures disappear.
@@ -46,7 +48,7 @@
   document.addEventListener("visibilitychange", async () => {
     if (document.visibilityState !== "visible" || !pageVersion || versionNotice) return;
     try {
-      const response = await fetch("/api/version", { cache: "no-store", credentials: "same-origin" });
+      const response = await fetch(base + "/api/version", { cache: "no-store", credentials: "same-origin" });
       const { version } = await response.json();
       if (!version || version === pageVersion) return;
       versionNotice = document.createElement("button");
@@ -94,7 +96,7 @@
     const csrf = document.querySelector('meta[name="csrf-token"]')?.content || "";
     const say = text => { if (state) state.textContent = text; };
     const poll = (tries) => {
-      fetch("/api/stories/status", { credentials: "same-origin", cache: "no-store" })
+      fetch(base + "/api/stories/status", { credentials: "same-origin", cache: "no-store" })
         .then(r => r.json())
         .then(info => {
           if (info.running && tries < 90) { setTimeout(() => poll(tries + 1), 2000); return; }
@@ -106,7 +108,7 @@
     refresh.addEventListener("click", () => {
       refresh.disabled = true;
       say("集計中…");
-      fetch("/api/stories/refresh", { method: "POST", credentials: "same-origin", headers: { "X-CSRF-Token": csrf } })
+      fetch(base + "/api/stories/refresh", { method: "POST", credentials: "same-origin", headers: { "X-CSRF-Token": csrf } })
         .then(r => { if (r.status !== 202) throw new Error(String(r.status)); setTimeout(() => poll(0), 1200); })
         .catch(() => { say("開始できませんでした"); refresh.disabled = false; });
     });
@@ -118,7 +120,7 @@
       const state = clearButton.parentElement.querySelector(".refresh-state");
       clearButton.disabled = true;
       if (state) state.textContent = "取り消しています…";
-      fetch(clearButton.dataset.clearUrl || "/api/stories/exclusions/clear", { method: "POST", credentials: "same-origin",
+      fetch(clearButton.dataset.clearUrl || base + "/api/stories/exclusions/clear", { method: "POST", credentials: "same-origin",
         headers: { "X-CSRF-Token": document.querySelector('meta[name="csrf-token"]')?.content || "" } })
         .then(r => { if (!r.ok) throw new Error(String(r.status)); location.reload(); })
         .catch(() => { clearButton.disabled = false; if (state) state.textContent = "取り消せませんでした"; });
@@ -149,7 +151,7 @@
       if (!ids.length) return;
       glossToggle.disabled = true;
       try {
-        const response = await fetch("/api/translate-titles", {
+        const response = await fetch(base + "/api/translate-titles", {
           method: "POST", credentials: "same-origin",
           headers: { "Content-Type": "application/json", "X-CSRF-Token": csrfToken },
           body: JSON.stringify({ ids, target: target() })
@@ -203,7 +205,7 @@
     const follow = button.getAttribute("aria-pressed") !== "true";
     button.disabled = true;
     try {
-      const response = await fetch("/api/topics", {
+      const response = await fetch(base + "/api/topics", {
         method: "POST", credentials: "same-origin",
         headers: { "Content-Type": "application/json", "X-CSRF-Token": document.querySelector('meta[name="csrf-token"]')?.content || "" },
         body: JSON.stringify({ topic: button.dataset.topicFollow, follow })
@@ -244,14 +246,14 @@
     button.disabled = true;
     button.textContent = "まとめています…";
     try {
-      const response = await fetch("/api/stories/join", {
+      const response = await fetch(base + "/api/stories/join", {
         method: "POST", credentials: "same-origin",
         headers: { "Content-Type": "application/json", "X-CSRF-Token": document.querySelector('meta[name="csrf-token"]')?.content || "" },
         body: JSON.stringify({ id: Number(button.dataset.joinId), other: Number(button.dataset.joinOther) })
       });
       const payload = await response.json().catch(() => ({}));
       if (!response.ok) throw new Error(payload.error || "まとめられませんでした。");
-      location.assign(payload.redirect || "/stories");
+      location.assign(payload.redirect || base + "/stories");
     } catch (error) {
       button.disabled = false;
       button.classList.remove("confirm");

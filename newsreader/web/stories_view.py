@@ -4,7 +4,7 @@ from __future__ import annotations
 import re
 import threading
 
-from flask import abort, current_app, jsonify, render_template, request
+from flask import abort, current_app, jsonify, render_template, request, url_for
 
 from newsreader.library import stories, status
 from newsreader.services import images as image_service
@@ -196,8 +196,8 @@ def stories_exclude():
     for other in remaining:
         group = stories.related(db, other)
         if group:
-            return jsonify({"ok": True, "redirect": f"/stories/{group['key']}"})
-    return jsonify({"ok": True, "redirect": "/stories"})
+            return jsonify({"ok": True, "redirect": url_for("story_page", key=group["key"])})
+    return jsonify({"ok": True, "redirect": url_for("stories_page")})
 
 
 @routes.post("/api/stories/join", "stories_join")
@@ -217,7 +217,7 @@ def stories_join():
     if not group or ids[1] not in {m["id"] for m in group["members"]}:
         return jsonify({"error": "まとめられませんでした（「別のニュース」で分けた記事がある、グループが大きすぎる、"
                                  "または古すぎる記事です）。"}), 409
-    return jsonify({"ok": True, "redirect": f"/stories/{group['key']}"})
+    return jsonify({"ok": True, "redirect": url_for("story_page", key=group["key"])})
 
 
 @routes.post("/api/stories/exclusions/clear", "stories_clear_exclusions")

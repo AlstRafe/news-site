@@ -1,5 +1,7 @@
 (() => {
   "use strict";
+  // the path the site is served under ("/news" behind the front page; "" on its own)
+  const base = document.querySelector('meta[name="app-base"]')?.content || "";
   const controls = document.getElementById("translation-controls");
   if (!controls) return;
 
@@ -89,7 +91,7 @@
     const short = text => text && text.length <= 40 && !/[\n<>"&]/.test(text);
     link.hidden = !(short(original) && short(translation));
     if (!link.hidden) {
-      link.href = `/translation-settings?${new URLSearchParams({ gsrc: original, gdst: translation, glang: target })}#glossary`;
+      link.href = `${base}/translation-settings?${new URLSearchParams({ gsrc: original, gdst: translation, glang: target })}#glossary`;
     }
   }
 
@@ -175,7 +177,7 @@
       const p = document.createElement("p");
       p.textContent = "韓国語の漢字語情報には国立国語院APIキーが必要です。";
       const a = document.createElement("a");
-      a.href = "/translation-settings";
+      a.href = base + "/translation-settings";
       a.textContent = "翻訳設定を開く";
       p.append(" ", a);
       details.appendChild(p);
@@ -333,7 +335,7 @@
     let text = "";
     let failure = "";
     try {
-      const { ok, payload } = await postJson("/api/translate", { text: (paragraph.textContent || "").trim(), target, plain: true });
+      const { ok, payload } = await postJson(base + "/api/translate", { text: (paragraph.textContent || "").trim(), target, plain: true });
       if (ok && payload.translation) text = payload.translation;
       else failure = payload.translation_error || payload.error || "翻訳できませんでした。";
     } catch (_) {
@@ -371,7 +373,7 @@
     placePopup();
     let text;
     try {
-      const { ok, payload } = await postJson("/api/translate", { text: currentSentence, target: targetSelect.value, plain: true });
+      const { ok, payload } = await postJson(base + "/api/translate", { text: currentSentence, target: targetSelect.value, plain: true });
       text = ok && payload.translation ? payload.translation : (payload.translation_error || payload.error || "翻訳できませんでした。");
     } catch (_) {
       text = "アプリに接続できませんでした。";
@@ -401,7 +403,7 @@
     let payload;
     let ok = true;
     try {
-      ({ ok, payload } = await postJson("/api/translate", { text: normalized, target: targetSelect.value }));
+      ({ ok, payload } = await postJson(base + "/api/translate", { text: normalized, target: targetSelect.value }));
     } catch (_) {
       payload = { translation_error: "アプリに接続できませんでした。サーバーが起動しているか確認してください。" };
     }
@@ -415,7 +417,7 @@
       error.hidden = false;
       const details = document.getElementById("language-details");
       const link = document.createElement("a");
-      link.href = "/translation-settings";
+      link.href = base + "/translation-settings";
       link.textContent = "翻訳設定を確認";
       details.appendChild(link);
     }
@@ -441,7 +443,7 @@
     box.textContent = "辞書を引いています…";
     details.prepend(box);
     let result = null;
-    try { result = await postJson("/api/dictionary", { text, target }); } catch (_) { result = null; }
+    try { result = await postJson(base + "/api/dictionary", { text, target }); } catch (_) { result = null; }
     if (sequence !== requestCounter || !box.isConnected) return;
     const senses = result?.ok && Array.isArray(result.payload.senses) ? result.payload.senses : [];
     if (!senses.length) { box.remove(); placePopup({ reveal: true }); return; }
@@ -655,7 +657,7 @@
     if (!on || biTarget || !articleId) return;
     const target = targetSelect.value;
     try {
-      const { ok, payload } = await postJson("/api/translate-titles", { ids: [articleId], target });
+      const { ok, payload } = await postJson(base + "/api/translate-titles", { ids: [articleId], target });
       const text = ok && payload.translations ? payload.translations[String(articleId)] : "";
       if (!text || biTarget || target !== targetSelect.value) return;
       biTitle.textContent = text;
@@ -681,7 +683,7 @@
     syncFloat();
     status.textContent = "対訳を作成しています…";
     try {
-      const { ok, payload } = await postJson("/api/translate-paragraphs", { id: articleId, target });
+      const { ok, payload } = await postJson(base + "/api/translate-paragraphs", { id: articleId, target });
       if (!ok || payload.error) throw new Error(payload.error || "翻訳に失敗しました。");
       const originals = [...reader.querySelectorAll(":scope > p:not(.bi-tr)")];
       if (!Array.isArray(payload.paragraphs) || payload.paragraphs.length !== originals.length) {
@@ -808,7 +810,7 @@
     document.getElementById("whole-title").textContent = `全文翻訳 · ${targetNames[target]}`;
     makeParagraphs(document.getElementById("whole-translation"), "翻訳しています…");
     try {
-      const { ok, payload } = await postJson("/api/translate-article", { id: articleId, target });
+      const { ok, payload } = await postJson(base + "/api/translate-article", { id: articleId, target });
       if (!ok || payload.error) throw new Error(payload.error || "翻訳に失敗しました。");
       makeParagraphs(document.getElementById("whole-translation"), payload.translation);
       status.textContent = "翻訳しました。";
@@ -816,7 +818,7 @@
       const output = document.getElementById("whole-translation");
       makeParagraphs(output, error.message || "翻訳に失敗しました。");
       const link = document.createElement("a");
-      link.href = "/translation-settings";
+      link.href = base + "/translation-settings";
       link.textContent = "翻訳設定を確認";
       output.appendChild(link);
       status.textContent = "翻訳に失敗しました。";

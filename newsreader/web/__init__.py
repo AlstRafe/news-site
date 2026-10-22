@@ -19,23 +19,24 @@ THEME_BOOT = ('(function(){try{var t=localStorage.getItem("theme");'
               'if(t==="light"||t==="dark")document.documentElement.setAttribute("data-theme",t)}catch(e){}})();')
 
 
-def _speculation_rules() -> str:
+def _speculation_rules(mount: str = "") -> str:
     # Prefetch article and comparison pages when the pointer rests on a link (moderate),
     # so the click opens a page that is already in the browser's cache (§6).
-    rules = {"prefetch": [{"where": {"or": [{"href_matches": "/a/*"}, {"href_matches": "/stories/*"}]},
+    rules = {"prefetch": [{"where": {"or": [{"href_matches": f"{mount}/a/*"}, {"href_matches": f"{mount}/stories/*"}]},
                            "eagerness": "moderate"}]}
     return json.dumps(rules, separators=(",", ":"))
 
 
 def create_app(library_root: Path | str | None = None, db_path: Path | str | None = None, *,
                start_background: bool = True, secret_key: bytes | None = None,
-               sync_interval: float = 60.0) -> Flask:
+               sync_interval: float = 60.0, mount: str = "") -> Flask:
     """Build the app.
 
     library_root: saved-HTML folder (default: ``HTML_DIRECTORY`` or ``articles/``).
     db_path: index database (default: ``instance/library.sqlite3``).
     start_background: run the index sync thread (tests pass False and sync explicitly).
     secret_key: session key; default is the persistent ``instance/secret_key``.
+    mount: the path the app is served under (``/news`` behind the portal; links come from url_for).
     """
     from newsreader.library import index
     from newsreader.library.files import validate_directory
@@ -55,7 +56,7 @@ def create_app(library_root: Path | str | None = None, db_path: Path | str | Non
                       secret_key=secret_key or security.persistent_secret_key(paths.SECRET_KEY_PATH))
     assets.init_app(app, dev=assets.is_dev())
     app.jinja_env.globals["speculation_rules"] = security.register_inline_script(
-        "speculation_rules", _speculation_rules())
+        "speculation_rules", _speculation_rules(mount))
     app.jinja_env.globals["theme_boot"] = security.register_inline_script("theme_boot", THEME_BOOT)
 
     status_view.init_app(app)

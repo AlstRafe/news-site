@@ -72,6 +72,7 @@ def main() -> int:
         print(f"起動できませんでした: {exc}", file=sys.stderr)
         return 2
     from newsreader.services.preset import import_relay_token
+    from newsreader import portal
     from newsreader.web import create_app
 
     import_relay_token()
@@ -79,14 +80,17 @@ def main() -> int:
         # Flask's reloader runs the app in a child process; only that child serves requests,
         # so only it starts the background index sync.
         serving_child = os.environ.get("WERKZEUG_RUN_MAIN") == "true"
-        app = create_app(start_background=serving_child)
-        app.run(host=bind_host, port=port, debug=False, use_reloader=True)
+        app = create_app(start_background=serving_child, mount=portal.NEWS_MOUNT)
+        from werkzeug.serving import run_simple
+        run_simple(bind_host, port, portal.build(app), use_reloader=True)
         return 0
-    app = create_app()
+    # "/" is the front page of this PC's sites; News Site is served under /news.
+    app = create_app(mount=portal.NEWS_MOUNT)
     _record_web_status(app, bind_host, port)
     if os.environ.get("NEWS_SUPERVISED") == "1":
         _keep_logon_task_current()
-    return serve_until_redeployed(app, bind_host, port, supervised=os.environ.get("NEWS_SUPERVISED") == "1")
+    return serve_until_redeployed(portal.build(app), bind_host, port,
+                                  supervised=os.environ.get("NEWS_SUPERVISED") == "1")
 
 
 def _keep_logon_task_current() -> None:

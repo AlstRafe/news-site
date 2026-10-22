@@ -1,0 +1,19 @@
+:root{--paper:#f5f3ee;--ink:#1c1b19;--soft:#6b6862;--rule:#d8d4cb;--accent:#a3231d;}
+@media (prefers-color-scheme:dark){:root{--paper:#171614;--ink:#e9e6df;--soft:#9b978f;--rule:#3a3833;--accent:#e0675e;}}
+*{box-sizing:border-box;}
+html{background:var(--paper);color:var(--ink);-webkit-text-size-adjust:100%;}
+body{margin:0 auto;max-width:44rem;padding:3.5rem 1.25rem 2.5rem;font:16px/1.75 "Hiragino Sans","Yu Gothic UI","Meiryo",system-ui,sans-serif;}
+header{border-bottom:2px solid var(--ink);padding-bottom:.6rem;margin-bottom:.4rem;}
+.date{margin:0;font-size:.82rem;color:var(--soft);letter-spacing:.04em;}
+h1{margin:.1rem 0 0;font:600 1.9rem/1.3 "Hiragino Mincho ProN","Yu Mincho","YuMincho","Noto Serif JP",serif;letter-spacing:.06em;}
+.sites{list-style:none;margin:0;padding:0;}
+.sites li{display:grid;grid-template-columns:2.6rem 1fr;gap:.2rem;padding:1.35rem 0 1.2rem;border-bottom:1px solid var(--rule);}
+.no{font:500 .95rem/2.2 ui-monospace,"SFMono-Regular",Consolas,monospace;color:var(--soft);}
+.sites a{font:600 1.45rem/1.4 "Hiragino Mincho ProN","Yu Mincho","YuMincho","Noto Serif JP",serif;color:var(--ink);text-decoration:none;}
+.sites a:hover,.sites a:focus-visible{text-decoration:underline;text-decoration-color:var(--accent);text-decoration-thickness:2px;text-underline-offset:.25em;}
+.sites a:focus-visible{outline:none;}
+.sub{display:block;font-size:.9rem;color:var(--accent);margin-top:.1rem;}
+.sites p{margin:.45rem 0 0;color:var(--soft);font-size:.92rem;}
+footer{margin-top:2.2rem;font-size:.8rem;color:var(--soft);}
+footer p{margin:0;}
+@media (max-width:30rem){body{padding-top:2rem;}h1{font-size:1.6rem;}.sites li{grid-template-columns:2.1rem 1fr;}.sites a{font-size:1.3rem;}}
