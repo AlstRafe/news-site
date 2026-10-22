@@ -502,16 +502,19 @@ def _arc(db_path: Path, key: str, limit: int) -> list[dict]:
         groups = _members(db, keys)
     groups[key] = mine
     everyone = [m for g in groups.values() for m in g]
-    # opening paragraphs, tf-idf over the window, per language
+    # opening paragraphs, tf-idf over the window's articles in the same language ("했다", "表示" are
+    # in every Korean / Chinese article, rare among all)
     terms = {m["id"]: _body_terms(db_path, m) for m in everyone}
-    df: dict[str, int] = {}
-    for _, counts in terms.values():
+    df: dict[tuple[str, str], int] = {}
+    docs: dict[str, int] = {}
+    for lang, counts in terms.values():
+        docs[lang] = docs.get(lang, 0) + 1
         for term in counts:
-            df[term] = df.get(term, 0) + 1
-    n = len(terms)
+            df[lang, term] = df.get((lang, term), 0) + 1
     bodies = {}
     for article_id, (lang, counts) in terms.items():
-        weights = {t: (1 + math.log(c)) * math.log((n + 1) / (df[t] + 1)) for t, c in counts.items()}
+        n = docs[lang]
+        weights = {t: (1 + math.log(c)) * math.log((n + 1) / (df[lang, t] + 0.5)) for t, c in counts.items()}
         norm = math.sqrt(sum(w * w for w in weights.values())) or 1.0
         bodies[article_id] = (lang, {t: w / norm for t, w in weights.items()})
     # headlines (English pivots) for pairs in different languages
@@ -532,9 +535,27 @@ def _arc(db_path: Path, key: str, limit: int) -> list[dict]:
         score = corpus.raw(a, b)
         return score / ARC_HEADLINE_MIN if common >= 2 or (common and score >= ARC_ONE_NAME) else 0.0
 
+    # whatever ties two groups, their headlines must share a name (a place, person, organisation):
+    # "military base", "killed" alone tie a fire in Canada to a missile strike in Yemen
+    # (a name here: capitalised in the window's headlines and never written in lower case: not "Military Base")
+    seen: dict[str, set[str]] = {}
+    for pivot in pivoted.values():
+        for word, found_shapes in core.shapes(pivot).items():
+            seen.setdefault(word, set()).update(found_shapes)
+    proper = {w for w, f in seen.items() if "lower" not in f and f & {"name", "quoted", "initial"} and w not in core._GENERIC}
+
+    def group_names(members: list[dict]) -> set[str] | None:
+        if not any(m["id"] in items for m in members):
+            return None  # headlines not translated yet: nothing to require
+        return {t for m in members if m["id"] in items for t in corpus.vectors[m["id"]] if t in proper}
+
+    my_names = group_names(mine)
     found = []
     for other, members in groups.items():
         if other == key:
+            continue
+        their_names = group_names(members)
+        if my_names is not None and their_names is not None and not my_names & their_names:
             continue
         best = max((pair(a["id"], b["id"]) for a in mine for b in members), default=0.0)
         if best >= 1.0:
