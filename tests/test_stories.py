@@ -666,5 +666,89 @@ class SimilarTests(unittest.TestCase):
             shutil.rmtree(tmp, ignore_errors=True)
 
 
+class ArcTests(unittest.TestCase):
+    """このニュースの流れ (D-74): groups of the same developing matter, oldest first."""
+
+    AIRPORT = ("Houthi drones struck Riyadh airport terminal overnight, Saudi officials said, halting flights. "
+               "The Houthi movement claimed the drone attack on the Riyadh airport terminal.")
+    AIRPORT_ZH = "葉門青年運動以無人機攻擊沙烏地阿拉伯首都利雅德機場航廈，機場暫停航班。"
+
+    def setUp(self):
+        self.tmp = Path(tempfile.mkdtemp())
+        self.root = self.tmp / "articles"
+        for site in ("BBC", "CNA"):
+            (self.root / site).mkdir(parents=True)
+
+        def page(title, published, text):
+            return bbc(title, published).replace(f"Body of {title}.".encode(), text.encode())
+
+        def cna_page(title, published, text):
+            return cna(title, published).replace("本文。".encode(), text.encode())
+
+        files = {
+            ("BBC", "a1.html"): page("Riyadh airport hit by drones", "2026-10-11T08:00:00Z", self.AIRPORT),
+            ("CNA", "z1.html"): cna_page("利雅德機場遭攻擊", "2026-10-11T09:00:00Z", self.AIRPORT_ZH),
+            ("BBC", "a2.html"): page("Second strike on Saudi capital's airport", "2026-10-12T08:00:00Z",
+                                     self.AIRPORT + " A second Houthi drone attack hit the airport terminal again."),
+            ("CNA", "z2.html"): cna_page("利雅德機場再遭攻擊", "2026-10-13T09:00:00Z", self.AIRPORT_ZH + "機場航廈再度起火。"),
+            ("BBC", "o1.html"): page("Snow closes Alpine passes", "2026-10-12T10:00:00Z",
+                                     "Heavy snow closed mountain passes across the Alps, stranding skiers and lorries."),
+            ("BBC", "o2.html"): page("Avalanche warning in Alps", "2026-10-12T11:00:00Z",
+                                     "Forecasters warned of avalanches after heavy snow in the Alps."),
+        }
+        for (site, name), data in files.items():
+            (self.root / site / name).write_bytes(data)
+        self.db = self.tmp / "library.sqlite3"
+        index._last_sync.clear()
+        index.sync(self.root, self.db, force=True)
+        ids = {name: index.find_by_file(self.db, site, name)["id"] for site, name in files}
+        groups = {"s1": ["a1.html", "z1.html"], "s2": ["a2.html"], "s3": ["z2.html"], "s9": ["o1.html", "o2.html"]}
+        with closing(index.connect(self.db)) as c:
+            for key, names in groups.items():
+                for name in names:
+                    c.execute("INSERT INTO story_members(article_id, story_key, score) VALUES(?,?,0.5)", (ids[name], key))
+        stories._body_cache.clear()
+
+    def tearDown(self):
+        shutil.rmtree(self.tmp, ignore_errors=True)
+
+    def test_follow_ups_in_one_language_by_their_text(self):
+        arc = stories.arc(self.db, "s1")
+        self.assertEqual([g["key"] for g in arc], ["s1", "s2", "s3"])  # oldest first
+        self.assertEqual([g["current"] for g in arc], [True, False, False])
+        self.assertEqual(arc[0]["count"], 2)
+        self.assertEqual(stories.arc(self.db, "s9"), [])  # nothing else about snow in the Alps
+        self.assertEqual(stories.arc(self.db, "nope"), [])
+
+    def test_across_languages_needs_names_in_the_headlines(self):
+        with closing(index.connect(self.db)) as c:
+            rows = c.execute("SELECT a.id, a.title FROM articles a JOIN story_members m ON m.article_id = a.id "
+                             "WHERE m.story_key IN ('s2', 's9')").fetchall()
+            for row in rows:
+                c.execute("INSERT INTO story_items(article_id, title, lang, pivot, pivot_chars, pivot_at) VALUES(?,?,'en',?,0,'')",
+                          (row[0], row[1], row[1]))
+            # a Chinese-only group, its headline in English: shares Riyadh and Houthi with s2's
+            c.execute("INSERT INTO articles(id, source, filename, title, published, size, mtime) "
+                      "VALUES(900, 'CNA', 'x.html', '胡塞再襲利雅德', '2026-10-12T20:00:00Z', 1, 1)")
+            c.execute("INSERT INTO story_items(article_id, title, lang, pivot, pivot_chars, pivot_at) VALUES(900, '胡塞再襲利雅德', 'zh', "
+                      "'Houthi drones strike Riyadh airport again', 0, '')")
+            c.execute("INSERT INTO story_members(article_id, story_key, score) VALUES(900, 's7', 0.5)")
+        c2 = index.find_by_file(self.db, "BBC", "a2.html")["id"]
+        with closing(index.connect(self.db)) as c:
+            c.execute("UPDATE story_items SET pivot = 'Houthi drones hit Riyadh airport a second time' WHERE article_id = ?", (c2,))
+        keys = [g["key"] for g in stories.arc(self.db, "s7")]
+        self.assertIn("s2", keys)
+        self.assertNotIn("s9", keys)
+
+    def test_story_page_shows_the_arc(self):
+        app = create_app(self.root, self.db, start_background=False, secret_key=b"k" * 32)
+        html = app.test_client().get("/stories/s2", headers=H).get_data(as_text=True)
+        self.assertIn("このニュースの流れ", html)
+        self.assertIn('href="/stories/s1"', html)
+        self.assertIn('aria-current="true"', html)
+        html = app.test_client().get("/stories/s9", headers=H).get_data(as_text=True)
+        self.assertNotIn("このニュースの流れ", html)
+
+
 if __name__ == "__main__":
     unittest.main()

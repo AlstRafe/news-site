@@ -144,7 +144,7 @@ def story_page(key: str):
     disputes = facts_watch.disputed(db_path(), [story["key"]]).get(story["key"], [])
     from newsreader.library import provenance
     response = current_app.make_response(render_template("story.html", story=story, chart=timeline_chart(story),
-                                                         disputes=disputes,
+                                                         disputes=disputes, arc=stories.arc(db_path(), story["key"]),
                                                          provenance=provenance.story(db_path(), story["members"])))
     # Not reused from the browser cache: a group changes when it is corrected or re-grouped.
     response.headers["Cache-Control"] = "no-cache"

@@ -126,6 +126,29 @@ def features(pivot: str) -> dict[str, float]:
     return out
 
 
+_BODY_STOP = frozenset(
+    "the a an of to in and for on is was were be by with as at that this it from has have had he she they his her "
+    "their its but or not are been said says will would also who which after more than about into over".split())
+_BODY_WORD = re.compile(r"[A-Za-z][A-Za-z'\-]+")
+_BODY_DROP = re.compile(r"[\W\d_]+")
+
+
+def body_terms(text: str, lang: str) -> dict[str, int]:
+    """Term counts of article text for comparing two articles in one language: English words, or
+    character pairs for Chinese, Korean and Japanese (no word segmentation needed)."""
+    counts: dict[str, int] = defaultdict(int)
+    if lang == "en":
+        for word in _BODY_WORD.findall(text):
+            word = word.lower()
+            if word not in _BODY_STOP:
+                counts[word] += 1
+    else:
+        run = _BODY_DROP.sub("", text)
+        for i in range(len(run) - 1):
+            counts[run[i:i + 2]] += 1
+    return dict(counts)
+
+
 def is_title_case(pivot: str) -> bool:
     """"Man Killed After Attacking Tiger Zone": every content word (4+ letters) after the first is capitalised."""
     words = [w for w in _WORD.findall(pivot)[1:] if len(w) >= 4 and w[0].isalpha() and w.lower() not in _STOP]

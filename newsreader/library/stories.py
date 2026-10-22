@@ -14,6 +14,7 @@ Readers (``list_stories``, ``get_story``, ``related``) only query.
 from __future__ import annotations
 
 import logging
+import math
 import threading
 import time
 from contextlib import closing
@@ -439,3 +440,99 @@ def similar(db_path: Path, article_id: int, limit: int = 5) -> list[dict]:
                           "score": round(score, 2)})
     found.sort(key=lambda item: -item["score"])
     return found[:limit]
+
+
+#: このニュースの流れ (D-74): groups before and after this one about the same matter (a developing
+#: story is several groups: the attack, the second attack, the response), within ARC_DAYS of it.
+ARC_DAYS = 10
+#: Two articles in one language whose opening paragraphs share this much (tf-idf cosine) are about
+#: the same matter (measured: follow-ups 0.17-0.25, unrelated news at most 0.13).
+ARC_BODY_MIN = 0.16
+#: Across languages only headlines compare: this similar (core.Corpus.raw) with two shared names,
+#: or ARC_ONE_NAME with one.
+ARC_HEADLINE_MIN = 0.22
+ARC_ONE_NAME = 0.4
+ARC_LIMIT = 8
+ARC_PARAGRAPHS = 8
+_body_cache: dict[tuple[int, str], tuple[str, dict[str, int]]] = {}
+
+
+def _body_terms(db_path: Path, article: dict) -> tuple[str, dict[str, int]]:
+    key = (article["id"], article["published"] or "")
+    if key not in _body_cache:
+        if len(_body_cache) > 4000:
+            _body_cache.clear()
+        content = index.get_content(db_path, article["id"]) or {"paragraphs": []}
+        lang = core.detect_lang(article["title"])
+        _body_cache[key] = (lang, core.body_terms("\n".join(content["paragraphs"][:ARC_PARAGRAPHS]), lang))
+    return _body_cache[key]
+
+
+def arc(db_path: Path, key: str, limit: int = ARC_LIMIT) -> list[dict]:
+    """Groups of the same developing matter as group ``key``, oldest first, this group included
+    (``"current": True``); [] when there is none. Each: {"key", "title", "lead_id", "lead_source",
+    "count", "current", "score", "outlet_counts", "first", "oldest", "newest_time"}."""
+    from datetime import timedelta
+    with closing(index.connect(db_path)) as db:
+        mine = _members(db, [key]).get(key, [])
+        dated = [d for d in (core.parse_utc(m["published"]) for m in mine if m.get("published")) if d]
+        if not dated:
+            return []
+        low = (min(dated) - timedelta(days=ARC_DAYS)).strftime("%Y-%m-%dT%H:%M:%SZ")
+        high = (max(dated) + timedelta(days=ARC_DAYS)).strftime("%Y-%m-%dT%H:%M:%SZ")
+        keys = [row[0] for row in db.execute(
+            """SELECT DISTINCT m.story_key FROM story_members m JOIN articles a ON a.id = m.article_id
+               WHERE a.error = '' AND a.published BETWEEN ? AND ?""", (low, high))]
+        groups = _members(db, keys)
+    groups[key] = mine
+    everyone = [m for g in groups.values() for m in g]
+    # opening paragraphs, tf-idf over the window, per language
+    terms = {m["id"]: _body_terms(db_path, m) for m in everyone}
+    df: dict[str, int] = {}
+    for _, counts in terms.values():
+        for term in counts:
+            df[term] = df.get(term, 0) + 1
+    n = len(terms)
+    bodies = {}
+    for article_id, (lang, counts) in terms.items():
+        weights = {t: (1 + math.log(c)) * math.log((n + 1) / (df[t] + 1)) for t, c in counts.items()}
+        norm = math.sqrt(sum(w * w for w in weights.values())) or 1.0
+        bodies[article_id] = (lang, {t: w / norm for t, w in weights.items()})
+    # headlines (English pivots) for pairs in different languages
+    pivoted = {m["id"]: m["pivot"] for m in everyone if m.get("pivot")}
+    items = {i: (f, dated[0]) for i, f in ((i, core.features(p)) for i, p in pivoted.items()) if f}
+    corpus = core.Corpus(items) if items else None
+    names = core.name_tokens({i: core.shapes(p) for i, p in pivoted.items()})
+
+    def pair(a: int, b: int) -> float:
+        """How strongly two articles tie the groups: 1.0 = just enough."""
+        (lang_a, va), (lang_b, vb) = bodies[a], bodies[b]
+        if lang_a == lang_b and va and vb:
+            small, big = (va, vb) if len(va) <= len(vb) else (vb, va)
+            return sum(w * big.get(t, 0.0) for t, w in small.items()) / ARC_BODY_MIN
+        if corpus is None or a not in items or b not in items:
+            return 0.0
+        common = sum(1 for t in corpus.vectors[a] if t in corpus.vectors[b] and t in names)
+        score = corpus.raw(a, b)
+        return score / ARC_HEADLINE_MIN if common >= 2 or (common and score >= ARC_ONE_NAME) else 0.0
+
+    found = []
+    for other, members in groups.items():
+        if other == key:
+            continue
+        best = max((pair(a["id"], b["id"]) for a in mine for b in members), default=0.0)
+        if best >= 1.0:
+            found.append((best, other))
+    found.sort(reverse=True)
+    if not found:
+        return []
+    scores = {other: score for score, other in found}
+    result = []
+    for other in [o for _, o in found[: max(1, limit - 1)]] + [key]:
+        members = groups[other]
+        central = max(members, key=lambda m: (m["score"], m["published"]))
+        result.append({"key": other, "title": central["title"], "lead_id": central["id"],
+                       "lead_source": central["source"], "count": len(members), "current": other == key,
+                       "score": round(scores.get(other, 0.0), 2), **_summary(members)})
+    result.sort(key=lambda g: (g["oldest"], g["key"]))
+    return result
