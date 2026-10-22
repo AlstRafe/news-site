@@ -205,6 +205,7 @@
 //    and the words of the headlines only one outlet uses. Fetched when first opened.
 (() => {
   "use strict";
+  const base = document.querySelector('meta[name="app-base"]')?.content || "";
   const csrf = document.querySelector('meta[name="csrf-token"]')?.content || "";
   const key = document.querySelector('meta[name="story-key"]')?.content || "";
   const targetMenu = (() => { try { return JSON.parse(document.querySelector('meta[name="translation-targets"]')?.content || "{}"); } catch (_) { return {}; } })();

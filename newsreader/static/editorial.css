@@ -1,0 +1,95 @@
+/* Editorial layer (loaded after style.css): a newspaper's page rather than an app template.
+   Paper and ink, mincho headlines, thin rules instead of boxes and shadows, square corners,
+   outlets named in small text with a language mark instead of coloured pills, no placeholder
+   pictures. Colours are tokens so the light and dark themes stay in step with style.css. */
+:root{--paper:#f6f4ef;--sheet:#fbfaf7;--ink:#1d1c1a;--ink-2:#3b3935;--soft:#6e6a63;--rule:#d9d5cc;--rule-strong:#1d1c1a;
+  --accent:#a3231d;--accent-ink:#ffffff;--mark-en:#2f5d8a;--mark-zh:#2f7a55;--mark-ko:#8a4b2f;--mark-ja:#a3231d;
+  --serif:"Hiragino Mincho ProN","Yu Mincho","YuMincho","Noto Serif JP","Noto Serif CJK JP",serif;
+  --sans:"Hiragino Sans","Hiragino Kaku Gothic ProN","Yu Gothic UI","Meiryo",system-ui,sans-serif;}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--paper:#161513;--sheet:#1c1b18;--ink:#ebe7df;--ink-2:#cfcac0;--soft:#9c978d;
+  --rule:#36342f;--rule-strong:#ebe7df;--accent:#e06a60;--accent-ink:#161513;--mark-en:#7fa8d1;--mark-zh:#79b893;--mark-ko:#d19a7c;--mark-ja:#e06a60;}}
+:root[data-theme="dark"]{--paper:#161513;--sheet:#1c1b18;--ink:#ebe7df;--ink-2:#cfcac0;--soft:#9c978d;
+  --rule:#36342f;--rule-strong:#ebe7df;--accent:#e06a60;--accent-ink:#161513;--mark-en:#7fa8d1;--mark-zh:#79b893;--mark-ko:#d19a7c;--mark-ja:#e06a60;}
+
+/* paper, ink, type */
+:root{background:var(--paper);color:var(--ink);font-family:var(--sans);}
+body{background:var(--paper);}
+*,*::before,*::after{border-radius:0!important;box-shadow:none!important;}
+h1,h2,.article h1,.story-page h1{font-family:var(--serif);letter-spacing:.02em;font-weight:700;}
+h1{line-height:1.35;}
+a{color:inherit;}
+.hint,.count,.meta,.story-time{color:var(--soft);}
+
+/* masthead */
+.topbar{background:var(--paper);border-bottom:1px solid var(--rule-strong);}
+.brand{min-height:64px;}
+.brand .mark{display:none;}
+.brand-link>span:last-child{font-family:var(--serif);font-size:22px;font-weight:700;letter-spacing:.03em;}
+.brand small{font-family:var(--sans);letter-spacing:.08em;color:var(--soft);}
+.topnav a.nav-text{color:var(--ink);font-weight:600;text-decoration:none;padding-bottom:3px;border-bottom:2px solid transparent;}
+.topnav a.nav-text:hover,.topnav a.nav-text[aria-current="page"]{border-bottom-color:var(--accent);}
+.status-badge{background:none!important;border:1px solid var(--rule);color:var(--soft)!important;}
+.theme-toggle{background:none;border:1px solid var(--rule);color:var(--ink);}
+.theme-toggle,.chart-dot,.arc-list li::before,.status-badge::before{border-radius:50%!important;}
+
+/* controls: square, quiet */
+button,.button{background:var(--ink);color:var(--paper);font-weight:600;}
+button:hover{background:var(--ink-2);}
+button.secondary,.secondary,.gloss-toggle,.chip-button,.text-button{background:none;color:var(--ink);border:1px solid var(--rule-strong);}
+button.secondary:hover,.gloss-toggle:hover,.chip-button:hover{background:var(--sheet);}
+.text-button{border:0;text-decoration:underline;text-underline-offset:3px;}
+input,select,textarea{background:var(--sheet);color:var(--ink);border:1px solid var(--rule-strong)!important;font-family:var(--sans);}
+.searchbar input{font-family:var(--sans);}
+.chips{gap:4px 18px;}
+.chip{background:none!important;border:0!important;padding:4px 0!important;color:var(--soft)!important;font-weight:600;border-bottom:2px solid transparent!important;}
+.chip.active,.chip[aria-current]{color:var(--ink)!important;border-bottom-color:var(--accent)!important;}
+.chip small,.chip .n{color:var(--soft);}
+
+/* outlets: name in small text with a language mark, not a pill */
+.badge,.badge[data-lang]{background:none!important;color:var(--ink-2)!important;padding:0 0 0 9px!important;position:relative;
+  font-weight:700;letter-spacing:.06em;}
+.badge::before{content:"";position:absolute;left:0;top:.2em;bottom:.2em;width:3px;background:var(--soft);}
+.badge[data-lang="en"]::before{background:var(--mark-en);}
+.badge[data-lang="zh"]::before{background:var(--mark-zh);}
+.badge[data-lang="ko"]::before{background:var(--mark-ko);}
+.badge[data-lang="ja"]::before{background:var(--mark-ja);}
+
+/* boxes become ruled sections */
+.panel,.reading,.provenance-box,.story-arc,.insights,.insight-panel,.highlight,.topic-card,.story-column,.digest-item,.outlet-card,
+.alert,.related,.story-item,.settings-section{background:transparent;border:0;border-top:1px solid var(--rule);}
+.panel,.reading{padding-left:0;padding-right:0;}
+.reading{border-top:1px solid var(--rule-strong);}
+.reading p{font-size:17.5px;}
+.alert{border-top:2px solid var(--accent);color:var(--ink);}
+
+/* article list: a page of stories, not a grid of tiles */
+.card-grid{gap:0 28px;}
+.card{background:transparent!important;border:0!important;border-top:1px solid var(--rule)!important;padding-top:14px;}
+.card:hover{background:transparent!important;}
+.card:hover strong,.card:hover h3,.card:hover .card-title{text-decoration:underline;text-underline-offset:4px;}
+.card-thumb{background:none!important;}
+.card-body,.highlight{padding-left:0!important;padding-right:0!important;}
+.card h2{font-size:18px;line-height:1.55;}
+.card-body p{color:var(--soft);}
+.card-thumb:has(.thumb-fallback){display:none;}
+.card-thumb img{filter:saturate(.92);}
+.card strong,.card h3,.card .card-title,.highlight strong,.story-item strong,.digest-title{font-family:var(--serif);font-weight:700;letter-spacing:.01em;}
+.day-sep{font-family:var(--serif);color:var(--ink);border:0!important;padding-bottom:2px;}
+.list-head h1{font-size:28px;}
+.highlights-head h2,.insights-head h2,.story-arc h2,.provenance-box h2{font-size:17px;}
+.story-thumb:has(.thumb-fallback){display:none;}
+
+/* flags in the accent colour, flat */
+.diff-flag,.arc-tag,.lag,.fresh{background:none!important;border:0!important;color:var(--accent)!important;padding:0!important;font-weight:700;}
+
+/* phone tab bar */
+.tabbar{background:var(--paper);border-top:1px solid var(--rule-strong);}
+.tabbar a[aria-current="page"]{color:var(--accent);}
+
+/* pressed states and word lists: ink, not candy colours */
+.segmented{background:none;border:1px solid var(--rule-strong);padding:0;}
+.segmented .seg{color:var(--ink);}
+.segmented .seg[aria-pressed="true"],.gloss-toggle[aria-pressed="true"],.chip-button[aria-pressed="true"]{background:var(--ink)!important;color:var(--paper)!important;}
+.word-chips .word-chip,.word-chips.only .word-chip,.word-chips.shared .word-chip{background:none!important;color:var(--ink)!important;
+  border-bottom:1px solid var(--rule)!important;padding:2px 2px 3px!important;}
+.word-chips.only .word-chip{border-bottom-color:var(--accent)!important;}
