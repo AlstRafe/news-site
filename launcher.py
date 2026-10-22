@@ -552,6 +552,8 @@ def supervise_app(runtime_python: Path, env: dict[str, str], background: bool = 
     quick_failures = 0
     while True:
         started = time.monotonic()
+        # The article folder may have been changed on the settings page since the last start.
+        env["HTML_DIRECTORY"] = str(resolve_article_directory())
         # Started at logon without a window: the app must not open a console window either.
         extra = {"creationflags": CREATE_NO_WINDOW} if background and os.name == "nt" else {}
         code = subprocess.run([str(runtime_python), str(PROJECT_ROOT / "app.py")], cwd=PROJECT_ROOT, env=env, **extra).returncode

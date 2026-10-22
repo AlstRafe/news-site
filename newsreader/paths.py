@@ -72,6 +72,10 @@ def articles_dir() -> Path:
     # HTML_DIRECTORY explicitly; that is not a choice, so a saved folder still applies.
     if saved and (not configured or _same_path(configured, DEFAULT_ARTICLES_DIR)):
         configured = saved
+    # A launcher started before the folder was moved keeps passing the old one on restarts: a
+    # folder that no longer exists is no choice either.
+    elif saved and configured and not Path(configured).expanduser().exists() and Path(saved).expanduser().exists():
+        configured = saved
     return Path(configured).expanduser() if configured else DEFAULT_ARTICLES_DIR
 
 
