@@ -749,6 +749,23 @@ class ArcTests(unittest.TestCase):
         html = app.test_client().get("/stories/s9", headers=H).get_data(as_text=True)
         self.assertNotIn("このニュースの流れ", html)
 
+    def test_cached_until_the_groups_change(self):
+        first = stories.arc(self.db, "s1")
+        self.assertIs(stories.arc(self.db, "s1"), first)
+        with closing(index.connect(self.db)) as c:
+            c.execute("DELETE FROM story_members WHERE story_key = 's3'")
+        self.assertEqual([g["key"] for g in stories.arc(self.db, "s1")], ["s1", "s2"])
+
+    def test_digest_marks_a_follow_up(self):
+        app = create_app(self.root, self.db, start_background=False, secret_key=b"k" * 32)
+        z2 = index.find_by_file(self.db, "CNA", "z2.html")["id"]
+        with closing(index.connect(self.db)) as c:  # s2 reported by two outlets (in the digest), all recent
+            c.execute("UPDATE story_members SET story_key = 's2' WHERE article_id = ?", (z2,))
+            for name, hours in (("a1.html", 40), ("z1.html", 39), ("a2.html", 10), ("z2.html", 9)):
+                c.execute("UPDATE articles SET published = strftime('%Y-%m-%dT%H:%M:%SZ', 'now', ?) WHERE filename = ?",
+                          (f"-{hours} hours", name))
+        html = app.test_client().get("/digest?hours=24", headers=H).get_data(as_text=True)
+        self.assertTrue('class="arc-tag">続報' in html and 'href="/stories/s1"' in html)
 
 if __name__ == "__main__":
     unittest.main()

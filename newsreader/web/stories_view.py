@@ -104,6 +104,9 @@ def digest_page():
         for member in sorted(group["members"], key=lambda m: m["published"] or ""):
             firsts.setdefault(member["source"] or "未分類", member)
         group["firsts"] = sorted(firsts.values(), key=lambda m: m["published"] or "")
+        # 続報 (D-74): the latest earlier group of the same matter
+        earlier = [g for g in stories.arc(db_path(), group["key"]) if not g["current"] and g["oldest"] < group["oldest"]]
+        group["earlier"] = earlier[-1] if earlier else None
     groups.sort(key=lambda g: g["newest"] or "", reverse=True)
     groups.sort(key=lambda g: (-len(g["firsts"]), not g["disputes"]))  # stable: newest first within
     stats = outlets.stats(db_path(), days=max(1, hours // 24))

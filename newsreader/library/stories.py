@@ -455,6 +455,8 @@ ARC_ONE_NAME = 0.4
 ARC_LIMIT = 8
 ARC_PARAGRAPHS = 8
 _body_cache: dict[tuple[int, str], tuple[str, dict[str, int]]] = {}
+#: (database, group) -> (state of all groups, result): a refresh, correction or join changes the state.
+_arc_cache: dict[tuple[str, str], tuple[tuple, list[dict]]] = {}
 
 
 def _body_terms(db_path: Path, article: dict) -> tuple[str, dict[str, int]]:
@@ -472,6 +474,20 @@ def arc(db_path: Path, key: str, limit: int = ARC_LIMIT) -> list[dict]:
     """Groups of the same developing matter as group ``key``, oldest first, this group included
     (``"current": True``); [] when there is none. Each: {"key", "title", "lead_id", "lead_source",
     "count", "current", "score", "outlet_counts", "first", "oldest", "newest_time"}."""
+    with closing(index.connect(db_path)) as db:
+        state = tuple(db.execute("SELECT COUNT(*), COALESCE(SUM(rowid), 0), COALESCE(SUM(LENGTH(story_key)), 0) "
+                                 "FROM story_members").fetchone())
+    cached = _arc_cache.get((str(db_path), key))
+    if cached and cached[0] == state:
+        return cached[1]
+    if len(_arc_cache) > 2000:
+        _arc_cache.clear()
+    result = _arc(db_path, key, limit)
+    _arc_cache[(str(db_path), key)] = (state, result)
+    return result
+
+
+def _arc(db_path: Path, key: str, limit: int) -> list[dict]:
     from datetime import timedelta
     with closing(index.connect(db_path)) as db:
         mine = _members(db, [key]).get(key, [])

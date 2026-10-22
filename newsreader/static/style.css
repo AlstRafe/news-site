@@ -747,3 +747,6 @@ a.diff-flag{text-decoration:none;}.story-meta .diff-flag{margin-left:auto;}
  .source-link::-webkit-scrollbar{display:none;}
  .provenance{flex-wrap:nowrap;white-space:nowrap;}.prov-head{display:none;}
 }
+.digest-earlier{font-size:13px;margin:4px 0 6px;color:var(--fg-60636c);overflow-wrap:anywhere;}
+.digest-earlier a{color:inherit;}
+.arc-tag{display:inline-block;font-size:11px;font-weight:600;padding:1px 6px;border-radius:6px;border:1px solid var(--line-b51d24);color:var(--fg-a41b22);margin-right:4px;}
