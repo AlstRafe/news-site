@@ -775,5 +775,31 @@ class ArcTests(unittest.TestCase):
         html = app.test_client().get("/digest?hours=24", headers=H).get_data(as_text=True)
         self.assertTrue('class="arc-tag">続報' in html and 'href="/stories/s1"' in html)
 
+class BodyApartTests(StoryTestCase):
+    """D-75: same-language articles whose texts share almost nothing are not grouped."""
+
+    def test_headlines_alike_texts_apart(self):
+        from datetime import datetime, timezone
+        from newsreader.library import stories_core as core
+        t = datetime(2026, 10, 13, tzinfo=timezone.utc)
+        items = {1: (core.features(NOBEL_A), t), 2: (core.features(NOBEL_B), t)}
+        self.assertEqual(len(core.cluster(items)), 1)
+        self.assertEqual(core.cluster(items, apart=lambda a, b: (a, b) == (1, 2)), [])
+
+    def test_refresh_uses_the_texts(self):
+        def long_text(words):
+            return " ".join(f"{w}{chr(97 + i)}{chr(97 + j)}" for i in range(6) for j in range(6) for w in words)
+        self.write("BBC", "a.html", bbc(NOBEL_A, "2026-10-13T10:00:00Z").replace(
+            f"Body of {NOBEL_A}.".encode(), long_text(["alpha", "beta"]).encode()))
+        self.write("BBC", "b.html", bbc(NOBEL_B, "2026-10-13T12:00:00Z").replace(
+            f"Body of {NOBEL_B}.".encode(), long_text(["gamma", "delta"]).encode()))
+        index._last_sync.clear()
+        index.sync(self.root, self.db, force=True)
+        stories._body_cache.clear()
+        self.refresh(FakeTranslator({NOBEL_ZH: NOBEL_ZH_EN}))
+        a, b = self.id_of("BBC", "a.html"), self.id_of("BBC", "b.html")
+        self.assertFalse(any({a, b} <= members for members in self.groups().values()))
+
+
 if __name__ == "__main__":
     unittest.main()

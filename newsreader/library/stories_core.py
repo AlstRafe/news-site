@@ -185,9 +185,10 @@ def parse_utc(published: str) -> datetime | None:
 
 class Corpus:
     def __init__(self, items: dict[int, tuple[dict[str, float], datetime]], names: set[str] | None = None,
-                 forbidden: set[tuple[int, int]] | None = None):
+                 forbidden: set[tuple[int, int]] | None = None, apart=None):
         self.names = names
         self.forbidden = forbidden or set()
+        self.apart = apart  # (a, b) -> True: different news whatever the headlines say
         self.times = {i: t for i, (_, t) in items.items()}
         doc_freq: dict[str, int] = defaultdict(int)
         for feats, _ in items.values():
@@ -222,6 +223,8 @@ class Corpus:
             accepted = score >= PAIR_THRESHOLD and (len(specific) >= 2 or score >= 0.6)
             if accepted and self.names is not None and score < NAME_EVIDENCE_BELOW:
                 accepted = any(token in self.names for token in specific)
+            if accepted and self.apart is not None and self.apart(*key):
+                accepted = False
             if accepted:
                 value = score
         self._cache[key] = value
@@ -261,13 +264,21 @@ class Corpus:
 
 def cluster(items: dict[int, tuple[dict[str, float], datetime]],
             shapes_by_item: dict[int, dict[str, frozenset[str]]] | None = None,
-            forbidden: set[tuple[int, int]] | None = None) -> list[dict[int, float]]:
+            forbidden: set[tuple[int, int]] | None = None, apart=None) -> list[dict[int, float]]:
     """Average-link clustering. Returns clusters (size >= 2) as {article_id: mean similarity to the others}.
 
     With ``shapes_by_item`` (see ``shapes``) weak pairs need a shared name-like token (D-21).
-    ``forbidden`` pairs (smaller id first) never end up in one cluster (the reader's corrections)."""
+    ``forbidden`` pairs (smaller id first) never end up in one cluster (the reader's corrections);
+    ``apart(a, b)`` (smaller id first) True: never in one cluster (their texts differ, D-75)."""
     forbidden = forbidden or set()
-    corpus = Corpus(items, name_tokens(shapes_by_item) if shapes_by_item is not None else None, forbidden)
+    corpus = Corpus(items, name_tokens(shapes_by_item) if shapes_by_item is not None else None, forbidden, apart)
+    apart_seen: dict[tuple[int, int], bool] = {}
+
+    def apart_pair(x: int, y: int) -> bool:
+        key = (min(x, y), max(x, y))
+        if key not in apart_seen:
+            apart_seen[key] = apart(*key)
+        return apart_seen[key]
     members = {i: [i] for i in items}
     owner = {i: i for i in items}
     for _, a, b in corpus.candidate_pairs():
@@ -276,6 +287,8 @@ def cluster(items: dict[int, tuple[dict[str, float], datetime]],
             continue
         if forbidden and any((min(x, y), max(x, y)) in forbidden for x in members[ca] for y in members[cb]):
             continue
+        if apart is not None and any(apart_pair(x, y) for x in members[ca] for y in members[cb]):
+            continue  # a group never holds two articles whose texts say they are different news
         link = sum(corpus.sim(x, y) for x in members[ca] for y in members[cb]) / (len(members[ca]) * len(members[cb]))
         if link < AVG_LINK_THRESHOLD:
             continue

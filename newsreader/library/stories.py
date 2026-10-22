@@ -126,7 +126,17 @@ def _refresh_locked(db_path: Path, translate: Translator | None, enabled: bool, 
                 items[row["id"]] = (feats, moment)
                 shapes[row["id"]] = core.shapes(row["pivot"])
         forbidden = {(row[0], row[1]) for row in db.execute("SELECT a, b FROM story_exclusions")}
-        clusters = core.cluster(items, shapes, forbidden) if len(items) > 1 else []
+        # Two articles in one language whose texts share almost nothing are different news, however
+        # alike their headlines (D-75: 「日相高市」 tied a spy arrest, an Okinawa case and more)
+        bodies = _body_vectors(db_path, [dict(row) for row in db.execute(
+            f"SELECT id, title, published FROM articles WHERE id IN ({','.join('?' * len(items))})", tuple(items))]) \
+            if items else {}
+
+        def apart(a: int, b: int) -> bool:
+            body = _body_cosine(bodies, a, b) if a in bodies and b in bodies else None
+            return body is not None and body < BODY_APART and min(len(bodies[a][1]), len(bodies[b][1])) >= BODY_APART_TERMS
+
+        clusters = core.cluster(items, shapes, forbidden, apart) if len(items) > 1 else []
         joins = [(row[0], row[1]) for row in db.execute("SELECT a, b FROM story_joins") if row[0] in items and row[1] in items]
         clusters = _apply_joins(clusters, joins, forbidden)
 
@@ -454,6 +464,11 @@ ARC_HEADLINE_MIN = 0.22
 ARC_ONE_NAME = 0.4
 ARC_LIMIT = 8
 ARC_PARAGRAPHS = 8
+#: D-75: same-language articles below this text similarity are not grouped (measured on the live
+#: library: different news 0.014-0.045, the same news from 0.07; on the labelled set from 0.10)...
+BODY_APART = 0.045
+#: ...when both have enough text to judge (distinct terms in the opening paragraphs).
+BODY_APART_TERMS = 40
 _body_cache: dict[tuple[int, str], tuple[str, dict[str, int]]] = {}
 #: (database, group) -> (state of all groups, result): a refresh, correction or join changes the state.
 _arc_cache: dict[tuple[str, str], tuple[tuple, list[dict]]] = {}
@@ -468,6 +483,34 @@ def _body_terms(db_path: Path, article: dict) -> tuple[str, dict[str, int]]:
         lang = core.detect_lang(article["title"])
         _body_cache[key] = (lang, core.body_terms("\n".join(content["paragraphs"][:ARC_PARAGRAPHS]), lang))
     return _body_cache[key]
+
+
+def _body_vectors(db_path: Path, articles: list[dict]) -> dict[int, tuple[str, dict[str, float]]]:
+    """Opening paragraphs as unit tf-idf vectors, idf over the given articles in the same language
+    ("했다", "表示" are in every Korean / Chinese article, rare among all)."""
+    terms = {a["id"]: _body_terms(db_path, a) for a in articles}
+    df: dict[tuple[str, str], int] = {}
+    docs: dict[str, int] = {}
+    for lang, counts in terms.values():
+        docs[lang] = docs.get(lang, 0) + 1
+        for term in counts:
+            df[lang, term] = df.get((lang, term), 0) + 1
+    bodies = {}
+    for article_id, (lang, counts) in terms.items():
+        n = docs[lang]
+        weights = {t: (1 + math.log(c)) * math.log((n + 1) / (df[lang, t] + 0.5)) for t, c in counts.items()}
+        norm = math.sqrt(sum(w * w for w in weights.values())) or 1.0
+        bodies[article_id] = (lang, {t: w / norm for t, w in weights.items()})
+    return bodies
+
+
+def _body_cosine(bodies: dict, a: int, b: int) -> float | None:
+    """None when the two are in different languages (or one has no text)."""
+    (lang_a, va), (lang_b, vb) = bodies[a], bodies[b]
+    if lang_a != lang_b or not va or not vb:
+        return None
+    small, big = (va, vb) if len(va) <= len(vb) else (vb, va)
+    return sum(w * big.get(t, 0.0) for t, w in small.items())
 
 
 def arc(db_path: Path, key: str, limit: int = ARC_LIMIT) -> list[dict]:
@@ -502,21 +545,7 @@ def _arc(db_path: Path, key: str, limit: int) -> list[dict]:
         groups = _members(db, keys)
     groups[key] = mine
     everyone = [m for g in groups.values() for m in g]
-    # opening paragraphs, tf-idf over the window's articles in the same language ("했다", "表示" are
-    # in every Korean / Chinese article, rare among all)
-    terms = {m["id"]: _body_terms(db_path, m) for m in everyone}
-    df: dict[tuple[str, str], int] = {}
-    docs: dict[str, int] = {}
-    for lang, counts in terms.values():
-        docs[lang] = docs.get(lang, 0) + 1
-        for term in counts:
-            df[lang, term] = df.get((lang, term), 0) + 1
-    bodies = {}
-    for article_id, (lang, counts) in terms.items():
-        n = docs[lang]
-        weights = {t: (1 + math.log(c)) * math.log((n + 1) / (df[lang, t] + 0.5)) for t, c in counts.items()}
-        norm = math.sqrt(sum(w * w for w in weights.values())) or 1.0
-        bodies[article_id] = (lang, {t: w / norm for t, w in weights.items()})
+    bodies = _body_vectors(db_path, everyone)
     # headlines (English pivots) for pairs in different languages
     pivoted = {m["id"]: m["pivot"] for m in everyone if m.get("pivot")}
     items = {i: (f, dated[0]) for i, f in ((i, core.features(p)) for i, p in pivoted.items()) if f}
@@ -525,10 +554,9 @@ def _arc(db_path: Path, key: str, limit: int) -> list[dict]:
 
     def pair(a: int, b: int) -> float:
         """How strongly two articles tie the groups: 1.0 = just enough."""
-        (lang_a, va), (lang_b, vb) = bodies[a], bodies[b]
-        if lang_a == lang_b and va and vb:
-            small, big = (va, vb) if len(va) <= len(vb) else (vb, va)
-            return sum(w * big.get(t, 0.0) for t, w in small.items()) / ARC_BODY_MIN
+        body = _body_cosine(bodies, a, b)
+        if body is not None:
+            return body / ARC_BODY_MIN
         if corpus is None or a not in items or b not in items:
             return 0.0
         common = sum(1 for t in corpus.vectors[a] if t in corpus.vectors[b] and t in names)
