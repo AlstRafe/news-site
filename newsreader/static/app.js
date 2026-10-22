@@ -4,9 +4,7 @@
 
   // 1. Images that cannot be fetched (offline, removed upstream) must not leave a broken-image
   //    icon or an empty grey box: cards fall back to the site initial, article figures disappear.
-  document.addEventListener("error", event => {
-    const img = event.target;
-    if (!(img instanceof HTMLImageElement)) return;
+  const dropBrokenImage = img => {
     const card = img.closest(".card-thumb");
     if (card) {
       const fallback = document.createElement("span");
@@ -25,7 +23,15 @@
       figure.remove();
       if (gallery && !gallery.querySelector("figure")) gallery.remove();
     }
+  };
+  document.addEventListener("error", event => {
+    if (event.target instanceof HTMLImageElement) dropBrokenImage(event.target);
   }, true);
+  // this script is deferred: an image that failed while the page was still parsing fired its error
+  // before the listener existed
+  document.querySelectorAll("img").forEach(img => {
+    if (img.complete && img.naturalWidth === 0 && img.getAttribute("src")) dropBrokenImage(img);
+  });
 
   // 1b. A long caption under the lead image is cut to two lines on phones; a tap shows it all.
   document.addEventListener("click", event => {
