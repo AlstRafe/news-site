@@ -172,6 +172,11 @@ def show_article(article_id: int):
         # The group's outlets disagree on a count (background comparison, D-59): say so up top.
         from newsreader.library import facts_watch
         related["disputes"] = facts_watch.disputed(db_path(), [related["key"]]).get(related["key"], [])
+        # このニュースの流れ (D-74): earlier / later groups of the same matter
+        arc = stories.arc(db_path(), related["key"])
+        current = next((g for g in arc if g["current"]), None)
+        related["arc"] = len(arc) - 1 if arc else 0
+        related["later"] = bool(current) and any(g["oldest"] > current["newest_time"] for g in arc if not g["current"])
     # 情報の出どころ (D-73): dateline, cited organisations, own reporting — read from the text.
     from newsreader.library import provenance
     prov = provenance.analyze(record.get("source") or "", article.get("paragraphs") or [])

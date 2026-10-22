@@ -749,6 +749,14 @@ class ArcTests(unittest.TestCase):
         html = app.test_client().get("/stories/s9", headers=H).get_data(as_text=True)
         self.assertNotIn("このニュースの流れ", html)
 
+    def test_article_page_links_the_arc(self):
+        app = create_app(self.root, self.db, start_background=False, secret_key=b"k" * 32)
+        a1 = index.find_by_file(self.db, "BBC", "a1.html")["id"]
+        html = app.test_client().get(f"/a/{a1}", headers=H).get_data(as_text=True)
+        self.assertTrue('href="/stories/s1#arc-title"' in html and "続報あり" in html and "ほか 2 件" in html)
+        o1 = index.find_by_file(self.db, "BBC", "o1.html")["id"]
+        self.assertFalse("arc-title" in app.test_client().get(f"/a/{o1}", headers=H).get_data(as_text=True))
+
     def test_cached_until_the_groups_change(self):
         first = stories.arc(self.db, "s1")
         self.assertIs(stories.arc(self.db, "s1"), first)
