@@ -421,5 +421,51 @@ class AppFactoryTests(unittest.TestCase):
         self.assertEqual(result.get("code"), run.RESTART_EXIT_CODE)
 
 
+    def test_server_also_answers_on_tailscale_address_and_restarts_cleanly(self):
+        import socket
+        import urllib.request
+        from newsreader import paths
+        from newsreader.web import run
+        tmp = Path(tempfile.mkdtemp())
+        version = tmp / "VERSION"
+        version.write_text("v1", encoding="utf-8")
+        from flask import Flask
+        app = Flask("two")
+        app.get("/")(lambda: "ok")
+        with socket.socket() as probe:
+            probe.bind(("127.0.0.1", 0))
+            port = probe.getsockname()[1]
+        result = {}
+        with mock.patch.object(paths, "VERSION_PATH", version):
+            # 192.0.2.1 is not on this machine: that extra address is dropped, the main one still serves.
+            server = threading.Thread(target=lambda: result.setdefault("code", run.serve_until_redeployed(
+                app, "127.0.0.1", port, poll_seconds=0.1, also=("192.0.2.1",))))
+            server.start()
+            time.sleep(0.3)
+            self.assertEqual(urllib.request.urlopen(f"http://127.0.0.1:{port}/", timeout=5).read(), b"ok")
+            version.write_text("v2", encoding="utf-8")
+            server.join(10)
+            self.assertEqual(result.get("code"), run.RESTART_EXIT_CODE)
+            result.clear()
+            server = threading.Thread(target=lambda: result.setdefault("code", run.serve_until_redeployed(
+                app, "127.0.0.1", port, poll_seconds=0.1, also=("127.0.0.2",))))
+            server.start()
+            time.sleep(0.3)
+            for host in ("127.0.0.1", "127.0.0.2"):
+                self.assertEqual(urllib.request.urlopen(f"http://{host}:{port}/", timeout=5).read(), b"ok")
+            version.write_text("v3", encoding="utf-8")
+            server.join(10)
+        shutil.rmtree(tmp, ignore_errors=True)
+        self.assertFalse(server.is_alive(), "every listener closed on redeploy")
+        self.assertEqual(result.get("code"), run.RESTART_EXIT_CODE)
+
+    def test_tailscale_address_is_added_only_when_open_to_the_network(self):
+        from newsreader.web import run
+        with mock.patch("newsreader.netpolicy.tailscale_address", return_value="100.70.63.91"):
+            self.assertEqual(run._tailscale_too("127.0.0.1"), ())
+            self.assertEqual(run._tailscale_too("192.168.3.12"), ("100.70.63.91",))
+            self.assertEqual(run._tailscale_too("100.70.63.91"), ())
+
+
 if __name__ == "__main__":
     unittest.main()

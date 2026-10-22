@@ -117,6 +117,9 @@ def is_supported_python(version: tuple[int, int] = sys.version_info[:2]) -> bool
 
 def detect_tailscale() -> tuple[str | None, str | None]:
     executable = shutil.which("tailscale.exe") or shutil.which("tailscale")
+    installed = Path(os.environ.get("ProgramFiles", r"C:\Program Files")) / "Tailscale" / "tailscale.exe"
+    if not executable and installed.is_file():
+        executable = str(installed)
     if not executable:
         try:
             for result in socket.getaddrinfo(socket.gethostname(), None, socket.AF_INET):

@@ -33,11 +33,36 @@ def _dev_mode() -> bool:
     return is_dev() or os.environ.get("WERKZEUG_RUN_MAIN") == "true"
 
 
-def serve_until_redeployed(app, host: str, port: int, poll_seconds: float = VERSION_POLL_SECONDS,
-                           supervised: bool = True) -> int:
-    from waitress.server import create_server
+def _listen_spec(hosts: list[str], port: int) -> str:
+    return " ".join(f"[{h}]:{port}" if ipaddress.ip_address(h).version == 6 else f"{h}:{port}" for h in hosts)
 
-    server = create_server(app, host=host, port=port, threads=WAITRESS_THREADS, ident="NewsHtmlReader")
+
+def serve_until_redeployed(app, host: str, port: int, poll_seconds: float = VERSION_POLL_SECONDS,
+                           supervised: bool = True, also: tuple[str, ...] = ()) -> int:
+    """Serve on ``host`` and, when they can be bound, on the addresses in ``also`` as well."""
+    from waitress.server import BaseWSGIServer, create_server
+
+    hosts = [host] + [item for item in also if item != host]
+    sockets: dict = {}
+    try:
+        server = create_server(app, map=sockets, listen=_listen_spec(hosts, port), threads=WAITRESS_THREADS,
+                               ident="NewsHtmlReader")
+    except OSError:
+        if len(hosts) == 1:
+            raise
+        for opened in list(sockets.values()):  # the listeners bound before the failing one
+            opened.close()
+            if isinstance(opened, BaseWSGIServer):
+                opened.task_dispatcher.shutdown(timeout=1)
+        hosts = [host]  # an extra address that cannot be bound never keeps the main one down
+        server = create_server(app, listen=_listen_spec(hosts, port), threads=WAITRESS_THREADS, ident="NewsHtmlReader")
+    # One listening server per address (waitress wraps several in a MultiSocketServer).
+    listeners = [server] if isinstance(server, BaseWSGIServer) else list(
+        {id(item): item for item in server.map.values() if isinstance(item, BaseWSGIServer)}.values())
+
+    def close_listeners() -> None:
+        for listener in listeners:
+            listener.close()
     redeployed = threading.Event()
 
     def watch() -> None:
@@ -49,14 +74,14 @@ def serve_until_redeployed(app, host: str, port: int, poll_seconds: float = VERS
                 redeployed.set()
                 # close() must run on the server's own loop thread; the loop then ends once the
                 # connections still open have been answered.
-                server.trigger.pull_trigger(server.close)
+                listeners[0].trigger.pull_trigger(close_listeners)
                 return
 
     if supervised:
         threading.Thread(target=watch, name="deploy-watch", daemon=True).start()
-    where = f"[{host}]" if ipaddress.ip_address(host).version == 6 else host
     from newsreader.branding import APP_NAME
-    print(f"{APP_NAME}: http://{where}:{port}/ （終了は Ctrl+C）", flush=True)
+    for where in _listen_spec(hosts, port).split():
+        print(f"{APP_NAME}: http://{where}/ （終了は Ctrl+C）", flush=True)
     try:
         server.run()
     finally:
@@ -84,13 +109,26 @@ def main() -> int:
         from werkzeug.serving import run_simple
         run_simple(bind_host, port, portal.build(app), use_reloader=True)
         return 0
+    # Opened to the network at all (not loopback only)? Then also answer on this PC's
+    # Tailscale address, found now: the launcher's choice may predate Tailscale connecting.
+    also = _tailscale_too(bind_host)
+    if also:
+        os.environ["NEWS_ALLOWED_HOSTS"] = ",".join(filter(None, [os.environ.get("NEWS_ALLOWED_HOSTS", ""), *also]))
     # "/" is the front page of this PC's sites; News Site is served under /news.
     app = create_app(mount=portal.NEWS_MOUNT)
-    _record_web_status(app, bind_host, port)
+    _record_web_status(app, bind_host, port, also)
     if os.environ.get("NEWS_SUPERVISED") == "1":
         _keep_logon_task_current()
     return serve_until_redeployed(portal.build(app), bind_host, port,
-                                  supervised=os.environ.get("NEWS_SUPERVISED") == "1")
+                                  supervised=os.environ.get("NEWS_SUPERVISED") == "1", also=also)
+
+
+def _tailscale_too(bind_host: str) -> tuple[str, ...]:
+    if ipaddress.ip_address(bind_host).is_loopback:
+        return ()
+    from newsreader.netpolicy import tailscale_address
+    found = tailscale_address()
+    return (found,) if found and found != bind_host else ()
 
 
 def _keep_logon_task_current() -> None:
@@ -113,7 +151,7 @@ def _keep_logon_task_current() -> None:
     threading.Thread(target=work, name="logon-task", daemon=True).start()
 
 
-def _record_web_status(app, host: str, port: int) -> None:
+def _record_web_status(app, host: str, port: int, also: tuple[str, ...] = ()) -> None:
     """Where this server listens and what it serves, for /status and for whoever maintains the PC."""
     from pathlib import Path
 
@@ -124,6 +162,7 @@ def _record_web_status(app, host: str, port: int) -> None:
     where = f"[{host}]" if ipaddress.ip_address(host).version == 6 else host
     try:
         status.update("web", {"url": f"http://{where}:{port}/", "started": status.now_iso(), "pid": os.getpid(),
+                              "also": [f"http://{item}:{port}/" for item in also],
                               "version": paths.deployed_version(), "library": str(app.config["LIBRARY_ROOT"]),
                               "project": str(paths.PROJECT_ROOT)}, path=target)
     except OSError:

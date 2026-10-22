@@ -18,3 +18,45 @@ def is_allowed_bind_address(address: ipaddress.IPv4Address | ipaddress.IPv6Addre
     if address.version == 4 and address in _THIS_NETWORK:
         return False
     return address.is_loopback or address.is_private or (address.version == 4 and address in TAILSCALE)
+
+
+def tailscale_address() -> str | None:
+    """This PC's Tailscale IPv4 address right now, or None (Tailscale absent or not connected).
+
+    Asked at every server start rather than once by the launcher: Tailscale may come up after
+    the PC's logon task has already started the reader."""
+    import json
+    import os
+    import shutil
+    import socket
+    import subprocess
+
+    def ours(value: object) -> str | None:
+        try:
+            address = ipaddress.ip_address(str(value))
+        except ValueError:
+            return None
+        return str(address) if address.version == 4 and address in TAILSCALE else None
+
+    program_files = os.environ.get("ProgramFiles", r"C:\Program Files")
+    candidates = [shutil.which("tailscale.exe"), shutil.which("tailscale"),
+                  os.path.join(program_files, "Tailscale", "tailscale.exe")]
+    executable = next((item for item in candidates if item and os.path.isfile(item)), None)
+    if executable:
+        extra = {"creationflags": 0x08000000} if os.name == "nt" else {}  # CREATE_NO_WINDOW
+        try:
+            output = subprocess.run([executable, "ip", "-4"], capture_output=True, text=True,
+                                    timeout=4, check=True, **extra).stdout
+            found = next((ours(line.strip()) for line in output.splitlines() if ours(line.strip())), None)
+            if found:
+                return found
+        except (OSError, subprocess.SubprocessError):
+            pass
+    try:
+        for result in socket.getaddrinfo(socket.gethostname(), None, socket.AF_INET):
+            found = ours(result[4][0])
+            if found:
+                return found
+    except OSError:
+        pass
+    return None
