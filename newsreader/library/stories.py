@@ -17,6 +17,7 @@ import logging
 import math
 import threading
 import time
+from collections import Counter
 from contextlib import closing
 from datetime import datetime
 from pathlib import Path
@@ -469,19 +470,21 @@ ARC_PARAGRAPHS = 8
 BODY_APART = 0.045
 #: ...when both have enough text to judge (distinct terms in the opening paragraphs).
 BODY_APART_TERMS = 40
-_body_cache: dict[tuple[int, str], tuple[str, dict[str, int]]] = {}
+_body_cache: dict[tuple[int, str], tuple[str, dict[str, float]]] = {}
 #: (database, group) -> (state of all groups, result): a refresh, correction or join changes the state.
 _arc_cache: dict[tuple[str, str], tuple[tuple, list[dict]]] = {}
 
 
-def _body_terms(db_path: Path, article: dict) -> tuple[str, dict[str, int]]:
+def _body_terms(db_path: Path, article: dict) -> tuple[str, dict[str, float]]:
+    """(language, term -> 1 + log count) of the opening paragraphs."""
     key = (article["id"], article["published"] or "")
     if key not in _body_cache:
         if len(_body_cache) > 4000:
             _body_cache.clear()
         content = index.get_content(db_path, article["id"]) or {"paragraphs": []}
         lang = core.detect_lang(article["title"])
-        _body_cache[key] = (lang, core.body_terms("\n".join(content["paragraphs"][:ARC_PARAGRAPHS]), lang))
+        counts = core.body_terms("\n".join(content["paragraphs"][:ARC_PARAGRAPHS]), lang)
+        _body_cache[key] = (lang, {t: 1 + math.log(c) for t, c in counts.items()})
     return _body_cache[key]
 
 
@@ -489,16 +492,16 @@ def _body_vectors(db_path: Path, articles: list[dict]) -> dict[int, tuple[str, d
     """Opening paragraphs as unit tf-idf vectors, idf over the given articles in the same language
     ("했다", "表示" are in every Korean / Chinese article, rare among all)."""
     terms = {a["id"]: _body_terms(db_path, a) for a in articles}
-    df: dict[tuple[str, str], int] = {}
-    docs: dict[str, int] = {}
-    for lang, counts in terms.values():
-        docs[lang] = docs.get(lang, 0) + 1
-        for term in counts:
-            df[lang, term] = df.get((lang, term), 0) + 1
+    df: dict[str, Counter] = {}
+    docs: Counter = Counter()
+    for lang, tf in terms.values():
+        docs[lang] += 1
+        df.setdefault(lang, Counter()).update(tf.keys())
+    idf = {lang: {t: math.log((docs[lang] + 1) / (count + 0.5)) for t, count in counts.items()}
+           for lang, counts in df.items()}
     bodies = {}
-    for article_id, (lang, counts) in terms.items():
-        n = docs[lang]
-        weights = {t: (1 + math.log(c)) * math.log((n + 1) / (df[lang, t] + 0.5)) for t, c in counts.items()}
+    for article_id, (lang, tf) in terms.items():
+        weights = {t: w * idf[lang][t] for t, w in tf.items()}
         norm = math.sqrt(sum(w * w for w in weights.values())) or 1.0
         bodies[article_id] = (lang, {t: w / norm for t, w in weights.items()})
     return bodies
@@ -511,6 +514,17 @@ def _body_cosine(bodies: dict, a: int, b: int) -> float | None:
         return None
     small, big = (va, vb) if len(va) <= len(vb) else (vb, va)
     return sum(w * big.get(t, 0.0) for t, w in small.items())
+
+
+def warm_arcs(db_path: Path, hours: int = 24) -> int:
+    """Work out the 続報 of the last ``hours``' multi-outlet groups ahead of time (今日のまとめ asks
+    for all of them at once; after a collection the first visitor would otherwise wait)."""
+    from datetime import timedelta, timezone
+    since = (datetime.now(timezone.utc) - timedelta(hours=hours)).strftime("%Y-%m-%dT%H:%M:%SZ")
+    keys = [g["key"] for g in list_stories(db_path, scope="multi", per_page=60)["stories"] if (g["newest"] or "") >= since]
+    for key in keys:
+        arc(db_path, key)
+    return len(keys)
 
 
 def arc(db_path: Path, key: str, limit: int = ARC_LIMIT) -> list[dict]:

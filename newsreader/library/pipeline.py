@@ -7,6 +7,8 @@ neither ever fails a collection (§12).
 from __future__ import annotations
 
 import logging
+import threading
+import time
 from pathlib import Path
 
 from newsreader.library import index, stories
@@ -33,6 +35,23 @@ def refresh_stories(db_path: Path, status_path: Path | None = None) -> dict | No
     if settings["stories_enabled"]:
         refresh_facts(db_path, status_path)
     return result
+
+
+def keep_warm(db_path: Path, interval: float = 60.0) -> threading.Thread:
+    """In the web server: prepare what the pages ask for whenever the groups change (the
+    collector regroups in its own process, so this looks rather than waits to be told). Each
+    round is cheap when nothing changed (stories.arc keeps its results per state)."""
+    def loop() -> None:
+        while True:
+            try:
+                stories.warm_arcs(db_path)
+            except Exception:
+                log.exception("Preparing 続報 failed")
+            time.sleep(interval)
+
+    thread = threading.Thread(target=loop, name="warm-pages", daemon=True)
+    thread.start()
+    return thread
 
 
 def refresh_facts(db_path: Path, status_path: Path | None = None) -> dict | None:

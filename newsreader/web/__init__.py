@@ -93,4 +93,5 @@ def create_app(library_root: Path | str | None = None, db_path: Path | str | Non
         app.extensions["library_sync"] = index.start_background_sync(
             lambda: validate_directory(app.config["LIBRARY_ROOT"]), app.config["LIBRARY_DB"], sync_interval,
             after_change=lambda result: pipeline.refresh_stories(app.config["LIBRARY_DB"], app.config["STATUS_PATH"]))
+        pipeline.keep_warm(app.config["LIBRARY_DB"], sync_interval)
     return app

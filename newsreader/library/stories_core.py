@@ -16,6 +16,7 @@ from __future__ import annotations
 import math
 import re
 from collections import defaultdict
+from functools import lru_cache
 from datetime import datetime, timezone
 
 MAX_GAP_HOURS = 72
@@ -84,8 +85,18 @@ def _stem(word: str) -> str:
     return word
 
 
-def _tokens(pivot: str):
-    """(token, boosted, shape) per keyword; shape: quoted / name / initial / lower / digit."""
+def _tokens(pivot: str) -> tuple[tuple[str, bool, str], ...]:
+    """(token, boosted, shape) per keyword; shape: quoted / name / initial / lower / digit.
+    Kept per headline: the same headlines are compared again for every group on a page."""
+    return _token_list(pivot)
+
+
+@lru_cache(maxsize=20_000)
+def _token_list(pivot: str) -> tuple[tuple[str, bool, str], ...]:
+    return tuple(_scan(pivot))
+
+
+def _scan(pivot: str):
     text = _US.sub("US", pivot)
     quoted: set[int] = set()
     for match in _QUOTED.finditer(text):
