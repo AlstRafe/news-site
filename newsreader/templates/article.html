@@ -17,7 +17,6 @@
 <select id="translation-target" aria-label="翻訳先">{% for code, t in translation_targets.items() %}<option value="{{ code }}"{% if not t.available %} disabled{% endif %}>{{ t.label }}{% if not t.available %}（DeepL選択時のみ）{% endif %}</option>{% endfor %}</select></div>
 <div class="tc-buttons"><button id="translate-bilingual" type="button" aria-pressed="false" title="キーボード: B">対訳で読む</button>
 <button id="translate-whole" type="button" class="secondary">全文を翻訳</button></div>
-<label class="bi-auto"><input type="checkbox" id="bi-auto"> 記事を開いたら対訳で表示する</label>
 <span id="translation-status" role="status" aria-live="polite"></span>
 </section>
 <section class="translation-result whole-result" id="whole-result" hidden aria-live="polite">
@@ -50,6 +49,7 @@
 {% if neighbours.newer %}<a class="next-card newer" href="{{ url_for('show_article', article_id=neighbours.newer.id) }}" rel="prev" title="キーボード: K"><span class="next-label">前の記事（新しい）</span><strong>{{ neighbours.newer.title }}</strong>{% if neighbours.newer.published %}<span class="story-time">{{ neighbours.newer.published|localtime }}</span>{% endif %}</a>{% endif %}
 </nav>{% endif %}
 <nav class="article-end" aria-label="記事の終わり"><a class="back" data-list-back href="{{ url_for('index', source=record.source or None) }}">{{ record.source or '記事' }}の一覧へ戻る</a><a class="to-top" href="#top">ページの先頭へ</a></nav>
-<p class="hint endnote">単語をタップ（クリック）すると単語を、文章を選ぶとその範囲をすぐに翻訳します。翻訳時はその文章が設定中の翻訳サービスに送信されます。翻訳結果はこのPC内にキャッシュされます。</p>
+<label class="bi-auto endnote-option"><input type="checkbox" id="bi-auto"> 記事を開いたら対訳で表示する</label>
+<p class="hint endnote">単語をタップ（クリック）すると単語を、文章を選ぶとその範囲をすぐに翻訳します。{% if not visitor() %}翻訳時はその文章が設定中の翻訳サービスに送信されます。翻訳結果はこのPC内にキャッシュされます。{% endif %}</p>
 {% endblock %}
 {% block scripts %}<script src="{{ asset('numcheck.js') }}" defer></script><script src="{{ asset('reading.js') }}" defer></script><script src="{{ asset('article_translate.js') }}" defer></script>{% if related %}<script src="{{ asset('stories.js') }}" defer></script>{% endif %}{% endblock %}

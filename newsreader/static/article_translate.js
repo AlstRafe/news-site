@@ -782,8 +782,9 @@
       biTarget = target;
       biButton.textContent = "対訳を閉じる";
       biButton.setAttribute("aria-pressed", "true");
-      status.textContent = `${targetNames[target]}の対訳を表示しました。` +
-        (reader.classList.contains("paired") ? "文にカーソルを合わせる（タップする）と、対応する訳文が光ります。" : "") +
+      // opened by itself, the 対訳 speaks for itself: only a warning takes room above the text
+      status.textContent = (auto ? "" : `${targetNames[target]}の対訳を表示しました。` +
+        (reader.classList.contains("paired") ? "文にカーソルを合わせる（タップする）と、対応する訳文が光ります。" : "")) +
         (doubtful ? `${doubtful} 段落で、原文の数字が訳文に見当たりません。` : "");
     } catch (error) {
       status.textContent = error.message || "翻訳に失敗しました。";

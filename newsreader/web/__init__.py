@@ -19,15 +19,19 @@ THEME_BOOT = ('(function(){try{var t=localStorage.getItem("theme");'
               'if(t==="light"||t==="dark")document.documentElement.setAttribute("data-theme",t);'
               # Translated headlines are printed with the page; someone who turned them off never sees them flash.
               'if(localStorage.getItem("news-html-reader-list-gloss")==="0")document.documentElement.classList.add("gloss-off");'
-              'var z=localStorage.getItem("news-html-reader-text-size");if(z==="s"||z==="l")document.documentElement.setAttribute("data-text-size",z)'
+              'var z=localStorage.getItem("news-html-reader-text-size");if(z==="s"||z==="l")document.documentElement.setAttribute("data-text-size",z);'
+              'if(localStorage.getItem("news-html-reader-intro")==="0")document.documentElement.classList.add("intro-off")'
               '}catch(e){}})();')
 
 
-def _speculation_rules(mount: str = "") -> str:
+def _speculation_rules(mount: str = "", eagerness: str = "moderate") -> str:
     # Prefetch article and comparison pages when the pointer rests on a link (moderate),
-    # so the click opens a page that is already in the browser's cache (§6).
+    # so the click opens a page that is already in the browser's cache (§6). Visitors of the
+    # public site (web/public.py) come through Tailscale's relays, where every page costs a
+    # long round trip: their browser fetches the linked pages ahead ("eager"; opening an
+    # article leaves no 既読 mark for them, so fetching one unread is harmless).
     rules = {"prefetch": [{"where": {"or": [{"href_matches": f"{mount}/a/*"}, {"href_matches": f"{mount}/stories/*"}]},
-                           "eagerness": "moderate"}]}
+                           "eagerness": eagerness}]}
     return json.dumps(rules, separators=(",", ":"))
 
 
@@ -62,6 +66,8 @@ def create_app(library_root: Path | str | None = None, db_path: Path | str | Non
     assets.init_app(app, dev=assets.is_dev())
     app.jinja_env.globals["speculation_rules"] = security.register_inline_script(
         "speculation_rules", _speculation_rules(mount))
+    app.jinja_env.globals["speculation_rules_visitor"] = security.register_inline_script(
+        "speculation_rules_visitor", _speculation_rules(mount, "eager"))
     app.jinja_env.globals["theme_boot"] = security.register_inline_script("theme_boot", THEME_BOOT)
 
     status_view.init_app(app)

@@ -22,18 +22,6 @@
 <button type="button" class="gloss-toggle" id="story-gloss-toggle" aria-pressed="true">訳を隠す</button>
 </div>
 {% if story.languages|length > 1 %}<div class="align-langs" role="group" aria-label="ほかの媒体の言語にそろえて比べる"><span class="align-label">言語をそろえる</span>{% for l in story.languages %}<button type="button" class="chip-button" data-align="{{ l.target }}" aria-pressed="false" title="{{ l.outlets|join('・') }} と同じ{{ translation_targets[l.target].label }}に、ほかの記事の見出しと書き出しを訳します">{{ translation_targets[l.target].label }}<small>{{ l.outlets|join('・') }}</small></button>{% endfor %}</div>{% endif %}
-{% if story.columns|length > 1 %}<section class="insights" aria-labelledby="insights-title">
-<div class="insights-head"><h2 id="insights-title">違いを見る</h2><p class="hint">媒体どうしで、数字や言葉づかいがどう違うか。押したときだけ翻訳します。<span class="key-hint">キー: F 数字・W 言葉・Q 発言・T 並べ方</span></p>{% if disputes %}<span class="diff-flag">{{ disputes|map(attribute='label')|join('・') }}の数字が媒体で違います</span>{% endif %}</div>
-<div class="insight-buttons"><button type="button" class="secondary" id="compare-facts" aria-expanded="false" aria-controls="facts-panel">数字を比べる</button><button type="button" class="secondary" id="compare-words" aria-expanded="false" aria-controls="words-panel">言葉の違い</button><button type="button" class="secondary" id="compare-quotes" aria-expanded="false" aria-controls="quotes-panel">発言を比べる</button></div>
-<div class="insight-panel" id="facts-panel" hidden></div>
-<div class="insight-panel" id="words-panel" hidden></div>
-<div class="insight-panel" id="quotes-panel" hidden></div>
-</section>{% endif %}
-{% if provenance.outlets %}<section class="provenance-box" aria-labelledby="prov-title"><h2 id="prov-title">情報の出どころ</h2>
-<ul class="prov-outlets">{% for o in provenance.outlets %}<li><span class="badge" data-lang="{{ o.source|src_lang }}">{{ o.source }}</span> <span>{{ (o.datelines[:3] + o.own)|join(' · ') }}{% if o.cites %}{% if o.datelines or o.own %} · {% endif %}出典: {{ o.cites[:4]|join('・') }}{% endif %}</span></li>{% endfor %}</ul>
-{% for s in provenance.shared[:3] %}<p class="prov-note">{{ s.label }}を {{ s.outlets|join('・') }} が{{ 'どちらも' if s.outlets|length == 2 else 'いずれも' }}出典にしています。同じ元の情報をもとにした記事かもしれません。</p>{% endfor %}
-{% for i in provenance.internal %}<p class="prov-note">{{ i.from }} の記事は、このグループの {{ i.to }} の報道を引用しています。</p>{% endfor %}
-<p class="hint">本文の書き出し（発信地）と、本文で引用している報道機関から判断した目安です（翻訳は使いません）。</p></section>{% endif %}
 <p class="gloss-error hint" id="story-gloss-error" role="status" hidden></p>
 {% if chart %}<figure class="story-chart" aria-labelledby="chart-caption">
 <div class="chart-body"><div class="chart-labels">{% for row in chart.rows %}<span class="badge" data-lang="{{ row.source|src_lang }}">{{ row.source }}</span>{% endfor %}</div>
@@ -47,12 +35,25 @@
 {% for m in members %}{{ item(m, false) }}{% endfor %}
 </section>{% endfor %}</div></div>
 <div class="story-view" data-view-panel="timeline" hidden><ol class="story-timeline">{% for m in story.timeline %}<li>{{ item(m, true) }}</li>{% endfor %}</ol></div>
+{# The articles first; the comparisons follow, for whoever has read them. #}
+{% if story.columns|length > 1 %}<section class="insights" aria-labelledby="insights-title">
+<div class="insights-head"><h2 id="insights-title">違いを見る</h2><p class="hint">媒体どうしで、数字や言葉づかいがどう違うか。押したときだけ翻訳します。<span class="key-hint">キー: F 数字・W 言葉・Q 発言・T 並べ方</span></p>{% if disputes %}<span class="diff-flag">{{ disputes|map(attribute='label')|join('・') }}の数字が媒体で違います</span>{% endif %}</div>
+<div class="insight-buttons"><button type="button" class="secondary" id="compare-facts" aria-expanded="false" aria-controls="facts-panel">数字を比べる</button><button type="button" class="secondary" id="compare-words" aria-expanded="false" aria-controls="words-panel">言葉の違い</button><button type="button" class="secondary" id="compare-quotes" aria-expanded="false" aria-controls="quotes-panel">発言を比べる</button></div>
+<div class="insight-panel" id="facts-panel" hidden></div>
+<div class="insight-panel" id="words-panel" hidden></div>
+<div class="insight-panel" id="quotes-panel" hidden></div>
+</section>{% endif %}
+{% if provenance.outlets %}<section class="provenance-box" aria-labelledby="prov-title"><h2 id="prov-title">情報の出どころ</h2>
+<ul class="prov-outlets">{% for o in provenance.outlets %}<li><span class="badge" data-lang="{{ o.source|src_lang }}">{{ o.source }}</span> <span>{{ (o.datelines[:3] + o.own)|join(' · ') }}{% if o.cites %}{% if o.datelines or o.own %} · {% endif %}出典: {{ o.cites[:4]|join('・') }}{% endif %}</span></li>{% endfor %}</ul>
+{% for s in provenance.shared[:3] %}<p class="prov-note">{{ s.label }}を {{ s.outlets|join('・') }} が{{ 'どちらも' if s.outlets|length == 2 else 'いずれも' }}出典にしています。同じ元の情報をもとにした記事かもしれません。</p>{% endfor %}
+{% for i in provenance.internal %}<p class="prov-note">{{ i.from }} の記事は、このグループの {{ i.to }} の報道を引用しています。</p>{% endfor %}
+<p class="hint">本文の書き出し（発信地）と、本文で引用している報道機関から判断した目安です（翻訳は使いません）。</p></section>{% endif %}
 {% if arc %}<section class="story-arc" aria-labelledby="arc-title"><h2 id="arc-title">このニュースの流れ</h2>
 <ol class="arc-list">{% for g in arc %}<li{% if g.current %} class="current" aria-current="true"{% endif %}>
 <span class="arc-time">{{ g.oldest|localtime_short }}</span>
 <div class="arc-body">{% if g.current %}<strong data-gloss-id="{{ g.lead_id }}"{{ g.lead_source|lang_attr }}>{{ g.title }}</strong> <span class="arc-here">このページ</span>{% else %}<a href="{{ url_for('story_page', key=g.key) }}"><strong data-gloss-id="{{ g.lead_id }}"{{ g.lead_source|lang_attr }}>{{ g.title }}</strong></a>{% endif %}
 <span class="arc-outlets">{% for source, n in g.outlet_counts %}<span class="badge" data-lang="{{ source|src_lang }}">{{ source }}</span>{% endfor %} {{ g.count }} 本</span></div></li>{% endfor %}</ol>
 <p class="hint">前後10日の読み比べのうち、同じ言語の記事どうしは本文の書き出し、言語が違えば見出しの英訳と固有名詞が近いものです（新たな翻訳はしません）。</p></section>{% endif %}
-<p class="hint">「別のニュース」を押した記事は、このグループから外れ、以後この記事どうしが同じグループになることはありません（状態画面でまとめて取り消せます）。</p>
+{% if not visitor() %}<p class="hint">「別のニュース」を押した記事は、このグループから外れ、以後この記事どうしが同じグループになることはありません（状態画面でまとめて取り消せます）。</p>{% endif %}
 {% endblock %}
 {% block scripts %}<script src="{{ asset('stories.js') }}" defer></script>{% endblock %}

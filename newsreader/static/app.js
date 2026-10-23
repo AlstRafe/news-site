@@ -208,6 +208,12 @@
     set(readLocal(GLOSS_KEY) !== "0");
   }
 
+  // 3b'. このサイトについて (public visitors): closed once, gone for good on this device.
+  document.querySelector("[data-intro-close]")?.addEventListener("click", () => {
+    document.documentElement.classList.add("intro-off");
+    try { localStorage.setItem("news-html-reader-intro", "0"); } catch (_) { /* optional */ }
+  });
+
   // 3c. 前回からの新着: on the plain list (first page, no filter), a line under the articles that
   //     came in since this device last looked at it. "Last looked" is the newest article shown,
   //     remembered when the page is left; the visit's starting point is held for the tab, so a

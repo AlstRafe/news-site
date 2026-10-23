@@ -309,3 +309,10 @@ h1 .story-gloss{font-size:inherit;line-height:1.4;}
 .wl-from{display:flex;flex-wrap:wrap;align-items:baseline;gap:4px 10px;margin:0;font-size:12px;color:var(--soft);}
 .wl-from a{color:var(--ink-2);}
 .word-list.quiz li:not(.shown) .wl-meaning{color:transparent;background:var(--rule);user-select:none;cursor:pointer;}
+/* テスト公開: a first visitor is told what the site is, once */
+.site-intro{border-top:2px solid var(--ink);border-bottom:1px solid var(--rule);padding:12px 0 10px;margin:0 0 18px;font-size:14px;line-height:1.75;color:var(--ink-2);}
+.site-intro p{margin:0 0 6px;}
+.site-intro strong{font-family:var(--serif);color:var(--ink);}
+.site-intro .text-button{font-size:12px;color:var(--soft);padding:2px 0;}
+html.intro-off .site-intro{display:none;}
+.endnote-option{margin:22px 0 6px;}

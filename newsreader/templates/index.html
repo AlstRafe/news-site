@@ -1,6 +1,10 @@
 {% extends "base.html" %}
 {% block head %}<title>{% if source %}{{ source }} | {% endif %}{{ app_name }}</title>{% if indexing %}<meta http-equiv="refresh" content="2">{% endif %}{% endblock %}
 {% block content %}
+{% if visitor() and not query and not source and not genre and page == 1 %}<aside class="site-intro" id="site-intro" aria-label="このサイトについて">
+<p><strong>{{ app_name }}</strong> は、英語・中国語・韓国語のニュースを原文のまま集めて、日本語訳と並べて読むサイトです。見出しの下の小さな文字が訳です。記事を開くと段落ごとに対訳が出て、単語をタップするとその訳が出ます。</p>
+<p>同じ出来事を各社がどう報じたかは「読み比べ」、この24時間の動きは「今日」で見られます。</p>
+<button type="button" class="text-button" data-intro-close>閉じる</button></aside>{% endif %}
 {% if error %}<div class="alert" role="alert">{{ error }}</div>{% endif %}
 {% if warning %}<div class="alert" role="status">{{ warning }}</div>{% endif %}
 <form class="searchbar" method="get" action="{{ url_for('index') }}" role="search">
