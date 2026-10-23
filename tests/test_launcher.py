@@ -1,4 +1,5 @@
 """launcher.py keeps the app running across deployments without looping on a broken build."""
+import os
 import sys
 import unittest
 from pathlib import Path
@@ -51,16 +52,48 @@ class LogonStartTests(unittest.TestCase):
 
     def test_background_start_does_nothing_when_the_reader_already_runs(self):
         with mock.patch.object(launcher, "background_port_taken", return_value=True), \
+                mock.patch.object(launcher, "open_background_log", return_value=sys.stdout), \
                 mock.patch.object(launcher, "launch_app") as launch:
             self.assertEqual(launcher.main(["--background"]), 0)
         launch.assert_not_called()
 
     def test_background_start_opens_no_browser(self):
         with mock.patch.object(launcher, "background_port_taken", return_value=False), \
+                mock.patch.object(launcher, "open_background_log", return_value=sys.stdout), \
+                mock.patch.object(launcher, "wait_for_network"), \
                 mock.patch.object(launcher, "find_runtime_python", return_value=Path("python")), \
                 mock.patch.object(launcher, "launch_app", return_value=0) as launch:
             self.assertEqual(launcher.main(["--background"]), 0)
         self.assertTrue(launch.call_args.kwargs["background"])
+
+    def test_a_running_reader_is_found_by_connecting_not_by_binding(self):
+        import socket
+        with socket.socket() as listener:
+            listener.bind(("127.0.0.1", 0))
+            listener.listen()
+            port = listener.getsockname()[1]
+            with mock.patch.dict(os.environ, {"NEWS_PORT": str(port), "NEWS_BIND_HOST": ""}), \
+                    mock.patch.object(launcher, "detect_bind_host", return_value="100.70.63.91"):
+                self.assertTrue(launcher.background_port_taken({}))
+        with mock.patch.dict(os.environ, {"NEWS_PORT": str(port), "NEWS_BIND_HOST": ""}), \
+                mock.patch.object(launcher, "detect_bind_host", return_value="100.70.63.91"):
+            # the Tailscale address is not up yet: that is not "already running"
+            self.assertFalse(launcher.background_port_taken({}))
+
+    def test_logon_start_waits_for_the_network(self):
+        detected = iter(["127.0.0.1", "127.0.0.1", "192.168.3.12"])
+        with mock.patch.dict(os.environ, {"NEWS_BIND_HOST": ""}), \
+                mock.patch.object(launcher, "detect_bind_host", side_effect=lambda: next(detected)), \
+                mock.patch.object(launcher, "_address_assigned", return_value=True), \
+                mock.patch.object(launcher.time, "sleep") as sleep:
+            launcher.wait_for_network({}, limit=300)
+        self.assertEqual(sleep.call_count, 2)
+        with mock.patch.dict(os.environ, {"NEWS_BIND_HOST": ""}), \
+                mock.patch.object(launcher, "detect_bind_host", return_value="100.70.63.91"), \
+                mock.patch.object(launcher, "_address_assigned", return_value=False), \
+                mock.patch.object(launcher.time, "sleep"), \
+                mock.patch.object(launcher.time, "monotonic", side_effect=[0, 10, 400]):
+            launcher.wait_for_network({}, limit=300)  # gives up in the end and starts anyway
 
     def test_old_shared_task_of_this_copy_is_replaced_by_a_per_copy_task(self):
         import json, os, tempfile, types

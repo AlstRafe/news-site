@@ -459,12 +459,42 @@ class AppFactoryTests(unittest.TestCase):
         self.assertFalse(server.is_alive(), "every listener closed on redeploy")
         self.assertEqual(result.get("code"), run.RESTART_EXIT_CODE)
 
-    def test_tailscale_address_is_added_only_when_open_to_the_network(self):
+    def test_other_addresses_are_added_only_when_open_to_the_network(self):
         from newsreader.web import run
-        with mock.patch("newsreader.netpolicy.tailscale_address", return_value="100.70.63.91"):
-            self.assertEqual(run._tailscale_too("127.0.0.1"), ())
-            self.assertEqual(run._tailscale_too("192.168.3.12"), ("100.70.63.91",))
-            self.assertEqual(run._tailscale_too("100.70.63.91"), ())
+        with mock.patch("newsreader.netpolicy.tailscale_address", return_value="100.70.63.91"), \
+                mock.patch("newsreader.netpolicy.lan_address", return_value="192.168.3.12"):
+            self.assertEqual(run._network_too("127.0.0.1"), ())
+            self.assertEqual(run._network_too("192.168.3.12"), ("100.70.63.91", "127.0.0.1"))
+            self.assertEqual(run._network_too("100.70.63.91"), ("192.168.3.12", "127.0.0.1"))
+        with mock.patch("newsreader.netpolicy.tailscale_address", return_value=None), \
+                mock.patch("newsreader.netpolicy.lan_address", return_value="192.168.3.12"):
+            self.assertEqual(run._network_too("192.168.3.12"), ("127.0.0.1",))
+
+    def test_an_address_that_comes_up_later_restarts_the_server(self):
+        import socket
+        from newsreader import paths
+        from newsreader.web import run
+        tmp = Path(tempfile.mkdtemp())
+        version = tmp / "VERSION"
+        version.write_text("v1", encoding="utf-8")
+        from flask import Flask
+        app = Flask("late")
+        app.get("/")(lambda: "ok")
+        with socket.socket() as probe:
+            probe.bind(("127.0.0.1", 0))
+            port = probe.getsockname()[1]
+        seen = {"now": ()}
+        result = {}
+        with mock.patch.object(paths, "VERSION_PATH", version), mock.patch.object(run, "NETWORK_POLL_ROUNDS", 1):
+            server = threading.Thread(target=lambda: result.setdefault("code", run.serve_until_redeployed(
+                app, "127.0.0.1", port, poll_seconds=0.1, network=lambda: seen["now"])))
+            server.start()
+            time.sleep(0.4)
+            self.assertTrue(server.is_alive(), "nothing new: keeps serving")
+            seen["now"] = ("127.0.0.2",)  # e.g. Tailscale connected after the logon start
+            server.join(10)
+        shutil.rmtree(tmp, ignore_errors=True)
+        self.assertEqual(result.get("code"), run.RESTART_EXIT_CODE)
 
 
 if __name__ == "__main__":

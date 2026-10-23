@@ -24,6 +24,8 @@ from newsreader.web import security
 WAITRESS_THREADS = 16
 RESTART_EXIT_CODE = 75
 VERSION_POLL_SECONDS = 15.0
+#: Every this many version polls (about a minute), look for a network address that came up.
+NETWORK_POLL_ROUNDS = 4
 
 
 def _dev_mode() -> bool:
@@ -37,12 +39,29 @@ def _listen_spec(hosts: list[str], port: int) -> str:
     return " ".join(f"[{h}]:{port}" if ipaddress.ip_address(h).version == 6 else f"{h}:{port}" for h in hosts)
 
 
+def _bindable(host: str, port: int) -> bool:
+    import socket
+    family = socket.AF_INET6 if ipaddress.ip_address(host).version == 6 else socket.AF_INET
+    try:
+        with socket.socket(family, socket.SOCK_STREAM) as probe:
+            probe.bind((host, port))
+        return True
+    except OSError:
+        return False
+
+
 def serve_until_redeployed(app, host: str, port: int, poll_seconds: float = VERSION_POLL_SECONDS,
-                           supervised: bool = True, also: tuple[str, ...] = ()) -> int:
-    """Serve on ``host`` and, when they can be bound, on the addresses in ``also`` as well."""
+                           supervised: bool = True, also: tuple[str, ...] = (),
+                           network=None) -> int:
+    """Serve on ``host`` and, when they can be bound, on the addresses in ``also`` as well.
+
+    ``network``: returns the extra addresses this PC has now; when one appears that is not
+    being answered on (Tailscale or the LAN came up after the start), the server restarts
+    the same way as for a deployment, so it picks the address up."""
     from waitress.server import BaseWSGIServer, create_server
 
-    hosts = [host] + [item for item in also if item != host]
+    # an extra address that is not on this PC (yet) is left out on its own, never with the others
+    hosts = [host] + [item for item in also if item != host and _bindable(item, port)]
     sockets: dict = {}
     try:
         server = create_server(app, map=sockets, listen=_listen_spec(hosts, port), threads=WAITRESS_THREADS,
@@ -67,10 +86,18 @@ def serve_until_redeployed(app, host: str, port: int, poll_seconds: float = VERS
 
     def watch() -> None:
         started = paths.deployed_version()
+        rounds = 0
         while not redeployed.wait(poll_seconds):
+            rounds += 1
             current = paths.deployed_version()
-            if current and current != started:
-                print(f"新しいバージョン {current} を検出しました。処理中の要求を終えてから再起動します。", flush=True)
+            new_address = None
+            if network is not None and rounds % NETWORK_POLL_ROUNDS == 0:
+                new_address = next((a for a in network() if a not in hosts and _bindable(a, port)), None)
+            if (current and current != started) or new_address:
+                if new_address:
+                    print(f"新しいアドレス {new_address} が使えるようになりました。再起動して待ち受けます。", flush=True)
+                else:
+                    print(f"新しいバージョン {current} を検出しました。処理中の要求を終えてから再起動します。", flush=True)
                 redeployed.set()
                 # close() must run on the server's own loop thread; the loop then ends once the
                 # connections still open have been answered.
@@ -109,13 +136,11 @@ def main() -> int:
         from werkzeug.serving import run_simple
         run_simple(bind_host, port, portal.build(app), use_reloader=True)
         return 0
-    # Opened to the network at all (not loopback only)? Then also answer on this PC's
-    # Tailscale address, found now: the launcher's choice may predate Tailscale connecting,
-    # and on loopback, where Tailscale Funnel hands the relay over (tailscaled on Windows
-    # cannot reach this PC's own Tailscale address).
-    also = _tailscale_too(bind_host)
-    if also or not ipaddress.ip_address(bind_host).is_loopback:
-        also = (*also, "127.0.0.1")
+    # Opened to the network at all (not loopback only)? Then also answer on this PC's other
+    # addresses, found now (the launcher's choice may predate Tailscale or the LAN coming up),
+    # and on loopback, where Tailscale Funnel hands requests over (tailscaled on Windows cannot
+    # reach this PC's own Tailscale address).
+    also = _network_too(bind_host)
     if also:
         os.environ["NEWS_ALLOWED_HOSTS"] = ",".join(filter(None, [os.environ.get("NEWS_ALLOWED_HOSTS", ""), *also]))
     # "/" is the front page of this PC's sites; News Site is served under /news.
@@ -123,16 +148,19 @@ def main() -> int:
     _record_web_status(app, bind_host, port, also)
     if os.environ.get("NEWS_SUPERVISED") == "1":
         _keep_logon_task_current()
+    network = None if ipaddress.ip_address(bind_host).is_loopback else (lambda: _network_too(bind_host))
     return serve_until_redeployed(portal.build(app), bind_host, port,
-                                  supervised=os.environ.get("NEWS_SUPERVISED") == "1", also=also)
+                                  supervised=os.environ.get("NEWS_SUPERVISED") == "1", also=also, network=network)
 
 
-def _tailscale_too(bind_host: str) -> tuple[str, ...]:
+def _network_too(bind_host: str) -> tuple[str, ...]:
+    """The addresses to answer on besides ``bind_host``: none when it is loopback (local use
+    only), else this PC's Tailscale and LAN addresses as they are now, and loopback."""
     if ipaddress.ip_address(bind_host).is_loopback:
         return ()
-    from newsreader.netpolicy import tailscale_address
-    found = tailscale_address()
-    return (found,) if found and found != bind_host else ()
+    from newsreader.netpolicy import lan_address, tailscale_address
+    found = [tailscale_address(), lan_address(), "127.0.0.1"]
+    return tuple(dict.fromkeys(item for item in found if item and item != bind_host))
 
 
 def _keep_logon_task_current() -> None:

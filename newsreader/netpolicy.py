@@ -20,6 +20,20 @@ def is_allowed_bind_address(address: ipaddress.IPv4Address | ipaddress.IPv6Addre
     return address.is_loopback or address.is_private or (address.version == 4 and address in TAILSCALE)
 
 
+def lan_address() -> str | None:
+    """This PC's private LAN IPv4 address right now (the one Windows would route out of), or None."""
+    import socket
+    try:
+        with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as probe:
+            probe.connect(("192.0.2.1", 9))  # no packet is sent: this only asks the routing table
+            address = ipaddress.ip_address(probe.getsockname()[0])
+    except (OSError, ValueError):
+        return None
+    if address.is_private and not address.is_loopback and address not in TAILSCALE:
+        return str(address)
+    return None
+
+
 def tailscale_address() -> str | None:
     """This PC's Tailscale IPv4 address right now, or None (Tailscale absent or not connected).
 

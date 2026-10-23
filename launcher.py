@@ -559,6 +559,8 @@ def supervise_app(runtime_python: Path, env: dict[str, str], background: bool = 
         env["HTML_DIRECTORY"] = str(resolve_article_directory())
         # Started at logon without a window: the app must not open a console window either.
         extra = {"creationflags": CREATE_NO_WINDOW} if background and os.name == "nt" else {}
+        if background and hasattr(sys.stdout, "fileno"):  # the app's output goes to the same log
+            extra.update(stdout=sys.stdout, stderr=subprocess.STDOUT)
         code = subprocess.run([str(runtime_python), str(PROJECT_ROOT / "app.py")], cwd=PROJECT_ROOT, env=env, **extra).returncode
         if code == 0:
             return 0
@@ -585,12 +587,72 @@ def supervise_app(runtime_python: Path, env: dict[str, str], background: bool = 
         time.sleep(delay)
 
 
+#: At logon Windows may start the reader before the network adapters and Tailscale are up.
+NETWORK_WAIT_SECONDS = 300
+NETWORK_WAIT_STEP = 10
+BACKGROUND_LOG_PATH = INSTANCE_DIRECTORY / "server.log"
+BACKGROUND_LOG_MAX_BYTES = 1_000_000
+
+
+def _configured_host(settings: dict[str, object]) -> str:
+    return os.environ.get("NEWS_BIND_HOST", "").strip() or str(settings.get("network_bind_host", "") or "")
+
+
+def _address_assigned(host: str) -> bool:
+    """Whether ``host`` is one of this PC's addresses now (it can be listened on)."""
+    try:
+        with socket.socket(socket.AF_INET6 if ":" in host else socket.AF_INET, socket.SOCK_STREAM) as probe:
+            probe.bind((host, 0))
+        return True
+    except OSError:
+        return False
+
+
 def background_port_taken(settings: dict[str, object]) -> bool:
-    """At logon: is the reader already running (its usual port in use)? Then do not start a second one."""
-    host = validate_bind_host(os.environ.get("NEWS_BIND_HOST", "").strip()
-                              or str(settings.get("network_bind_host", "") or "") or detect_bind_host())
+    """At logon: is the reader already running (something answers on its usual port)? Then do
+    not start a second one. (Asked by connecting: a bind test also fails while the address
+    itself is not up yet, which once made the logon start give up silently.)"""
     port = str(os.environ.get("NEWS_PORT", "") or settings.get("network_port", "") or APP_CONFIG["port_range"][0]).strip()
-    return port.isdecimal() and not is_port_available(host, int(port))
+    if not port.isdecimal():
+        return False
+    hosts = {"127.0.0.1", _configured_host(settings) or detect_bind_host()}
+    for host in hosts:
+        try:
+            with socket.create_connection((host, int(port)), timeout=1):
+                return True
+        except OSError:
+            continue
+    return False
+
+
+def wait_for_network(settings: dict[str, object], limit: float = NETWORK_WAIT_SECONDS) -> None:
+    """At logon: wait (up to ``limit`` seconds) until the address to listen on is up. With no
+    address set, that is Tailscale's or the LAN's (loopback alone means: not up yet)."""
+    deadline = time.monotonic() + limit
+    while True:
+        configured = _configured_host(settings)
+        host = configured or detect_bind_host()
+        ready = _address_assigned(host) and (bool(configured) or not ipaddress.ip_address(host).is_loopback)
+        if ready or time.monotonic() >= deadline:
+            if not ready:
+                print(f"ネットワークの準備を {int(limit)} 秒待ちましたが、{host} で起動します。", flush=True)
+            return
+        print(f"ネットワークの準備を待っています（{host}）。", flush=True)
+        time.sleep(NETWORK_WAIT_STEP)
+
+
+def open_background_log():
+    """Started at logon there is no window: what the launcher and the app print goes to
+    instance/server.log (started afresh once it grows past BACKGROUND_LOG_MAX_BYTES)."""
+    INSTANCE_DIRECTORY.mkdir(parents=True, exist_ok=True)
+    try:
+        if BACKGROUND_LOG_PATH.stat().st_size > BACKGROUND_LOG_MAX_BYTES:
+            BACKGROUND_LOG_PATH.replace(BACKGROUND_LOG_PATH.with_suffix(".old.log"))
+    except OSError:
+        pass
+    log = open(BACKGROUND_LOG_PATH, "a", encoding="utf-8", buffering=1)
+    log.write(f"--- {datetime.now().astimezone():%Y-%m-%d %H:%M:%S} logon start ---\n")
+    return log
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -602,8 +664,12 @@ def main(argv: list[str] | None = None) -> int:
     preset_build = apply_preset()
     settings = read_settings()
     if background:
+        log = open_background_log()
+        sys.stdout = sys.stderr = log
         if background_port_taken(settings):
+            print("すでに起動しています。")
             return 0
+        wait_for_network(settings)
         runtime_python = find_runtime_python()
         return launch_app(runtime_python, False, False, background=True)
     profile_root = Path(os.environ.get("LOCALAPPDATA", Path.home() / "AppData" / "Local")) / APP_CONFIG["name"]
