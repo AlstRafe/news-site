@@ -31,7 +31,8 @@ _BOILERPLATE = re.compile(
 
 
 def _text(tag: Tag) -> str:
-    return re.sub(r"\s+", " ", tag.get_text(" ", strip=True)).strip()
+    # No separator: inline links and emphasis sit inside sentences (a space would split CJK words).
+    return re.sub(r"\s+", " ", tag.get_text("")).strip()
 
 
 def _json_ld_body(soup: BeautifulSoup) -> list[str]:

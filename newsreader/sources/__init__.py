@@ -37,7 +37,8 @@ SITES = (bbc, naver, cna, yonhap, *TECH_SITES)
 #: 3 = Yonhap: the reporter's e-mail and the closing copyright / tip-line are not body text.
 #: 4 = the kind of news (library/genres.py) is stored per article; CNA filing codes dropped.
 #: 5 = technology outlets (generic.py) and the 開発・ネットワーク kind.
-PARSER_VERSION = 5
+#: 6 = generic.py keeps inline links inside sentences (no inserted spaces in CJK text).
+PARSER_VERSION = 6
 
 
 def detect(page: Page):

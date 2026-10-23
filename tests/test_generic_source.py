@@ -65,3 +65,37 @@ class TechOutletTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class RobotsTests(unittest.TestCase):
+    def tearDown(self):
+        autofetch._robots_cache.clear()
+
+    def test_unavailable_robots_sets_no_rules_but_refusal_and_errors_disallow(self):
+        from unittest import mock
+        from urllib.error import HTTPError
+        for code, allowed in ((404, True), (406, True), (410, True), (401, False), (403, False), (429, False), (503, False)):
+            autofetch._robots_cache.clear()
+
+            def refuse(request, timeout=None, code=code):
+                raise HTTPError(request.full_url, code, "x", {}, None)
+            with self.subTest(code=code), mock.patch.object(autofetch, "urlopen", refuse):
+                self.assertEqual(autofetch._allowed_by_robots("https://feed.example.com/rss"), allowed)
+
+
+class SkipTitleTests(unittest.TestCase):
+    def test_personnel_notices_are_not_saved(self):
+        import tempfile
+        from pathlib import Path
+        from unittest import mock
+        source = next(s for s in autofetch.SOURCES if s["name"] == "ZDNet Korea")
+        url = "https://zdnet.co.kr/view?no=20261023112503"
+        html = page("".join(f"<p>{p}</p>" for p in BODY), url="https://zdnet.co.kr/view/?no=20261023112503")
+        notice = html.replace(b"Routing at scale", "[인사] 신세계그룹".encode())
+        with tempfile.TemporaryDirectory() as tmp, \
+                mock.patch.object(autofetch, "_download", side_effect=[(notice, url, "text/html"), (html, url, "text/html")]):
+            self.assertEqual(autofetch._fetch_article(source, url, Path(tmp)), "unreadable")
+            self.assertEqual(autofetch._fetch_article(source, url, Path(tmp)), url)
+            saved = list(Path(tmp).iterdir())
+            self.assertEqual(len(saved), 1)
+            self.assertEqual(saved[0].read_bytes(), html, "technology outlets are kept whole, not slimmed")

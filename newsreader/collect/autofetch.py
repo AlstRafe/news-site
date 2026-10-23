@@ -109,11 +109,13 @@ SOURCES = (
         "is_article": lambda url: urlsplit(url).path.startswith("/view/AKR"),
     },
     # Technology outlets (networks, programming, security), read by sources/generic.py; the
-    # reader asked for more of these, so each may add TECH_PER_CYCLE articles an hour.
+    # reader asked for more of these, so each may add TECH_PER_CYCLE articles an hour. Saved
+    # unslimmed: a later, better generic reading needs the whole page.
     {
         "name": "InfoQ",
         "directory": "InfoQ",
         "per_cycle": TECH_PER_CYCLE,
+        "slim": False,
         "kind": "rss",
         "url": "https://feed.infoq.com/",
         "article_hosts": {"www.infoq.com"},
@@ -123,6 +125,7 @@ SOURCES = (
         "name": "The New Stack",
         "directory": "The New Stack",
         "per_cycle": TECH_PER_CYCLE,
+        "slim": False,
         "kind": "rss",
         "url": "https://thenewstack.io/feed/",
         "article_hosts": {"thenewstack.io"},
@@ -132,6 +135,7 @@ SOURCES = (
         "name": "iThome",
         "directory": "iThome",
         "per_cycle": TECH_PER_CYCLE,
+        "slim": False,
         "kind": "rss",
         "url": "https://www.ithome.com.tw/rss",
         "article_hosts": {"www.ithome.com.tw"},
@@ -141,11 +145,14 @@ SOURCES = (
         "name": "ZDNet Korea",
         "directory": "ZDNet Korea",
         "per_cycle": TECH_PER_CYCLE,
+        "slim": False,
         "kind": "rss",
         "url": "https://feeds.feedburner.com/zdkorea",
         "article_hosts": {"zdnet.co.kr"},
         # Articles are /view/?no=<number>: that one query parameter is the article.
         "keep_query": ("no",),
+        # Personnel moves and obituaries are notices, not news.
+        "skip_title": r"^\s*\[(?:인사|부고|동정|알림)\]",
         "is_article": lambda url: urlsplit(url).path == "/view" and re.search(r"(?:^|&)no=\d+", urlsplit(url).query) is not None,
     },
 )
@@ -191,7 +198,7 @@ def _fetch_robots(origin: str) -> RobotFileParser | None:
 
     parser = RobotFileParser()
     robots_url = origin.rstrip("/") + "/robots.txt"
-    request = Request(robots_url, headers={"User-Agent": USER_AGENT})
+    request = Request(robots_url, headers={"User-Agent": USER_AGENT, "Accept": "text/plain, */*;q=0.8"})
     try:
         with urlopen(request, timeout=REQUEST_TIMEOUT_SECONDS) as response:
             data = response.read(512 * 1024 + 1)
@@ -200,9 +207,9 @@ def _fetch_robots(origin: str) -> RobotFileParser | None:
             parser.set_url(robots_url)
             parser.parse(data.decode("utf-8", errors="replace").splitlines())
     except HTTPError as exc:
-        # A missing robots file is unavailable (and therefore has no rules);
-        # authorization/server failures are treated as disallow to fail closed.
-        if exc.code == 404:
+        # RFC 9309: a robots file that is unavailable (4xx) sets no rules; refused access
+        # (401/403), rate limiting (429) and server failures are treated as disallow to fail closed.
+        if 400 <= exc.code < 500 and exc.code not in (401, 403, 429):
             parser.set_url(robots_url)
             parser.parse([])
         else:
@@ -339,6 +346,10 @@ def _fetch_article(source: dict, url: str, destination: Path) -> str:
     except ReaderError as exc:
         _log.info("Unsupported or incomplete article skipped (%s): %s", type(exc).__name__, url)
         return "unreadable"
+    skip_title = source.get("skip_title")
+    if skip_title and re.search(skip_title, article.get("title", "")):
+        _log.info("Not news (%s); skipped %s", article.get("title", "")[:40], url)
+        return "unreadable"
     canonical = _normalize_url(article.get("url", ""), keep)
     if not canonical or not _host_allowed(canonical, source["article_hosts"]):
         _log.warning("Article has no supported canonical URL; skipped %s", url)
@@ -347,7 +358,7 @@ def _fetch_article(source: dict, url: str, destination: Path) -> str:
     target = destination / _filename_for(source, canonical)
     if target.exists() or target.is_symlink():
         return "duplicate"
-    if slim_on_save():
+    if slim_on_save() and source.get("slim", True):
         kept, slimmed = slim_if_equivalent(data, article)
         if slimmed:
             _log.info("Slimmed before saving: %d -> %d bytes (extraction identical)", len(data), len(kept))
