@@ -6,6 +6,8 @@
   if (!controls) return;
 
   const csrf = document.querySelector('meta[name="csrf-token"]')?.content || "";
+  // テスト公開 (web/public.py): a visitor has no 翻訳設定 page to be sent to.
+  const owner = !document.querySelector('meta[name="site-visitor"]');
   const articleId = Number(controls.dataset.articleId || 0);
   const targetSelect = document.getElementById("translation-target");
   const status = document.getElementById("translation-status");
@@ -201,10 +203,12 @@
     } else if (payload.dictionary_configured === false) {
       const p = document.createElement("p");
       p.textContent = "韓国語の漢字語情報には国立国語院APIキーが必要です。";
-      const a = document.createElement("a");
-      a.href = base + "/translation-settings";
-      a.textContent = "翻訳設定を開く";
-      p.append(" ", a);
+      if (owner) {
+        const a = document.createElement("a");
+        a.href = base + "/translation-settings";
+        a.textContent = "翻訳設定を開く";
+        p.append(" ", a);
+      }
       details.appendChild(p);
     } else if (payload.dictionary_label && payload.dictionary_configured !== false && selectedText.match(/[\uac00-\ud7a3]/)) {
       const p = document.createElement("p");
@@ -440,11 +444,12 @@
       const error = document.getElementById("selection-error");
       error.textContent = payload.translation_error || payload.error;
       error.hidden = false;
-      const details = document.getElementById("language-details");
-      const link = document.createElement("a");
-      link.href = base + "/translation-settings";
-      link.textContent = "翻訳設定を確認";
-      details.appendChild(link);
+      if (owner) {
+        const link = document.createElement("a");
+        link.href = base + "/translation-settings";
+        link.textContent = "翻訳設定を確認";
+        document.getElementById("language-details").appendChild(link);
+      }
     }
     addDetails(payload);
     if (payload.translation && !payload.translation_error) {
@@ -616,7 +621,26 @@
 
 
   // ---- Side-by-side (対訳) view: each translated paragraph is inserted under its original ----
+  // The text reads one of three ways: 原文, 対訳, or 訳文だけ (the 対訳 with the originals that
+  // have a translation hidden, for a reader who does not read the source language). Which of
+  // 対訳 / 訳文だけ a translation opens in is remembered per device.
   const biButton = document.getElementById("translate-bilingual");
+  const onlyButton = document.getElementById("translate-only");
+  const originalButton = document.getElementById("show-original");
+  const ONLY_KEY = "news-html-reader-translation-only";
+  const prefersOnly = () => { try { return localStorage.getItem(ONLY_KEY) === "1"; } catch (_) { return false; } };
+  function syncMode() {
+    const only = Boolean(biTarget) && reader.classList.contains("tr-only");
+    originalButton?.setAttribute("aria-pressed", String(!biTarget));
+    biButton.setAttribute("aria-pressed", String(Boolean(biTarget) && !only));
+    onlyButton?.setAttribute("aria-pressed", String(only));
+    [originalButton, onlyButton].forEach(button => { if (button) button.disabled = biButton.disabled; });
+  }
+  function setOnly(on, remember = true) {
+    reader.classList.toggle("tr-only", on);
+    if (remember) { try { localStorage.setItem(ONLY_KEY, on ? "1" : "0"); } catch (_) { /* optional */ } }
+    syncMode();
+  }
   const biTitle = document.getElementById("bi-title");
   const langTags = Object.fromEntries(Object.entries(targetMenu).map(([code, t]) => [code, t.tag]));
   let biTarget = "";
@@ -671,8 +695,7 @@
     biTitle.hidden = true;
     biTitle.textContent = "";
     biTarget = "";
-    biButton.textContent = "対訳で読む";
-    biButton.setAttribute("aria-pressed", "false");
+    syncMode();
     syncFloat();
     showTitleGloss();
   }
@@ -730,13 +753,24 @@
     else status.textContent = "翻訳先を変えたため対訳を閉じました。";
   });
 
-  biButton.addEventListener("click", () => toggleBilingual(false));
+  biButton.addEventListener("click", () => {
+    if (biTarget && reader.classList.contains("tr-only")) setOnly(false);
+    else { if (!biTarget) setOnly(false); toggleBilingual(false); }
+  });
+  onlyButton?.addEventListener("click", () => {
+    if (biTarget && reader.classList.contains("tr-only")) { setOnly(false); return; }
+    setOnly(true);
+    if (!biTarget) toggleBilingual(false);
+  });
+  originalButton?.addEventListener("click", () => { if (biTarget) toggleBilingual(false); });
   // auto: opened by the page itself ("記事を開いたら対訳で表示する"), which the server holds back
   // once the month's automatic translations reach their limit; the button is never held back.
   async function toggleBilingual(auto = false) {
     if (biTarget) { clearBilingual(); status.textContent = ""; syncFloat(); return; }
     const target = targetSelect.value;
     biButton.disabled = true;
+    reader.classList.toggle("tr-only", prefersOnly());
+    syncMode();
     syncFloat();
     status.textContent = "対訳を作成しています…";
     try {
@@ -744,7 +778,7 @@
       if (!ok || payload.error) throw new Error(payload.error || "翻訳に失敗しました。");
       const originals = [...reader.querySelectorAll(":scope > p:not(.bi-tr)")];
       if (!Array.isArray(payload.paragraphs) || payload.paragraphs.length !== originals.length) {
-        throw new Error("段落の対応が取れませんでした。「全文を翻訳」をお試しください。");
+        throw new Error("段落の対応が取れませんでした。本文の下の「全文をまとめて翻訳する」をお試しください。");
       }
       reader.querySelectorAll(".bi-tr").forEach(node => node.remove()); // single-paragraph ones
       unwrapSentences();
@@ -780,8 +814,6 @@
       if (payload.title) { biTitle.classList.remove("kept"); biTitle.textContent = payload.title; biTitle.lang = langTags[target] || ""; biTitle.hidden = false; }
       reader.classList.add("bilingual");
       biTarget = target;
-      biButton.textContent = "対訳を閉じる";
-      biButton.setAttribute("aria-pressed", "true");
       // opened by itself, the 対訳 speaks for itself: only a warning takes room above the text
       status.textContent = (auto ? "" : `${targetNames[target]}の対訳を表示しました。` +
         (reader.classList.contains("paired") ? "文にカーソルを合わせる（タップする）と、対応する訳文が光ります。" : "")) +
@@ -790,6 +822,7 @@
       status.textContent = error.message || "翻訳に失敗しました。";
     } finally {
       biButton.disabled = false;
+      syncMode();
       syncFloat();
     }
   }
@@ -813,11 +846,17 @@
     new IntersectionObserver(entries => { barVisible = entries[0].isIntersecting; update(); }).observe(controls);
     new IntersectionObserver(entries => { textVisible = entries[0].isIntersecting; update(); }).observe(reader);
     biFloat.addEventListener("click", async () => {
-      const anchorParagraph = [...reader.querySelectorAll(":scope > p:not(.bi-tr)")]
-        .find(p => p.getBoundingClientRect().bottom > 80);
-      const before = anchorParagraph?.getBoundingClientRect().top ?? 0;
+      const onScreen = [...reader.querySelectorAll(":scope > p")]
+        .find(p => p.getClientRects().length && p.getBoundingClientRect().bottom > 80);
+      const before = onScreen?.getBoundingClientRect().top ?? 0;
+      // a translation goes away on closing (訳文だけ): keep its original where it was instead
+      const anchorParagraph = onScreen?.classList.contains("bi-tr") ? onScreen.previousElementSibling : onScreen;
       await toggleBilingual();
-      if (anchorParagraph?.isConnected) window.scrollBy(0, anchorParagraph.getBoundingClientRect().top - before);
+      // opening in 訳文だけ hides the original: its translation takes its place
+      const next = anchorParagraph?.nextElementSibling;
+      const shown = anchorParagraph?.isConnected && anchorParagraph.getClientRects().length ? anchorParagraph
+        : next?.classList.contains("bi-tr") ? next : null;
+      if (shown) window.scrollBy(0, shown.getBoundingClientRect().top - before);
     });
     syncFloat();
   }
@@ -877,10 +916,12 @@
     } catch (error) {
       const output = document.getElementById("whole-translation");
       makeParagraphs(output, error.message || "翻訳に失敗しました。");
-      const link = document.createElement("a");
-      link.href = base + "/translation-settings";
-      link.textContent = "翻訳設定を確認";
-      output.appendChild(link);
+      if (owner) {
+        const link = document.createElement("a");
+        link.href = base + "/translation-settings";
+        link.textContent = "翻訳設定を確認";
+        output.appendChild(link);
+      }
       status.textContent = "翻訳に失敗しました。";
     } finally {
       wholeButton.disabled = false;
@@ -906,7 +947,7 @@
     const key = event.key.toLowerCase();
     const link = key === "j" ? document.querySelector('a[rel="next"]') : key === "k" ? document.querySelector('a[rel="prev"]') : null;
     if (link) { event.preventDefault(); link.click(); }
-    else if (key === "b" && !biButton.disabled) { event.preventDefault(); biButton.click(); }
+    else if (key === "b" && !biButton.disabled) { event.preventDefault(); toggleBilingual(false); }
   });
   // The card moves with its word while the page scrolls (desktop); the toolbar just goes away.
   let placing = 0;

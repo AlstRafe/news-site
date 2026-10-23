@@ -102,7 +102,11 @@
           el.hidden = !lead.translation;
         });
       }
-      leadsButton.textContent = "書き出しを訳しました";
+      // done: the button now shows or hides those translations (a disabled "done" button read as a dead end)
+      leadsButton.dataset.done = "1";
+      leadsButton.disabled = false;
+      leadsButton.textContent = "書き出しの訳を隠す";
+      leadsButton.setAttribute("aria-pressed", "true");
       say("");
     } catch (error) {
       leadsButton.disabled = false;
@@ -111,7 +115,13 @@
     }
   };
   if (leadsButton) {
-    leadsButton.addEventListener("click", () => translateLeads(false));
+    leadsButton.addEventListener("click", () => {
+      if (!leadsButton.dataset.done) { translateLeads(false); return; }
+      const show = leadsButton.getAttribute("aria-pressed") !== "true";
+      document.querySelectorAll("[data-lead-tr-for]").forEach(el => { el.hidden = !show || !el.textContent; });
+      leadsButton.setAttribute("aria-pressed", String(show));
+      leadsButton.textContent = show ? "書き出しの訳を隠す" : "書き出しの訳を表示";
+    });
     if (readLocal("news-html-reader-list-gloss") !== "0") translateLeads(true);
   }
 

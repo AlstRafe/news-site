@@ -17,6 +17,7 @@ import secrets
 from pathlib import Path
 
 from flask import Flask, abort, request, session
+from flask.sessions import SecureCookieSessionInterface
 
 from newsreader import paths
 from newsreader.netpolicy import is_allowed_bind_address
@@ -138,8 +139,17 @@ def content_security_policy() -> str:
     ])
 
 
+class _SessionInterface(SecureCookieSessionInterface):
+    """The session cookie is marked Secure whenever the page came over https (テスト公開: the
+    portal marks the Funnel name's requests https), and stays usable over the plain-http LAN address."""
+
+    def get_cookie_secure(self, app) -> bool:
+        return request.is_secure or super().get_cookie_secure(app)
+
+
 def init_app(app: Flask, *, bind_host: str, secret_key: bytes) -> None:
     app.secret_key = secret_key
+    app.session_interface = _SessionInterface()
     app.config.update(
         SESSION_COOKIE_SAMESITE="Strict",
         SESSION_COOKIE_HTTPONLY=True,

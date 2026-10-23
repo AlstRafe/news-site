@@ -137,7 +137,7 @@ class FactsWatchTests(unittest.TestCase):
         facts_watch.refresh(self.db)
         client = create_app(self.tmp / "articles", self.db, start_background=False, secret_key=b"f" * 32).test_client()
         page = client.get("/digest", headers=H).get_data(as_text=True)
-        self.assertIn("今日の読み比べ", page)
+        self.assertIn("今日のまとめ", page)
         self.assertLess(page.index("/stories/s1"), page.index("/stories/s3"))  # the disagreement first
         self.assertIn('<span class="lag first">最初</span>', page)
         self.assertIn("死者の数字が違う", page)

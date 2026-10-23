@@ -8,7 +8,7 @@ from flask import abort, current_app, jsonify, render_template, request, url_for
 
 from newsreader.library import stories, status
 from newsreader.services import images as image_service
-from newsreader.web.pages import db_path, image_url
+from newsreader.web.pages import _kept_title, db_path, image_url
 from newsreader.web.routing import Routes
 
 routes = Routes()
@@ -157,6 +157,7 @@ def story_page(key: str):
     disputes = facts_watch.disputed(db_path(), [story["key"]]).get(story["key"], [])
     from newsreader.library import provenance
     response = current_app.make_response(render_template("story.html", story=story, chart=timeline_chart(story),
+                                                         title_ja=_kept_title(story["lead_title"] or ""),
                                                          disputes=disputes, arc=stories.arc(db_path(), story["key"]),
                                                          provenance=provenance.story(db_path(), story["members"])))
     # Not reused from the browser cache: a group changes when it is corrected or re-grouped.

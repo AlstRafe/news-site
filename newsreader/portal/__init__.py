@@ -17,6 +17,18 @@ LEGACY_DIRECT = ("/relay/",)
 _HERE = Path(__file__).resolve().parent
 
 
+#: Crawlers may read pages (link previews come from them) but not call the APIs or the relay.
+ROBOTS = b"User-agent: *\nDisallow: /news/api/\nDisallow: /relay/\n"
+
+
+def _public_headers(start_response):
+    """For the public name: https only from now on, and no search-engine listing (a test, for people sent the link)."""
+    def start(status, headers, exc_info=None):
+        return start_response(status, [*headers, ("Strict-Transport-Security", "max-age=31536000"),
+                                       ("X-Robots-Tag", "noindex")], exc_info)
+    return start
+
+
 class Site:
     """``preview`` (optional) returns what the site has now: {"note": str, "items": [(text, path)]},
     path relative to the site; the index shows it under the description. Errors show nothing."""
@@ -41,15 +53,21 @@ class Site:
 class Portal:
     """WSGI: "/" is the index, ``/<site>/...`` goes to that site's app."""
 
-    def __init__(self, sites: list[Site], allowed_hosts=None):
+    def __init__(self, sites: list[Site], allowed_hosts=None, public_hosts=None):
         self.sites = sites
         self.allowed_hosts = allowed_hosts  # callable(host) -> bool, or None for any
+        # callable(host) -> bool: names the public reaches through a TLS proxy (テスト公開). Their
+        # links are built as https (share previews need absolute https URLs) and kept out of search results.
+        self.public_hosts = public_hosts
         self.page = (_HERE / "index.html").read_text(encoding="utf-8")
         self.css = (_HERE / "portal.css").read_bytes()
 
     def __call__(self, environ, start_response):
         path = environ.get("PATH_INFO", "") or "/"
         method = environ.get("REQUEST_METHOD", "GET")
+        if self.public_hosts is not None and self.public_hosts(environ.get("HTTP_HOST", "")):
+            environ = dict(environ, **{"wsgi.url_scheme": "https"})
+            start_response = _public_headers(start_response)
         for site in self.sites:
             if path == site.mount:
                 return self._redirect(start_response, site.mount + "/", environ)
@@ -57,13 +75,15 @@ class Portal:
                 environ = dict(environ, SCRIPT_NAME=environ.get("SCRIPT_NAME", "") + site.mount,
                                PATH_INFO=path[len(site.mount):])
                 return site.app(environ, start_response)
-        if path in ("/", "/portal.css"):
+        if path in ("/", "/portal.css", "/robots.txt"):
             if self.allowed_hosts is not None and not self.allowed_hosts(environ.get("HTTP_HOST", "")):
                 return self._plain(start_response, "400 Bad Request", b"Bad Request")
             if method not in ("GET", "HEAD"):
                 return self._plain(start_response, "405 Method Not Allowed", b"Method Not Allowed")
             if path == "/portal.css":
                 return self._send(start_response, "text/css; charset=utf-8", self.css, "public, max-age=3600")
+            if path == "/robots.txt":
+                return self._send(start_response, "text/plain; charset=utf-8", ROBOTS, "public, max-age=86400")
             return self._send(start_response, "text/html; charset=utf-8", self._index().encode("utf-8"), "no-cache")
         main = self.sites[0]
         if path.startswith(LEGACY_DIRECT) or method not in ("GET", "HEAD"):
@@ -116,7 +136,8 @@ def build(news_app) -> Portal:
     def allowed(host: str) -> bool:
         host = security.host_without_port(host)
         return host in trusted or public.is_funnel_host(host)  # テスト公開 (web/public.py)
-    return Portal([news], allowed_hosts=allowed)
+    return Portal([news], allowed_hosts=allowed,
+                  public_hosts=lambda host: public.is_funnel_host(security.host_without_port(host)))
 
 
 #: Headlines the index shows from the news site.

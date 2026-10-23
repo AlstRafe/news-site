@@ -84,6 +84,30 @@ class PortalTests(unittest.TestCase):
                                         index.list_articles(self.tmp / "library.sqlite3")["items"]), {})
         self.assertEqual(self.client.post("/relay/v1/ping", headers={"Host": "evil.example", "Authorization": "Bearer nbr_x"}).status_code, 403)
 
+    def test_the_public_name_is_https_and_kept_out_of_search(self):
+        funnel = {"Host": "haruxera.tail1234.ts.net"}
+        response = self.client.get(f"/news/a/{self.article}", headers=funnel)
+        html = response.get_data(as_text=True)
+        # share previews need absolute https addresses (Funnel ends TLS in front of the app)
+        self.assertIn(f'<meta property="og:url" content="https://haruxera.tail1234.ts.net/news/a/{self.article}">', html)
+        self.assertIn('content="https://haruxera.tail1234.ts.net/news/static/icon-512.png', html)
+        self.assertEqual(response.headers["X-Robots-Tag"], "noindex")
+        self.assertIn("max-age=", response.headers["Strict-Transport-Security"])
+        self.assertIn("Secure", response.headers["Set-Cookie"])
+        self.assertEqual(self.client.get("/", headers=funnel).headers["X-Robots-Tag"], "noindex")
+        robots = self.client.get("/robots.txt", headers=funnel)
+        self.assertEqual(robots.status_code, 200)
+        self.assertIn("Disallow: /news/api/", robots.get_data(as_text=True))
+        # the owner's own address: plain http, no such headers
+        local = self.client.get(f"/news/a/{self.article}", headers=H)
+        self.assertIn('content="http://localhost/news/a/', local.get_data(as_text=True))
+        self.assertNotIn("X-Robots-Tag", local.headers)
+        self.assertNotIn("Secure", local.headers["Set-Cookie"])
+
+    def test_error_pages_have_a_heading(self):
+        page = self.client.get("/news/a/999999", headers=H).get_data(as_text=True)
+        self.assertIn("<h1>ページが見つかりません</h1>", page)
+
     def test_a_visitors_translations_count_as_automatic(self):
         from newsreader.services import translation
         from newsreader.web import public

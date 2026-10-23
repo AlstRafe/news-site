@@ -78,7 +78,12 @@ def image_entries(article_id: int, article: dict) -> list[dict]:
 
 
 def _error_page(message: str, status: int):
-    return render_template("error.html", message=message, status=status), status
+    heading = _HEADINGS.get(status, _HEADINGS[400 if status < 500 else 500])
+    if message.startswith(heading):  # said once, as the heading
+        message = message[len(heading):].lstrip("。")
+    if status >= 500 and public.is_visitor():  # the owner's log is not theirs to read
+        message = "時間をおいて、もう一度開いてみてください。"
+    return render_template("error.html", message=message, status=status, heading=heading), status
 
 
 # ---- pages -------------------------------------------------------------------
@@ -340,6 +345,14 @@ _MESSAGES = {
     405: "この操作はできません。",
     413: "送信データが大きすぎます。",
     500: "内部エラーが発生しました。アプリのコマンド画面に表示されたログを確認してください。",
+}
+_HEADINGS = {
+    400: "うまく開けませんでした",
+    403: "このページは開けません",
+    404: "ページが見つかりません",
+    405: "この操作はできません",
+    413: "送信データが大きすぎます",
+    500: "サーバーで問題が起きました",
 }
 
 

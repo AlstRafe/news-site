@@ -62,7 +62,9 @@
 
   // 2. Theme: automatic (follow the OS) -> light -> dark -> automatic. The choice lives in
   //    localStorage("theme"); the inline boot script in <head> applies it before first paint.
-  const THEMES = { auto: "自動（端末の設定に合わせる）", light: "ライト", dark: "ダーク" };
+  //    The button names what it changes (ダークモード 自動 / オフ / オン), and its spoken name starts
+  //    with those same words.
+  const THEMES = { auto: "自動", light: "オフ", dark: "オン" };
   const toggle = document.getElementById("theme-toggle");
   const root = document.documentElement;
   const readTheme = () => { try { return localStorage.getItem("theme") || "auto"; } catch (_) { return root.dataset.theme || "auto"; } };
@@ -75,9 +77,8 @@
     });
     if (toggle) {
       const label = THEMES[theme] || THEMES.auto;
-      toggle.textContent = "配色 " + ({ light: "ライト", dark: "ダーク" }[theme] || "自動");
-      toggle.setAttribute("aria-label", `表示の明るさ: ${label}（押すと切り替え）`);
-      toggle.title = `表示の明るさ: ${label}`;
+      toggle.textContent = `ダークモード ${label}`;
+      toggle.setAttribute("aria-label", `ダークモード ${label}${label === THEMES.auto ? "（端末の設定に合わせる）" : ""}、押すと切り替え`);
     }
   };
   applyTheme(readTheme());

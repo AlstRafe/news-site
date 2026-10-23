@@ -1,5 +1,7 @@
 {% extends "base.html" %}
-{% block head %}<title>読み比べ | {{ app_name }}</title><meta name="story-key" content="{{ story.key }}">{% endblock %}
+{% block head %}<title>{{ title_ja or story.lead_title }}｜読み比べ | {{ app_name }}</title><meta name="story-key" content="{{ story.key }}">{% endblock %}
+{% block og_title %}{{ title_ja or story.lead_title }}｜{{ story.columns|length }} 媒体の読み比べ{% endblock %}
+{% block description %}{{ story.columns|map('first')|join('・') }} が報じた同じニュースを、媒体ごとに並べて読み比べ。{% endblock %}
 {% block main_class %} story-page{% endblock %}
 {% macro item(m, show_source) %}<article class="story-item{% if m.thumb %} with-thumb{% endif %}" data-article-id="{{ m.id }}" data-lang-target="{{ m.lang_target }}">
 <a class="story-link" href="{{ url_for('show_article', article_id=m.id) }}">
@@ -25,7 +27,7 @@
 <p class="gloss-error hint" id="story-gloss-error" role="status" hidden></p>
 {% if chart %}<figure class="story-chart" aria-labelledby="chart-caption">
 <div class="chart-body"><div class="chart-labels">{% for row in chart.rows %}<span class="badge" data-lang="{{ row.source|src_lang }}">{{ row.source }}</span>{% endfor %}</div>
-<svg class="chart-plot" width="100%" height="{{ chart.height }}" role="img" aria-label="{% for row in chart.rows %}{{ row.source }} {{ row.points|length }} 本{% if not loop.last %}、{% endif %}{% endfor %}">
+<svg class="chart-plot" width="100%" height="{{ chart.height }}" role="group" aria-label="報道のタイムライン: {% for row in chart.rows %}{{ row.source }} {{ row.points|length }} 本{% if not loop.last %}、{% endif %}{% endfor %}">
 {% for row in chart.rows %}<line class="chart-track" x1="0" x2="100%" y1="{{ row.y }}" y2="{{ row.y }}"/>
 {% for p in row.points %}<a href="{{ url_for('show_article', article_id=p.id) }}"><title>{{ p.published|localtime_short }} {{ p.title }}</title><circle class="chart-dot" data-lang="{{ row.source|src_lang }}" cx="{{ p.x }}%" cy="{{ row.y }}" r="6"/></a>{% endfor %}
 {% endfor %}</svg></div>
