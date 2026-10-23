@@ -110,8 +110,12 @@ def main() -> int:
         run_simple(bind_host, port, portal.build(app), use_reloader=True)
         return 0
     # Opened to the network at all (not loopback only)? Then also answer on this PC's
-    # Tailscale address, found now: the launcher's choice may predate Tailscale connecting.
+    # Tailscale address, found now: the launcher's choice may predate Tailscale connecting,
+    # and on loopback, where Tailscale Funnel hands the relay over (tailscaled on Windows
+    # cannot reach this PC's own Tailscale address).
     also = _tailscale_too(bind_host)
+    if also or not ipaddress.ip_address(bind_host).is_loopback:
+        also = (*also, "127.0.0.1")
     if also:
         os.environ["NEWS_ALLOWED_HOSTS"] = ",".join(filter(None, [os.environ.get("NEWS_ALLOWED_HOSTS", ""), *also]))
     # "/" is the front page of this PC's sites; News Site is served under /news.
