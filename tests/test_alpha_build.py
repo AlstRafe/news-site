@@ -111,6 +111,24 @@ class BuildTests(unittest.TestCase):
         self.assertFalse(preset_settings["collect_hourly"])
         self.assertTrue(set(preset_settings) - {"preset_id"} <= launcher.PRESET_KEYS)
 
+    def test_without_a_token_the_zip_carries_none_and_says_where_to_enter_it(self):
+        archive = make_alpha_zip.build(self.tmp, [(self.article, "BBC/a.html")], "http://100.64.0.1:5000",
+                                       "", 5, "20261023-2200")
+        with zipfile.ZipFile(archive) as z:
+            names = set(z.namelist())
+            readme = z.read("NewsBridge-alpha/はじめにお読みください.txt").decode("utf-8")
+        self.assertNotIn("NewsBridge-alpha/preset/relay_token", names)
+        self.assertFalse(any("nbr_" in n for n in names))
+        self.assertIn("別に受け取った「合言葉」", readme)
+        self.assertNotIn("この ZIP には翻訳の中継用の合言葉が入っています", readme)
+
+    def test_the_relay_url_prefers_the_tailscale_address(self):
+        (self.tmp / "instance").mkdir()
+        (self.tmp / "instance" / "status.json").write_text(json.dumps({"web": {
+            "url": "http://192.168.1.5:5000/", "also": ["http://100.70.63.91:5000/"]}}), encoding="utf-8")
+        with mock.patch.object(make_alpha_zip, "PROJECT_ROOT", self.tmp):
+            self.assertEqual(make_alpha_zip.default_relay_url(), "http://100.70.63.91:5000")
+
     def test_the_glossary_travels_with_the_test_build(self):
         glossary = [{"source": "다카이치", "target": "高市", "lang": "ja"}]
         archive = make_alpha_zip.build(self.tmp, [(self.article, "BBC/a.html")], "http://100.64.0.1:5000",

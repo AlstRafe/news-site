@@ -8,15 +8,18 @@ ship, VERSION included), plus what makes it a test build — and nothing else di
 * ``preset/settings.json`` translation through this installation (relay), listen on 127.0.0.1
                            only, a library limit (the collector adds nothing beyond it), no
                            start-at-logon; launcher.py applies it once
-* ``preset/relay_token``   a token this installation issues now; moved into the tester's
-                           credential store on first start. It can be revoked on the settings
-                           page (テスト版への翻訳の中継) and has a daily character allowance.
+* ``preset/relay_token``   only with ``--embed-token``: a token this installation issues now,
+                           moved into the tester's credential store on first start. By default
+                           the token (合言葉) is not in the ZIP: it is written beside it, for the
+                           distributor to hand over separately, and the tester enters it on the
+                           settings page. Either way it can be revoked on the settings page
+                           (テスト版への翻訳の中継) and has a daily character allowance.
 * ``はじめにお読みください.txt``
 
 Run it on the installation that holds the translation key (it records the token's digest in
 its instance/settings.json). ``--dry-run`` shows the choice and writes nothing.
 
-    python make_alpha_zip.py [--relay-url http://100.x.y.z:5000] [--articles 5] [--dry-run]
+    python make_alpha_zip.py [--relay-url http://100.x.y.z:5000] [--articles 5] [--embed-token] [--dry-run]
 """
 from __future__ import annotations
 
@@ -39,6 +42,15 @@ COHESIVE_SCORE = 0.3
 #: Articles of the sample's 読み比べ group (one per outlet first).
 STORY_ARTICLES = 3
 
+TOKEN_STEP_EMBEDDED = "4. 翻訳が使えるかは「設定」の「保存して接続を確認」で確かめられます。"
+TOKEN_STEP_SEPARATE = """4. 配布元から別に受け取った「合言葉」（nbr_ で始まる文字列）を、「設定」の
+   「合言葉（配布元が発行）」に貼り付けて「保存して接続を確認」を押します。合言葉を入れるまで翻訳は使えません。"""
+TOKEN_NOTE_EMBEDDED = """・この ZIP には翻訳の中継用の合言葉が入っています。ほかの人に渡さないでください。
+  初回起動時にこの PC の資格情報ストアへ移され、ファイルは消えます。配布元はいつでも無効にできます。
+"""
+TOKEN_NOTE_SEPARATE = """・合言葉はほかの人に渡さないでください。この PC の資格情報ストアに保存されます。配布元はいつでも無効にできます。
+"""
+
 README = """NewsBridge テスト版（{version}）
 
 ■ 動かし方（Windows）
@@ -47,7 +59,7 @@ README = """NewsBridge テスト版（{version}）
    Python 3.10 以上が無い PC では、公式の Python を自動でダウンロードして入れます（このユーザーだけ、検証付き）。
    初回は部品の準備に数分かかります。インターネット接続が必要です。
 3. ブラウザーが開きます（http://127.0.0.1:{port}/ ）。このPCの中だけで動き、ほかの機器からは見えません。
-4. 翻訳が使えるかは「設定」の「保存して接続を確認」で確かめられます。
+{token_step}
 
 ■ 中身
 ・本番と同じプログラムです。違いは設定だけ: 翻訳は配布元の NewsBridge が中継（APIキーの取得は不要）、
@@ -57,9 +69,7 @@ README = """NewsBridge テスト版（{version}）
   届かないときは翻訳ボタンで「中継先に接続できませんでした」と表示されます。
 
 ■ 注意
-・この ZIP には翻訳の中継用の合言葉が入っています。ほかの人に渡さないでください。
-  初回起動時にこの PC の資格情報ストアへ移され、ファイルは消えます。配布元はいつでも無効にできます。
-・終了はコマンドプロンプトの窓を閉じるか Ctrl+C。
+{token_note}・終了はコマンドプロンプトの窓を閉じるか Ctrl+C。
 ・使い終わったらフォルダーを削除するだけです（Windows のタスクは登録しません）。準備した部品は
   %LOCALAPPDATA%\\NewsHtmlReader に、合言葉は Windows の資格情報マネージャー（NewsHtmlReader）に残るので、不要なら削除してください。
 """
@@ -127,11 +137,22 @@ def choose_articles(db_path: Path, count: int, sources: set[str] | None = None) 
 
 
 def default_relay_url() -> str:
+    """Where the running server listens; its Tailscale address (100.64.0.0/10) when it has one,
+    since a tester's PC reaches this one through a shared tailnet, not this PC's own LAN."""
+    import ipaddress
+    from urllib.parse import urlsplit
     try:
-        url = json.loads((PROJECT_ROOT / "instance" / "status.json").read_text(encoding="utf-8"))["web"]["url"]
-    except (OSError, ValueError, TypeError, KeyError):
+        web = json.loads((PROJECT_ROOT / "instance" / "status.json").read_text(encoding="utf-8"))["web"]
+        urls = [str(web["url"])] + [str(u) for u in web.get("also") or []]
+    except (OSError, ValueError, TypeError, KeyError, AttributeError):
         return ""
-    return str(url).rstrip("/")
+    for url in urls:
+        try:
+            if ipaddress.ip_address(urlsplit(url).hostname or "") in ipaddress.ip_network("100.64.0.0/10"):
+                return url.rstrip("/")
+        except ValueError:
+            continue
+    return urls[0].rstrip("/")
 
 
 def build(out_dir: Path, articles: list[tuple[Path, str]], relay_url: str, token: str, count: int,
@@ -153,9 +174,12 @@ def build(out_dir: Path, articles: list[tuple[Path, str]], relay_url: str, token
         for source, name in articles:
             archive.write(source, f"{FOLDER}/articles/{name}")
         archive.writestr(f"{FOLDER}/preset/settings.json", json.dumps(preset, ensure_ascii=False, indent=2))
-        archive.writestr(f"{FOLDER}/preset/relay_token", token)
-        archive.writestr(f"{FOLDER}/はじめにお読みください.txt",
-                         README.format(version=version, port=port, count=count, relay_url=relay_url).replace("\n", "\r\n"))
+        if token:  # otherwise the tester enters the 合言葉 handed over separately
+            archive.writestr(f"{FOLDER}/preset/relay_token", token)
+        readme = README.format(version=version, port=port, count=count, relay_url=relay_url,
+                               token_step=TOKEN_STEP_EMBEDDED if token else TOKEN_STEP_SEPARATE,
+                               token_note=TOKEN_NOTE_EMBEDDED if token else TOKEN_NOTE_SEPARATE)
+        archive.writestr(f"{FOLDER}/はじめにお読みください.txt", readme.replace("\n", "\r\n"))
     return archive_path
 
 
@@ -166,6 +190,8 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--daily-chars", type=int, default=DEFAULT_DAILY_CHARS, help="合言葉ごとの1日の翻訳上限（文字）")
     parser.add_argument("--out", default=str(PROJECT_ROOT.parent))
     parser.add_argument("--library", default="", help="記事フォルダ（既定: このインストールの収集先）")
+    parser.add_argument("--embed-token", action="store_true",
+                        help="合言葉を ZIP に入れる（既定: ZIP には入れず、横に別ファイルで書き出す）")
     parser.add_argument("--dry-run", action="store_true")
     args = parser.parse_args(argv)
 
@@ -196,8 +222,13 @@ def main(argv: list[str] | None = None) -> int:
         return 0
     stamp = datetime.now().astimezone().strftime("%Y%m%d-%H%M")
     token = relay.issue_token(f"テスト版 {stamp}", daily_chars=args.daily_chars)
-    archive = build(Path(args.out), files, relay_url, token, args.articles, stamp, glossary=settings.glossary())
+    archive = build(Path(args.out), files, relay_url, token if args.embed_token else "", args.articles, stamp,
+                    glossary=settings.glossary())
     print(f"テスト版を作成しました: {archive}")
+    if not args.embed_token:
+        token_file = archive.with_name(f"{FOLDER}-{stamp}-合言葉.txt")
+        token_file.write_text(f"{token}\n", encoding="utf-8")
+        print(f"合言葉は ZIP に入れず、別のファイルに書き出しました（ZIP とは別に渡してください）: {token_file}")
     print("合言葉の digest をこのインストールの設定に記録しました（設定画面の「テスト版への翻訳の中継」で無効化できます）。")
     return 0
 
