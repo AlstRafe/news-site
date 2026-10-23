@@ -95,8 +95,33 @@
     }
   }
 
+  // 単語帳に入れる: a word or short phrase with its translation, the sentence it was in and the article.
+  let wordToKeep = null;
+  function offerWordBook(original, translation, target) {
+    const button = document.getElementById("save-word");
+    if (!button) return;
+    const keepable = original && original.length <= 40 && translation && translation.length <= 200;
+    wordToKeep = keepable ? { word: original, meaning: translation, target, sentence: currentSentence || "" } : null;
+    button.hidden = !wordToKeep;
+    button.disabled = false;
+    button.textContent = "単語帳に入れる";
+  }
+  document.getElementById("save-word")?.addEventListener("click", async event => {
+    const button = event.currentTarget;
+    if (!wordToKeep) return;
+    button.disabled = true;
+    try {
+      const { ok, payload } = await postJson(base + "/api/words", { ...wordToKeep, id: articleId || undefined });
+      button.textContent = ok ? "単語帳に入れました" : (payload.error || "入れられませんでした");
+    } catch (_) {
+      button.textContent = "入れられませんでした";
+      button.disabled = false;
+    }
+  });
+
   function clearSelectionDetails() {
     offerFixedTerm("", "", "");
+    offerWordBook("", "", "");
     document.getElementById("selection-error").hidden = true;
     document.getElementById("selection-error").textContent = "";
     document.getElementById("selection-translation").replaceChildren();
@@ -422,7 +447,10 @@
       details.appendChild(link);
     }
     addDetails(payload);
-    if (payload.translation && !payload.translation_error) offerFixedTerm(normalized, String(payload.translation).trim(), targetSelect.value);
+    if (payload.translation && !payload.translation_error) {
+      offerFixedTerm(normalized, String(payload.translation).trim(), targetSelect.value);
+      offerWordBook(normalized, String(payload.translation).trim(), targetSelect.value);
+    }
     const lost = payload.translation && window.NumberCheck ? window.NumberCheck.missing(normalized, String(payload.translation)) : [];
     if (lost.length) {  // 訳文の数字チェック (D-69)
       const note = document.createElement("p");

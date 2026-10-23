@@ -208,6 +208,42 @@
     set(readLocal(GLOSS_KEY) !== "0");
   }
 
+  // 3c. 前回からの新着: on the plain list (first page, no filter), a line under the articles that
+  //     came in since this device last looked at it. "Last looked" is the newest article shown,
+  //     remembered when the page is left; the visit's starting point is held for the tab, so a
+  //     reload or a trip to an article and back keeps the line where it was.
+  const grid = document.querySelector(".card-grid");
+  if (grid && !location.search.replace(/^\?/, "")) {
+    const LAST_KEY = "news-html-reader-last-seen";
+    const VISIT_KEY = "news-html-reader-visit-since";
+    const cardsHere = [...grid.querySelectorAll("a.card[data-published]")];
+    const newest = cardsHere.map(c => c.dataset.published).filter(Boolean).sort().pop() || "";
+    let seen = "";
+    try {
+      seen = sessionStorage.getItem(VISIT_KEY) ?? localStorage.getItem(LAST_KEY) ?? "";
+      sessionStorage.setItem(VISIT_KEY, seen);
+    } catch (_) { seen = ""; }
+    const fresh = seen ? cardsHere.filter(c => c.dataset.published > seen) : [];
+    const firstOld = cardsHere.find(c => c.dataset.published && c.dataset.published <= seen);
+    if (fresh.length) {
+      const line = document.createElement("p");
+      line.className = "new-since";
+      if (firstOld) {
+        line.textContent = `ここまで前回からの新着 ${fresh.length} 件`;
+        const anchorNode = firstOld.previousElementSibling?.classList.contains("day-sep") ? firstOld.previousElementSibling : firstOld;
+        anchorNode.before(line);
+      } else {
+        // every card on this page came in since: say so above the list instead
+        line.classList.add("all-new");
+        line.textContent = `このページはすべて前回からの新着です（${fresh.length} 件）`;
+        grid.before(line);
+      }
+    }
+    const remember = () => { if (newest) try { localStorage.setItem(LAST_KEY, newest); } catch (_) { /* optional */ } };
+    addEventListener("pagehide", remember);
+    document.addEventListener("visibilitychange", () => { if (document.visibilityState === "hidden") remember(); });
+  }
+
   // 話題を追う (D-61): follow a search from its results; stop following from the home page.
   document.addEventListener("click", async event => {
     const button = event.target.closest?.("[data-topic-follow]");

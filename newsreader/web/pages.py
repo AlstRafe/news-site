@@ -170,6 +170,11 @@ def index_page():
                                      + [story["lead_title"] for story in highlights], "ja")
     for item, ja in zip(result["items"] + highlights, kept):
         item["ja"] = ja
+    # 既読・保存 (the same on the PC and the phone)
+    from newsreader.library import reading
+    marks = reading.states(reading.path_for(db), result["items"])
+    for item in result["items"]:
+        item["mark"] = marks.get(item["id"], {})
     # ...and those whose outlets disagree on a count (D-59), computed in the background.
     from newsreader.library import facts_watch
     disputes = [] if narrowed else facts_watch.differing(db, limit=3)
@@ -229,8 +234,15 @@ def show_article(article_id: int):
         if provenance.SELF.get(m.get("source")) in cited_outlets and m["source"] not in seen:
             seen.add(m["source"])
             prov_links.append(m)
+    from newsreader.library import reading
+    marks_db = reading.path_for(db_path())
+    saved = reading.states(marks_db, [record]).get(article_id, {}).get("saved", False)
+    try:
+        reading.mark_read(marks_db, record)
+    except Exception:  # noqa: BLE001 - a read mark is a convenience; the page is shown regardless
+        pass
     response = current_app.make_response(render_template(
-        "article.html", article=article, record=record, article_id=article_id, csrf=csrf_token(),
+        "article.html", article=article, record=record, article_id=article_id, csrf=csrf_token(), saved=saved,
         related=related, neighbours=index.neighbours(db_path(), article_id), prov=prov, prov_links=prov_links,
         similar=stories.similar(db_path(), article_id), title_ja=_kept_title(record.get("title") or ""),
     ))

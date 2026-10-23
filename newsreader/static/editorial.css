@@ -89,7 +89,7 @@ input,select,textarea{background:var(--sheet);color:var(--ink);border:1px solid 
 .diff-flag,.arc-tag,.lag,.fresh{background:none!important;border:0!important;color:var(--accent)!important;padding:0!important;font-weight:700;}
 
 /* phone tab bar */
-.tabbar{background:var(--paper);border-top:1px solid var(--rule-strong);}
+.tabbar{background:var(--paper);border-top:1px solid var(--rule-strong);grid-template-columns:none!important;grid-auto-flow:column;grid-auto-columns:1fr;}
 .tabbar a{min-height:48px!important;font-size:13px!important;font-weight:600!important;color:var(--soft)!important;letter-spacing:.06em;
   border-top:2px solid transparent;margin-top:-1px;}
 .tabbar a[aria-current="page"]{color:var(--ink)!important;border-top-color:var(--accent);}
@@ -265,3 +265,47 @@ h1 .story-gloss{font-size:inherit;line-height:1.4;}
 .digest-title .card-gloss+[data-gloss-id]{display:block;font-family:var(--sans);font-size:12.5px;font-weight:500;color:var(--soft);}
 .name-chips a{background:none!important;border:0!important;border-bottom:1px solid var(--rule)!important;}
 .lead-tr,.cmp-tr{background:none!important;border:0!important;border-top:1px solid var(--rule)!important;padding:8px 0 0!important;color:var(--ink)!important;font-family:var(--serif);}
+
+/* 記事の操作: 後で読む・読み上げ・文字の大きさ — words in a row, not a toolbar of icons. */
+.article-actions{display:flex;flex-wrap:wrap;align-items:center;gap:2px 16px;font-size:13px;}
+.article-meta{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:0 12px;}
+.article-meta .text-size{margin-left:auto;}.article-meta .act{min-height:24px;}
+.article-actions .act{background:none!important;color:var(--ink-2)!important;border:0!important;padding:2px 0!important;min-height:30px;width:auto!important;
+  font-size:13px;font-weight:600;text-decoration:underline;text-decoration-color:var(--rule);text-underline-offset:4px;}
+.article-actions .act:hover{color:var(--ink)!important;text-decoration-color:currentColor;}
+.article-actions .act[aria-pressed="true"]{color:var(--accent)!important;text-decoration-color:var(--accent);}
+.text-size{display:inline-flex;align-items:center;gap:10px;margin-left:auto;}
+.ts-label{color:var(--soft);font-size:12px;}
+.text-size .act[aria-pressed="true"]{text-decoration:none;border-bottom:2px solid var(--accent)!important;color:var(--ink)!important;}
+:root[data-text-size="s"] .reading p{font-size:15.5px!important;}
+:root[data-text-size="s"] .reading.bilingual .bi-tr{font-size:15.5px!important;}
+:root[data-text-size="l"] .reading p{font-size:20px!important;line-height:2!important;}
+:root[data-text-size="l"] .reading.bilingual .bi-tr{font-size:20px!important;}
+:root[data-text-size="l"] .reading.bilingual>p:not(.bi-tr){font-size:17px!important;}
+.reading p.speaking{border-left:3px solid var(--accent);padding-left:12px;}
+
+/* 既読・保存済み in the list: read articles step back; marks in small words in the date line. */
+.card.is-read .card-gloss,.card.is-read h2{color:var(--soft)!important;}
+.card.is-read .card-thumb img{opacity:.72;}
+.saved-mark,.read-mark{font-size:11px;color:var(--soft);}
+.saved-mark{color:var(--accent);font-weight:700;}
+.saved-mark::before,.read-mark::before{content:"／";margin-right:2px;color:var(--rule);font-weight:400;}
+.new-since{grid-column:1/-1;display:flex;align-items:center;gap:12px;margin:6px 0 0;font-size:12px;font-weight:700;color:var(--accent);letter-spacing:.04em;}
+.new-since.all-new{margin:0 0 10px;}
+.new-since::after{content:"";flex:1;border-top:1px solid var(--accent);}
+
+/* 保存・単語帳 */
+.my-tabs{margin-bottom:6px;}
+.my-note{margin:-6px 0 16px;}
+.card.gone{opacity:.6;}
+.word-list{list-style:none;margin:0;padding:0;}
+.word-list li{border-top:1px solid var(--rule);padding:14px 0 12px;}
+.wl-head{display:flex;align-items:baseline;justify-content:space-between;gap:12px;}
+.wl-word{font-family:var(--serif);font-size:20px;}
+.wl-remove{background:none!important;color:var(--soft)!important;border:0!important;padding:4px 0!important;width:auto!important;font-size:12px;
+  text-decoration:underline;text-underline-offset:3px;}
+.wl-meaning{margin:4px 0 6px;font-size:15px;color:var(--ink);}
+.wl-sentence{margin:0 0 6px;font-size:13.5px;line-height:1.8;color:var(--ink-2);border-left:2px solid var(--rule);padding-left:10px;}
+.wl-from{display:flex;flex-wrap:wrap;align-items:baseline;gap:4px 10px;margin:0;font-size:12px;color:var(--soft);}
+.wl-from a{color:var(--ink-2);}
+.word-list.quiz li:not(.shown) .wl-meaning{color:transparent;background:var(--rule);user-select:none;cursor:pointer;}
