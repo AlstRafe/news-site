@@ -124,3 +124,24 @@ input,select,textarea{background:var(--sheet);color:var(--ink);border:1px solid 
 .genre-row a[aria-current="true"]{color:var(--ink);font-weight:700;border-bottom-color:var(--ink);}
 .card-genre{font-size:11px;color:var(--soft);}
 .card-genre::before{content:"／";margin-right:2px;color:var(--rule);}
+
+/* 写真: a photograph sits on the page like print — no frame, no box, the caption as a small
+   line under it. In the lists the picture is a small, uniform 3:2 cut at the right of the
+   headline with a clear gutter, so headlines start on one line down the page. */
+.card{gap:14px;}
+.card-thumb img{filter:none;}
+@media(max-width:650px){
+  .card{flex-direction:row-reverse!important;align-items:flex-start!important;padding:14px 0 16px!important;}
+  .card-thumb{width:112px!important;aspect-ratio:3/2!important;align-self:flex-start;margin-top:2px;}
+  .card-body{padding:0!important;}
+}
+@media(min-width:651px){
+  .card-thumb{aspect-ratio:3/2!important;}
+  .card-body{padding:10px 0 6px!important;}
+}
+.article-images figure{background:none!important;border:0!important;}
+.article-images img{background:none!important;max-height:460px;object-fit:contain;object-position:left top;width:auto;max-width:100%;}
+.article-images figcaption{padding:7px 0 0!important;font-size:12px;line-height:1.6;color:var(--soft);}
+.lead-image{margin:18px 0 22px!important;}
+/* the date line stands above the cards' top rules instead of being crossed by them */
+.day-sep{margin:10px 0 0!important;padding-bottom:6px;}
