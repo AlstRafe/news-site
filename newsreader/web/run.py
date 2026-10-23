@@ -151,6 +151,12 @@ def _keep_logon_task_current() -> None:
     threading.Thread(target=work, name="logon-task", daemon=True).start()
 
 
+def _ja_style_ready() -> bool:
+    """Whether Japanese translations get the newspaper style (Janome installed), for /status readers."""
+    from newsreader.services import ja_polish
+    return ja_polish._analyser() is not None
+
+
 def _record_web_status(app, host: str, port: int, also: tuple[str, ...] = ()) -> None:
     """Where this server listens and what it serves, for /status and for whoever maintains the PC."""
     from pathlib import Path
@@ -162,7 +168,7 @@ def _record_web_status(app, host: str, port: int, also: tuple[str, ...] = ()) ->
     where = f"[{host}]" if ipaddress.ip_address(host).version == 6 else host
     try:
         status.update("web", {"url": f"http://{where}:{port}/", "started": status.now_iso(), "pid": os.getpid(),
-                              "also": [f"http://{item}:{port}/" for item in also],
+                              "also": [f"http://{item}:{port}/" for item in also], "ja_style": _ja_style_ready(),
                               "version": paths.deployed_version(), "library": str(app.config["LIBRARY_ROOT"]),
                               "project": str(paths.PROJECT_ROOT)}, path=target)
     except OSError:
