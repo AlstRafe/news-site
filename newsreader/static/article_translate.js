@@ -649,11 +649,11 @@
     showTitleGloss();
   }
 
-  // With the list's "見出しを訳す" on (per device), the headline here is translated too, from the
-  // same per-headline cache as the list (coming from the list costs nothing more).
+  // Unless the list's translated headlines are turned off (per device), the headline here is
+  // translated too, from the same per-headline cache as the list (the page may arrive with it).
   async function showTitleGloss() {
-    let on = false;
-    try { on = localStorage.getItem("news-html-reader-list-gloss") === "1"; } catch (_) { on = false; }
+    let on = true;
+    try { on = localStorage.getItem("news-html-reader-list-gloss") !== "0"; } catch (_) { on = true; }
     if (!on || biTarget || !articleId) return;
     const target = targetSelect.value;
     try {
@@ -662,6 +662,7 @@
       if (!text || biTarget || target !== targetSelect.value) return;
       biTitle.textContent = text;
       biTitle.lang = langTags[target] || "";
+      biTitle.classList.remove("kept");
       biTitle.hidden = false;
     } catch (_) { /* the headline stays untranslated */ }
   }
@@ -720,7 +721,7 @@
         }
       });
       reader.classList.toggle("paired", paired > 0);
-      if (payload.title) { biTitle.textContent = payload.title; biTitle.lang = langTags[target] || ""; biTitle.hidden = false; }
+      if (payload.title) { biTitle.classList.remove("kept"); biTitle.textContent = payload.title; biTitle.lang = langTags[target] || ""; biTitle.hidden = false; }
       reader.classList.add("bilingual");
       biTarget = target;
       biButton.textContent = "対訳を閉じる";

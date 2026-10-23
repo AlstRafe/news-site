@@ -16,7 +16,10 @@ from newsreader import paths
 #: Runs in <head> before the stylesheet applies, so a saved light/dark choice never flashes
 #: the other theme first. No choice saved = follow the OS (prefers-color-scheme).
 THEME_BOOT = ('(function(){try{var t=localStorage.getItem("theme");'
-              'if(t==="light"||t==="dark")document.documentElement.setAttribute("data-theme",t)}catch(e){}})();')
+              'if(t==="light"||t==="dark")document.documentElement.setAttribute("data-theme",t);'
+              # Translated headlines are printed with the page; someone who turned them off never sees them flash.
+              'if(localStorage.getItem("news-html-reader-list-gloss")==="0")document.documentElement.classList.add("gloss-off")'
+              '}catch(e){}})();')
 
 
 def _speculation_rules(mount: str = "") -> str:
@@ -67,7 +70,7 @@ def create_app(library_root: Path | str | None = None, db_path: Path | str | Non
     # answers it, and an open page offers a reload when the two differ.
     app.config.setdefault("APP_VERSION", paths.deployed_version())
     app.jinja_env.globals.update(app_name=branding.APP_NAME, app_name_ja=branding.APP_NAME_JA,
-                                 app_tagline=branding.APP_TAGLINE, app_version=app.config["APP_VERSION"],
+                                 app_tagline=branding.APP_TAGLINE, outlet_intro=branding.OUTLET_INTRO, app_version=app.config["APP_VERSION"],
                                  build_channel=build_channel())
     app.add_template_filter(branding.source_language, "src_lang")
     app.add_template_filter(branding.lang_attr, "lang_attr")

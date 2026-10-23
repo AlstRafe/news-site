@@ -326,7 +326,7 @@ def translate_titles(titles: list[str], target: str, *, kind: str = "title", max
     keys = [hashlib.sha256((prefix + "\0" + target + "\0" + title).encode("utf-8")).hexdigest() for title in cleaned]
     results = [cache_get(kind, key) if title else "" for title, key in zip(cleaned, keys)]
     for i, (title, value) in enumerate(zip(cleaned, results)):
-        if title and isinstance(value, str) and (fixed := polished(target, title, value)) != value:
+        if title and isinstance(value, str) and (fixed := _finished(kind, target, title, value)) != value:
             results[i] = fixed
             cache_put(kind, keys[i], fixed, max_entries=TITLE_CACHE_ENTRIES)
     missing = [i for i, value in enumerate(results) if not isinstance(value, str)]
@@ -335,9 +335,40 @@ def translate_titles(titles: list[str], target: str, *, kind: str = "title", max
         for batch in _batches([cleaned[i] for i in missing]):
             fresh.extend(_translate_batch(provider, batch, target))
         for i, text in zip(missing, fresh):
-            results[i] = text
+            results[i] = text = _finished(kind, target, cleaned[i], text)
             cache_put(kind, keys[i], text, max_entries=TITLE_CACHE_ENTRIES)
     return [value if isinstance(value, str) else "" for value in results]
+
+
+def _finished(kind: str, target: str, source: str, text: str) -> str:
+    """A translated headline or opening as it is shown: polished, and a headline in headline form."""
+    text = polished(target, source, text)
+    if kind == "title" and target == "ja":
+        from newsreader.services import ja_polish
+        text = ja_polish.headline(text)
+    return text
+
+
+def cached_titles(titles: list[str], target: str) -> list[str]:
+    """The headline translations already kept (never sends anything): "" where none is kept yet.
+    Lets a page print the translated headlines it already has instead of fetching them after load."""
+    if target not in TARGETS:
+        return ["" for _ in titles]
+    try:
+        provider = active_provider()
+    except Exception:  # noqa: BLE001 - no provider configured: nothing kept to show
+        return ["" for _ in titles]
+    prefix = _key_prefix(provider, target)
+    out: list[str] = []
+    for title in titles:
+        title = title.strip()[:1_000]
+        value = cache_get("title", hashlib.sha256((prefix + "\0" + target + "\0" + title).encode("utf-8")).hexdigest()) if title else ""
+        if not isinstance(value, str) or not value:
+            out.append("")
+        else:  # kept values are polished already (translate_titles rewrites old ones when it meets them)
+            from newsreader.services import ja_polish
+            out.append(ja_polish.headline(value) if target == "ja" else value)
+    return out
 
 
 #: Fixed names the engine gets wrong, applied when the source names them: (in source, wrong, right).

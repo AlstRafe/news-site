@@ -70,3 +70,43 @@ class CnaFilingCodeTests(unittest.TestCase):
         from newsreader.sources import cna
         self.assertEqual(cna._without_filing_code(["本文。", "（編輯：楊惟敬）1151020"]), ["本文。", "（編輯：楊惟敬）"])
         self.assertEqual(cna._without_filing_code(["人口為2345678"]), ["人口為2345678"])
+
+
+class HeadlineTests(unittest.TestCase):
+    """Translated headlines in the form Japanese papers print them."""
+
+    def test_sentence_endings_become_headline_endings(self):
+        cases = {
+            "Amazonは脆弱性が悪用されていたことを確認した": "Amazonは脆弱性が悪用されていたことを確認",
+            "日本は認証制度を設ける予定だ": "日本は認証制度を設ける予定",
+            "価格はごくわずかだ": "価格はごくわずか",
+            "OpenAIは仕様を財団に寄贈している": "OpenAIは仕様を財団に寄贈",
+            "容疑者が逮捕された。": "容疑者が逮捕",
+            "トランプ氏は新大統領が必要だと述べた": "トランプ氏は新大統領が必要だと述べる",
+            "株価が大きく下がった": "株価が大きく下がる",
+            "本を読んでいる": "本を読む",
+            "彼は学生である": "彼は学生",
+        }
+        for text, expected in cases.items():
+            with self.subTest(text=text):
+                self.assertEqual(ja_polish.headline(text), expected)
+
+    def test_left_alone(self):
+        for text in ("Microsoft、新しいAIモデルを発表", "北朝鮮がミサイル発射", "彼は行かなかった",
+                     "米国の利上げは近い", "「戦争は終わった」と語る", "Apple unveils new iPhone"):
+            with self.subTest(text=text):
+                self.assertEqual(ja_polish.headline(text), text)
+
+    def test_only_titles_are_cut_to_headline_form(self):
+        with mock.patch.object(translation, "active_provider", return_value="azure"), \
+                mock.patch.object(translation, "cache_get", return_value=None), \
+                mock.patch.object(translation, "cache_put"), \
+                mock.patch.object(translation, "_translate_batch", side_effect=lambda p, texts, t: ["警察は容疑者を逮捕した。"] * len(texts)):
+            self.assertEqual(translation.translate_titles(["Police arrest suspect"], "ja"), ["警察は容疑者を逮捕"])
+            self.assertEqual(translation.translate_titles(["Police arrest suspect"], "ja", kind="lead"), ["警察は容疑者を逮捕した。"])
+
+    def test_kept_titles_are_read_without_sending(self):
+        with mock.patch.object(translation, "active_provider", return_value="azure"), \
+                mock.patch.object(translation, "cache_get", side_effect=lambda kind, key: "首相が辞任した" if kind == "title" else None), \
+                mock.patch.object(translation, "_translate_batch", side_effect=AssertionError("must not send")):
+            self.assertEqual(translation.cached_titles(["PM resigns", ""], "ja"), ["首相が辞任", ""])

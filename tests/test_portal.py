@@ -40,7 +40,10 @@ class PortalTests(unittest.TestCase):
         response = self.client.get("/", headers=H)
         self.assertEqual(response.status_code, 200)
         page = response.get_data(as_text=True)
-        self.assertIn('<a href="/news/">News Site</a>', page)
+        self.assertIn('<a href="/news/">NewsBridge</a>', page)
+        # what the news site has now: its newest headlines, linked under /news
+        self.assertIn('<ul class="now">', page)
+        self.assertIn(f'href="/news/a/{self.article}"', page)
         self.assertNotIn("{{", page)
         self.assertIn("default-src 'none'", response.headers["Content-Security-Policy"])
         self.assertEqual(self.client.get("/portal.css", headers=H).status_code, 200)

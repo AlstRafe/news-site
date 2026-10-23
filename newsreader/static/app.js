@@ -140,8 +140,9 @@
     });
   });
 
-  // 3b. "見出しを訳す" on the article list: a translated line under each card's headline.
-  //     On/off is remembered per device; the language follows the article page's 翻訳先.
+  // 3b. Headlines in the reader's language on the article list, printed above each original
+  //     (on unless turned off on this device). The page arrives with the Japanese headlines
+  //     already translated once; only the rest — or all of them for another 翻訳先 — are fetched.
   const glossToggle = document.getElementById("gloss-toggle");
   if (glossToggle) {
     const GLOSS_KEY = "news-html-reader-list-gloss";
@@ -153,43 +154,36 @@
       try { menu = JSON.parse(document.querySelector('meta[name="translation-targets"]')?.content || "{}"); } catch (_) { menu = {}; }
       return menu[saved]?.available ? saved : "ja";
     };
+    const langTag = code => code === "zh-hant" ? "zh-Hant" : code; // BCP 47
     const csrfToken = document.querySelector('meta[name="csrf-token"]')?.content || "";
-    const cards = () => [...document.querySelectorAll("a.card[data-id]")];
+    const originals = () => [...document.querySelectorAll("a.card[data-id] h2, [data-gloss-id]")];
+    const idOf = el => Number(el.closest("a.card[data-id]")?.dataset.id || el.dataset.glossId);
+    const glossOf = el => el.previousElementSibling?.classList.contains("card-gloss") ? el.previousElementSibling : null;
     const clear = () => document.querySelectorAll(".card-gloss, .gloss-error").forEach(node => node.remove());
     const show = async () => {
-      clear();
-      const highlights = [...document.querySelectorAll(".highlight [data-gloss-id], .dispute [data-gloss-id], .digest-page [data-gloss-id]")];
-      const ids = [...new Set([...cards().map(card => Number(card.dataset.id)),
-                               ...highlights.map(el => Number(el.dataset.glossId))].filter(Boolean))].slice(0, 40);
+      document.querySelectorAll(".gloss-error").forEach(node => node.remove());
+      const lang = target();
+      if (lang !== "ja") clear();
+      const ids = [...new Set(originals().filter(el => !glossOf(el)).map(idOf).filter(Boolean))].slice(0, 40);
       if (!ids.length) return;
       glossToggle.disabled = true;
       try {
         const response = await fetch(base + "/api/translate-titles", {
           method: "POST", credentials: "same-origin",
           headers: { "Content-Type": "application/json", "X-CSRF-Token": csrfToken },
-          body: JSON.stringify({ ids, target: target() })
+          body: JSON.stringify({ ids, target: lang })
         });
         const payload = await response.json().catch(() => ({}));
         if (!response.ok) throw new Error(payload.error || "見出しを翻訳できませんでした。");
         if (glossToggle.getAttribute("aria-pressed") !== "true") return; // switched off meanwhile
-        for (const card of cards()) {
-          const text = payload.translations?.[card.dataset.id];
-          const heading = card.querySelector("h2");
-          if (!text || !heading || text === heading.textContent.trim()) continue;
-          const line = document.createElement("p");
+        for (const el of originals()) {
+          const text = payload.translations?.[idOf(el)];
+          if (!text || glossOf(el) || text === el.textContent.trim()) continue;
+          const line = document.createElement(el.matches("h2, strong") ? "p" : "span");
           line.className = "card-gloss";
-          line.lang = target() === "zh-hant" ? "zh-Hant" : target(); // BCP 47
+          line.lang = langTag(lang);
           line.textContent = text;
-          heading.after(line);
-        }
-        for (const el of highlights) {
-          const text = payload.translations?.[el.dataset.glossId];
-          if (!text || text === el.textContent.trim()) continue;
-          const line = document.createElement("span");
-          line.className = "card-gloss";
-          line.lang = target() === "zh-hant" ? "zh-Hant" : target();
-          line.textContent = text;
-          el.after(line);
+          el.before(line);
         }
       } catch (error) {
         const note = document.createElement("p");
@@ -203,12 +197,13 @@
     };
     const set = on => {
       glossToggle.setAttribute("aria-pressed", String(on));
-      glossToggle.textContent = on ? "訳を隠す" : "見出しを訳す";
+      glossToggle.textContent = on ? "原文の見出しだけにする" : "見出しを訳す";
+      document.documentElement.classList.toggle("gloss-off", !on);
       writeLocal(GLOSS_KEY, on ? "1" : "0");
       if (on) show(); else clear();
     };
     glossToggle.addEventListener("click", () => set(glossToggle.getAttribute("aria-pressed") !== "true"));
-    if (readLocal(GLOSS_KEY) === "1") set(true);
+    set(readLocal(GLOSS_KEY) !== "0");
   }
 
   // 話題を追う (D-61): follow a search from its results; stop following from the home page.

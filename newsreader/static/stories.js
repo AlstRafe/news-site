@@ -52,7 +52,9 @@
       line.className = "story-gloss";
       line.lang = langTag(targetLang());
       line.textContent = text;
-      el.after(line);
+      // A group's headline reads in the reader's language first, the original under it; in the
+      // lists of articles the original stays first, its translation under it.
+      if (el.closest(".story-members, .story-item, .arc-body, li")) el.after(line); else el.before(line);
     }
   }
   const setGloss = on => {

@@ -26,6 +26,9 @@ MAX_NEW_PER_SOURCE_PER_CYCLE = 3
 #: Each outlet's section feeds (経済, テクノロジー ...) add at most this many per feed and cycle, after
 #: its main (international) feed, so the kinds of news the lists can show are not world news only.
 MAX_NEW_PER_SECTION_FEED = 2
+#: Korean listings that are not articles: [인사] appointments, [부고] obituaries, [동정]/[알림] notices,
+#: [게시판] notice boards, [신간] new books, [표]/[그래픽]/[포토] tables and pictures.
+KOREAN_ROUTINE = r"^\s*\[(?:인사|부고|동정|알림|게시판|신간|표|그래픽|포토)\]"
 TECH_PER_CYCLE = 5
 
 
@@ -107,6 +110,8 @@ SOURCES = (
                           "https://www.yna.co.kr/rss/industry.xml"),
         "article_hosts": {"www.yna.co.kr"},
         "is_article": lambda url: urlsplit(url).path.startswith("/view/AKR"),
+        # Appointments, obituaries, notices, book and photo listings: lists, not news to read.
+        "skip_title": KOREAN_ROUTINE,
     },
     # Technology outlets (networks, programming, security), read by sources/generic.py; the
     # reader asked for more of these, so each may add TECH_PER_CYCLE articles an hour. Saved
@@ -152,7 +157,7 @@ SOURCES = (
         # Articles are /view/?no=<number>: that one query parameter is the article.
         "keep_query": ("no",),
         # Personnel moves and obituaries are notices, not news.
-        "skip_title": r"^\s*\[(?:인사|부고|동정|알림)\]",
+        "skip_title": KOREAN_ROUTINE,
         "is_article": lambda url: urlsplit(url).path == "/view" and re.search(r"(?:^|&)no=\d+", urlsplit(url).query) is not None,
     },
 )

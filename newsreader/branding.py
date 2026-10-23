@@ -10,6 +10,11 @@ SOURCE_LANGUAGES = {"BBC": "en", "CNA": "zh", "Yonhap": "ko", "NAVER NEWS": "ko"
                     "InfoQ": "en", "The New Stack": "en", "iThome": "zh", "ZDNet Korea": "ko"}
 
 
+#: How the outlets are introduced to a Japanese reader (the page footer): name and where it reports from.
+OUTLET_INTRO = (("BBC", "英国"), ("中央社", "台湾"), ("聯合ニュース", "韓国"), ("InfoQ", "米国"),
+                ("The New Stack", "米国"), ("iThome", "台湾"), ("ZDNet Korea", "韓国"))
+
+
 def source_language(source: str | None) -> str:
     return SOURCE_LANGUAGES.get(source or "", "")
 

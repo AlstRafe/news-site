@@ -12,6 +12,7 @@ typography is fixed. Every function returns its input unchanged when unsure.
 """
 from __future__ import annotations
 
+import functools
 import re
 import threading
 
@@ -231,3 +232,52 @@ def polish_pieces(pieces: list[str]) -> list[str]:
 
 def polish(text: str) -> str:
     return "".join(polish_pieces([text])) if text else text
+
+
+# ---- 見出し（文の形 → 見出しの形） ---------------------------------------------------
+
+#: Passive and plain endings a headline drops after a サ変 noun: 確認した → 確認, 逮捕された → 逮捕.
+_SURU_TAIL = (("し", "た"), ("する",), ("し", "て", "いる"), ("さ", "れ", "た"), ("さ", "れる"), ("し", "て", "い", "た"))
+
+
+@functools.lru_cache(maxsize=4096)
+def headline(text: str) -> str:
+    """A translated headline in the form Japanese papers print them: no closing 。, a noun ending
+    instead of ``〜を確認した`` / ``〜予定だ``, and the present ``述べる`` for ``述べた`` / ``述べている``. Only the
+    end of the headline changes; anything not understood is left as it is."""
+    text = text.strip()
+    stripped = re.sub(r"[。．.]+$", "", text) if _HAS_JA.search(text) else text
+    analyser = _analyser() if stripped and _HAS_JA.search(stripped[-1]) else None
+    if analyser is None:
+        return stripped
+    try:
+        tokens = list(analyser.tokenize(stripped))
+    except Exception:  # noqa: BLE001 - leave it as it came
+        return stripped
+    if "".join(t.surface for t in tokens) != stripped or len(tokens) < 2:
+        return stripped
+    surfaces = [t.surface for t in tokens]
+    keep = None
+    for tail in _SURU_TAIL:
+        n = len(tail)
+        if len(tokens) > n and tuple(surfaces[-n:]) == tail:
+            noun = tokens[-n - 1]
+            if noun.part_of_speech.startswith("名詞,サ変接続"):
+                keep = "".join(surfaces[:-n])
+            break
+    if keep is None:
+        last, before = tokens[-1], tokens[-2]
+        verb = lambda t: (t.part_of_speech.startswith("動詞,自立") and t.base_form not in ("*", "")  # noqa: E731
+                          and t.infl_form.startswith("連用"))
+        if (last.infl_type == "特殊・ダ" and last.surface == "だ"
+                and (before.part_of_speech.startswith("名詞") or before.part_of_speech.startswith("副詞,助詞類接続"))):
+            keep = "".join(surfaces[:-1])
+        elif (len(tokens) > 2 and surfaces[-2:] == ["で", "ある"]
+              and tokens[-3].part_of_speech.startswith("名詞")):
+            keep = "".join(surfaces[:-2])
+        elif last.infl_type == "特殊・タ" and last.surface in ("た", "だ") and verb(before):
+            # The base form comes from the dictionary, so sound changes need no rules: 読んだ → 読む.
+            keep = "".join(surfaces[:-2]) + before.base_form
+        elif len(tokens) > 3 and surfaces[-2:] in (["て", "いる"], ["で", "いる"]) and verb(tokens[-3]):
+            keep = "".join(surfaces[:-3]) + tokens[-3].base_form
+    return keep if keep else stripped

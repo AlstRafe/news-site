@@ -112,6 +112,31 @@ def topic_digest(db: Path, topic: str) -> dict:
             "articles": result["items"][:TOPIC_SHOWN]}
 
 
+#: Notices that are not news (appointments, obituaries, notices, book listings) never lead the page.
+ROUTINE_TITLE = re.compile(r"^\s*[\[［【〔](?:인사|부고|동정|알림|게시판|신간|표|사진|포토|그래픽|訃告|人事)[\]］】〕]")
+FRONT_STORIES = 5
+
+
+def front_stories(db: Path) -> list[dict]:
+    """The page's top: the newest stories several outlets carried, routine notices left out; the
+    first is the one the most outlets carry (newest among equals) and has a picture when any
+    of its articles has one."""
+    from newsreader.library import stories
+    found = [s for s in stories.list_stories(db, per_page=FRONT_STORIES * 2)["stories"]
+             if not ROUTINE_TITLE.match(s["lead_title"] or "")][:FRONT_STORIES]
+    if not found:
+        return []
+    lead = max(found, key=lambda s: (s["outlets"], s["count"], s["newest"] or ""))
+    found.remove(lead)
+    found.insert(0, lead)
+    lead["thumb"] = ""
+    for member in sorted(lead["members"], key=lambda m: m.get("id") != lead["lead_id"]):
+        if image_service.allowed_image_url(member.get("thumb_src") or ""):
+            lead["thumb"] = image_url(member["id"], 0, member["thumb_src"])
+            break
+    return found
+
+
 @routes.get("/", "index")
 def index_page():
     source = request.args.get("source", "")[:100]
@@ -135,9 +160,16 @@ def index_page():
         thumb = item.get("thumb_src", "")
         item["thumb"] = image_url(item["id"], 0, thumb) if image_service.allowed_image_url(thumb) else ""
         item["story"] = marks.get(item["id"])
-    # The newest stories several outlets reported, on the first page of the plain list only.
+    # The newest stories several outlets reported, on the first page of the plain list only;
+    # the one most outlets carry leads the page with its picture.
     narrowed = bool(source or query or genre or result["page"] > 1)
-    highlights = [] if narrowed else stories.list_stories(db, per_page=6)["stories"]
+    highlights = [] if narrowed else front_stories(db)
+    # Headlines already translated are printed with the page (the rest are fetched after load).
+    from newsreader.services import translation
+    kept = translation.cached_titles([item["title"] for item in result["items"]]
+                                     + [story["lead_title"] for story in highlights], "ja")
+    for item, ja in zip(result["items"] + highlights, kept):
+        item["ja"] = ja
     # ...and those whose outlets disagree on a count (D-59), computed in the background.
     from newsreader.library import facts_watch
     disputes = [] if narrowed else facts_watch.differing(db, limit=3)
@@ -156,6 +188,11 @@ def index_page():
     ))
     response.headers["Cache-Control"] = CACHE_LIST
     return response
+
+
+def _kept_title(title: str) -> str:
+    from newsreader.services import translation
+    return translation.cached_titles([title], "ja")[0] if title else ""
 
 
 @routes.get("/a/<int:article_id>", "show_article")
@@ -195,7 +232,7 @@ def show_article(article_id: int):
     response = current_app.make_response(render_template(
         "article.html", article=article, record=record, article_id=article_id, csrf=csrf_token(),
         related=related, neighbours=index.neighbours(db_path(), article_id), prov=prov, prov_links=prov_links,
-        similar=stories.similar(db_path(), article_id),
+        similar=stories.similar(db_path(), article_id), title_ja=_kept_title(record.get("title") or ""),
     ))
     response.headers["Cache-Control"] = CACHE_PAGE
     return response

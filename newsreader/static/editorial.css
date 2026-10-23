@@ -145,3 +145,95 @@ input,select,textarea{background:var(--sheet);color:var(--ink);border:1px solid 
 .lead-image{margin:18px 0 22px!important;}
 /* the date line stands above the cards' top rules instead of being crossed by them */
 .day-sep{margin:10px 0 0!important;padding-bottom:6px;}
+
+/* 見出しは日本語が先: the translated headline is set as the headline, the original under it as
+   a smaller second line (always shown), and an opening paragraph in a language the reader asked
+   to have translated is left out of the card. Off on this device: originals only. */
+.card .card-gloss,.highlight .card-gloss{font-family:var(--serif);font-weight:700;color:var(--ink);letter-spacing:.01em;
+  display:-webkit-box!important;-webkit-box-orient:vertical;-webkit-line-clamp:3;overflow:hidden;margin:0;}
+.card .card-gloss{font-size:18px;line-height:1.55;}
+.card .card-gloss+h2{font-family:var(--sans);font-size:12.5px;font-weight:500;line-height:1.55;color:var(--soft);letter-spacing:0;-webkit-line-clamp:2;margin-top:2px;}
+.card-body:has(.card-gloss) .card-lead{display:none;}
+.highlight .card-gloss{font-size:15px;line-height:1.5;}
+.highlight .card-gloss+strong{font-family:var(--sans)!important;font-size:12px!important;font-weight:500!important;color:var(--soft);-webkit-line-clamp:2;}
+.gloss-off .card-gloss{display:none!important;}
+@media(max-width:650px){.card .card-gloss{font-size:16px;-webkit-line-clamp:4;}}
+
+/* トップ: the story the most outlets carry leads the page with its picture; the next ones are a
+   ruled list beside it (under it on a phone) — the hierarchy of a front page, not a row of tiles. */
+.front{margin:6px 0 30px;}
+.front .highlights-head{border-bottom:1px solid var(--rule-strong);margin-bottom:0;}
+.front .highlights-head h2{margin:0 0 8px;}
+.front-grid{display:grid;gap:0 32px;}
+.front .highlight{background:none!important;border:0!important;padding:14px 0!important;min-height:0;gap:6px;}
+.front .highlight:hover .card-gloss,.front .highlight:hover strong{text-decoration:underline;text-underline-offset:4px;}
+.front-lead{padding-top:16px!important;}
+.front-photo{display:block;width:100%!important;aspect-ratio:16/9!important;margin:0 0 6px!important;background:var(--sheet)!important;overflow:hidden;}
+.front-photo img{width:100%;height:100%;object-fit:cover;display:block;}
+.front-lead .card-gloss{font-size:24px!important;line-height:1.45!important;-webkit-line-clamp:4!important;}
+.front-lead .card-gloss+strong{font-size:13px!important;}
+.front-lead strong{font-size:22px;line-height:1.45;}
+.front-more{list-style:none;margin:0;padding:0;}
+.front-more li+li{border-top:1px solid var(--rule);}
+@media(min-width:880px){
+  .front-grid.with-photo{grid-template-columns:minmax(0,1.5fr) minmax(0,1fr);}
+  .front-grid:not(.with-photo){grid-template-columns:minmax(0,1fr) minmax(0,1fr);}
+  .front-grid .front-more{padding-top:2px;}
+}
+@media(max-width:879px){.front-more{border-top:1px solid var(--rule);}}
+
+/* On a wide screen every section of the index fits: the rows wrap instead of running off the edge. */
+@media(min-width:651px){
+  .genre-row{flex-wrap:wrap;overflow:visible;gap:0 22px;}
+  .genre-row a{margin-bottom:-1px;padding-left:0;padding-right:0;}
+  .genre-row a+a{border-left:0;}
+}
+
+/* 記事の題: the Japanese headline is set as the title, the original under it in smaller type. */
+.article .title-tr{font-size:clamp(23px,4.4vw,32px);line-height:1.45;color:var(--ink);font-weight:700;margin:6px 0 6px;}
+.article .title-tr:not([hidden])+h1{font-family:var(--sans);font-size:15px;font-weight:500;line-height:1.6;color:var(--soft);letter-spacing:0;margin:0 0 10px;}
+.gloss-off .article .title-tr.kept{display:none;}
+.gloss-off .article .title-tr.kept+h1{font-family:var(--serif);font-size:clamp(23px,4.4vw,32px);font-weight:700;color:var(--ink);}
+
+/* 対訳の操作: a ruled strip under the photograph, not a form in a box. */
+.translation-controls{background:none!important;border:0!important;border-top:1px solid var(--rule)!important;border-bottom:1px solid var(--rule)!important;
+  padding:12px 0!important;}
+@media(min-width:651px){.tc-row{flex:0 1 auto;}.tc-row select{flex:none;width:200px;}.tc-row label{font-size:12px;color:var(--soft);}}
+
+/* 奥付: what the site is, where the articles come from, and whose they are — the colophon. */
+.site-foot{margin-top:0;border-top:1px solid var(--rule-strong);padding:22px 0 30px;color:var(--soft);font-size:12px;line-height:1.8;}
+.site-foot p{margin:0 0 10px;}
+.foot-name{font-family:var(--serif);font-size:17px;font-weight:700;color:var(--ink);letter-spacing:.03em;}
+.foot-name span{font-family:var(--sans);font-size:11px;font-weight:500;color:var(--soft);margin-left:12px;letter-spacing:.08em;}
+.foot-links{display:flex;flex-wrap:wrap;gap:4px 18px;margin:0 0 12px;}
+.foot-links a{color:var(--ink-2);text-decoration:none;font-weight:600;}
+.foot-links a:hover{text-decoration:underline;text-underline-offset:3px;}
+.foot-outlets span{display:inline-block;white-space:nowrap;}
+.foot-outlets span+span::before{content:"・";}
+.foot-outlets small{font-size:10.5px;margin-left:3px;}
+.foot-note{max-width:44em;}
+@media(max-width:650px){main{padding-bottom:36px!important;}.site-foot{padding-bottom:calc(84px + env(safe-area-inset-bottom));}}
+
+/* 読み比べ: a group's translated headline leads, the original follows in small type. */
+.story-headline .story-gloss,h1 .story-gloss{font-family:var(--serif);color:var(--ink);font-weight:700;margin:0 0 4px;}
+.story-headline .story-gloss{font-size:18px;line-height:1.5;}
+h1 .story-gloss{font-size:inherit;line-height:1.4;}
+.story-headline .story-gloss+[data-gloss-id],h1 .story-gloss+[data-gloss-id]{display:block;font-family:var(--sans);font-size:13px;font-weight:500;
+  line-height:1.6;color:var(--soft);letter-spacing:0;}
+
+/* The list on a wide screen: two columns of ruled entries, each a headline with its picture as a
+   small 3:2 cut at the right — as on the phone — so a missing picture leaves no hole in the page. */
+@media(min-width:651px){
+  .card-grid{grid-template-columns:repeat(2,minmax(0,1fr))!important;gap:0 40px!important;}
+  .card{flex-direction:row-reverse!important;align-items:flex-start!important;padding:16px 0 18px!important;gap:18px!important;}
+  .card-thumb{width:168px!important;flex:none;margin-top:2px;}
+  .card-body{padding:0!important;flex:1;}
+}
+/* 数字が食い違う: a ruled note in the accent colour, not a framed box. */
+.dispute{background:none!important;border:0!important;border-top:1px solid var(--rule)!important;border-left:3px solid var(--accent)!important;padding:10px 0 10px 14px!important;}
+/* the switch for translated headlines is a quiet text control, also when on */
+.gloss-toggle,.gloss-toggle[aria-pressed="true"]{background:none!important;color:var(--soft)!important;border:0!important;padding:4px 0!important;
+  font-size:12px;font-weight:500;text-decoration:underline;text-underline-offset:3px;min-height:32px;}
+.gloss-toggle:hover{color:var(--ink)!important;}
+.fact-trail [role="listitem"]{background:none!important;border:0!important;border-bottom:1px solid var(--rule)!important;}
+.story-card{background:none!important;border:0!important;border-top:1px solid var(--rule-strong)!important;padding:16px 0 18px!important;}

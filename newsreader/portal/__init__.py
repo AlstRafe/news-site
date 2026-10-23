@@ -18,8 +18,24 @@ _HERE = Path(__file__).resolve().parent
 
 
 class Site:
-    def __init__(self, mount: str, name: str, subtitle: str, description: str, app):
+    """``preview`` (optional) returns what the site has now: {"note": str, "items": [(text, path)]},
+    path relative to the site; the index shows it under the description. Errors show nothing."""
+
+    def __init__(self, mount: str, name: str, subtitle: str, description: str, app, preview=None):
         self.mount, self.name, self.subtitle, self.description, self.app = mount, name, subtitle, description, app
+        self.preview = preview
+
+    def preview_html(self) -> str:
+        try:
+            now = self.preview() if self.preview else None
+        except Exception:  # noqa: BLE001 - the index never fails because a site's preview did
+            now = None
+        if not now:
+            return ""
+        items = "".join(f'<li><a href="{html.escape(self.mount + path)}">{html.escape(text)}</a></li>'
+                        for text, path in now.get("items", []))
+        note = f'<p class="note">{html.escape(now["note"])}</p>' if now.get("note") else ""
+        return note + (f'<ul class="now">{items}</ul>' if items else "")
 
 
 class Portal:
@@ -58,7 +74,7 @@ class Portal:
         rows = "\n".join(
             f'<li><span class="no">{n:02d}</span><div><a href="{html.escape(s.mount)}/">{html.escape(s.name)}</a>'
             f'<span class="sub">{html.escape(s.subtitle)}</span>'
-            f'<p>{html.escape(s.description)}</p></div></li>' for n, s in enumerate(self.sites, 1))
+            f'<p>{html.escape(s.description)}</p>{s.preview_html()}</div></li>' for n, s in enumerate(self.sites, 1))
         from datetime import datetime, timedelta, timezone
         today = datetime.now(timezone(timedelta(hours=9)))
         date = f"{today.year}年{today.month}月{today.day}日（{'月火水木金土日'[today.weekday()]}）"
@@ -91,8 +107,35 @@ class Portal:
 
 def build(news_app) -> Portal:
     """The sites of this PC (one for now) behind one address."""
+    from newsreader import branding
     from newsreader.web import security
-    news = Site(NEWS_MOUNT, "News Site", "ニュースを訳して読み比べる",
-                "BBC・中央社・聯合ニュースと、技術系の InfoQ・iThome などを毎時取得。原文と訳を並べ、同じニュースを各社で比べる。", news_app)
+    news = Site(NEWS_MOUNT, branding.APP_NAME, branding.APP_TAGLINE,
+                "BBC・中央社・聯合ニュースと、技術系の InfoQ・iThome などを毎時取得。原文と訳を並べ、同じニュースを各社で比べる。",
+                news_app, preview=lambda: news_now(news_app))
     trusted = news_app.config["TRUSTED_HOSTS_SET"]
     return Portal([news], allowed_hosts=lambda host: security.host_without_port(host) in trusted)
+
+
+#: Headlines the index shows from the news site.
+NEWS_PREVIEW = 3
+
+
+def news_now(news_app) -> dict:
+    """The news site's latest stories several outlets carried (or its newest articles), in Japanese
+    where the headline was translated already, and when it last collected."""
+    from newsreader.library import index, status
+    from newsreader.services import translation
+    from newsreader.web.pages import front_stories
+    db = news_app.config["LIBRARY_DB"]
+    with news_app.test_request_context("/"):  # front_stories builds picture URLs
+        stories = front_stories(db)[:NEWS_PREVIEW]
+        if stories:
+            rows = [(s["lead_title"], f"/stories/{quote(s['key'])}") for s in stories]
+        else:
+            rows = [(a["title"], f"/a/{a['id']}") for a in index.list_articles(db, page=1, per_page=NEWS_PREVIEW)["items"]]
+        kept = translation.cached_titles([title for title, _ in rows], "ja")
+        from newsreader.services.settings import collects_hourly
+        from newsreader.web.status_view import status_data
+        badge = status.badge(status_data(), collects=collects_hourly())
+    return {"note": badge["label"] if badge.get("tone") != "idle" else "",
+            "items": [(ja or title, path) for (title, path), ja in zip(rows, kept)]}
