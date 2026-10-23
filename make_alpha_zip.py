@@ -10,14 +10,14 @@ ship, VERSION included), plus what makes it a test build — and nothing else di
                            start-at-logon; launcher.py applies it once
 * ``preset/relay_token``   only with ``--embed-token``: a token this installation issues now,
                            moved into the tester's credential store on first start. By default
-                           the token (合言葉) is not in the ZIP: it is written beside it, for the
-                           distributor to hand over separately, and the tester enters it on the
-                           settings page. Either way it can be revoked on the settings page
-                           (テスト版への翻訳の中継) and has a daily character allowance.
+                           no token (合言葉) is issued or shipped: the distributor issues one on
+                           the settings page (テスト版への翻訳の中継), hands it over separately,
+                           and the tester enters it on their settings page. Either way it can be
+                           revoked there and has a daily character allowance.
 * ``はじめにお読みください.txt``
 
-Run it on the installation that holds the translation key (it records the token's digest in
-its instance/settings.json). ``--dry-run`` shows the choice and writes nothing.
+Run it on the installation that holds the translation key (with ``--embed-token`` it records the
+token's digest in its instance/settings.json). ``--dry-run`` shows the choice and writes nothing.
 
     python make_alpha_zip.py [--relay-url http://100.x.y.z:5000] [--articles 5] [--embed-token] [--dry-run]
 """
@@ -191,12 +191,12 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--out", default=str(PROJECT_ROOT.parent))
     parser.add_argument("--library", default="", help="記事フォルダ（既定: このインストールの収集先）")
     parser.add_argument("--embed-token", action="store_true",
-                        help="合言葉を ZIP に入れる（既定: ZIP には入れず、横に別ファイルで書き出す）")
+                        help="合言葉を発行して ZIP に入れる（既定: 入れない。設定画面で発行して別に渡す）")
     parser.add_argument("--dry-run", action="store_true")
     args = parser.parse_args(argv)
 
     from newsreader import paths
-    from newsreader.services import relay, settings
+    from newsreader.services import settings
 
     relay_url = settings.relay_url(args.relay_url or default_relay_url())
     if not relay_url:
@@ -218,18 +218,19 @@ def main(argv: list[str] | None = None) -> int:
         print(f"  {row['source']:<12} {row['title'][:60]}")
     print(f"中継先: {relay_url}")
     if args.dry_run:
-        print("（ドライラン: 合言葉の発行も ZIP の作成もしていません）")
+        print("（ドライラン: ZIP は作成していません）")
         return 0
     stamp = datetime.now().astimezone().strftime("%Y%m%d-%H%M")
-    token = relay.issue_token(f"テスト版 {stamp}", daily_chars=args.daily_chars)
-    archive = build(Path(args.out), files, relay_url, token if args.embed_token else "", args.articles, stamp,
-                    glossary=settings.glossary())
+    token = ""
+    if args.embed_token:
+        from newsreader.services import relay
+        token = relay.issue_token(f"テスト版 {stamp}", daily_chars=args.daily_chars)
+    archive = build(Path(args.out), files, relay_url, token, args.articles, stamp, glossary=settings.glossary())
     print(f"テスト版を作成しました: {archive}")
-    if not args.embed_token:
-        token_file = archive.with_name(f"{FOLDER}-{stamp}-合言葉.txt")
-        token_file.write_text(f"{token}\n", encoding="utf-8")
-        print(f"合言葉は ZIP に入れず、別のファイルに書き出しました（ZIP とは別に渡してください）: {token_file}")
-    print("合言葉の digest をこのインストールの設定に記録しました（設定画面の「テスト版への翻訳の中継」で無効化できます）。")
+    if token:
+        print("合言葉の digest をこのインストールの設定に記録しました（設定画面の「テスト版への翻訳の中継」で無効化できます）。")
+    else:
+        print("合言葉は入っていません。設定画面の「テスト版への翻訳の中継」で発行し、ZIP とは別に渡してください。")
     return 0
 
 
