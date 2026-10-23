@@ -60,6 +60,12 @@ class PortalTests(unittest.TestCase):
         response = self.client.get("/news", headers=H)
         self.assertEqual((response.status_code, response.headers["Location"]), (302, "/news/"))
 
+    def test_the_relay_answers_under_the_funnel_name_and_nothing_else_does(self):
+        funnel = {"Host": "haruxera.tail1234.ts.net"}
+        self.assertEqual(self.client.post("/relay/v1/ping", headers={**funnel, "Authorization": "Bearer nbr_x"}).status_code, 401)
+        self.assertEqual(self.client.get("/news/", headers=funnel).status_code, 403)
+        self.assertEqual(self.client.post("/relay/v1/ping", headers={"Host": "evil.example", "Authorization": "Bearer nbr_x"}).status_code, 403)
+
     def test_old_addresses(self):
         response = self.client.get(f"/a/{self.article}?tr=ja", headers=H)
         self.assertEqual(response.status_code, 308)

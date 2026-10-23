@@ -65,7 +65,7 @@ README = """NewsBridge テスト版（{version}）
 ・本番と同じプログラムです。違いは設定だけ: 翻訳は配布元の NewsBridge が中継（APIキーの取得は不要）、
   記事はサンプル {count} 本（毎時の自動取得とログオン時の自動起動は登録しません）。
 ・翻訳の中継先: {relay_url}
-  配布元の PC が起動していて、このPCからその宛先に届く必要があります（Tailscale で共有されたネットワークなど）。
+  {reach}
   届かないときは翻訳ボタンで「中継先に接続できませんでした」と表示されます。
 
 ■ 注意
@@ -176,7 +176,10 @@ def build(out_dir: Path, articles: list[tuple[Path, str]], relay_url: str, token
         archive.writestr(f"{FOLDER}/preset/settings.json", json.dumps(preset, ensure_ascii=False, indent=2))
         if token:  # otherwise the tester enters the 合言葉 handed over separately
             archive.writestr(f"{FOLDER}/preset/relay_token", token)
-        readme = README.format(version=version, port=port, count=count, relay_url=relay_url,
+        reach = ("配布元の PC が起動している間、インターネット経由で使えます（Tailscale などの準備は不要です）。"
+                 if relay_url.startswith("https://") else
+                 "配布元の PC が起動していて、このPCからその宛先に届く必要があります（Tailscale で共有されたネットワークなど）。")
+        readme = README.format(version=version, port=port, count=count, relay_url=relay_url, reach=reach,
                                token_step=TOKEN_STEP_EMBEDDED if token else TOKEN_STEP_SEPARATE,
                                token_note=TOKEN_NOTE_EMBEDDED if token else TOKEN_NOTE_SEPARATE)
         archive.writestr(f"{FOLDER}/はじめにお読みください.txt", readme.replace("\n", "\r\n"))

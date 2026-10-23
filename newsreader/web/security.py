@@ -137,6 +137,13 @@ def content_security_policy() -> str:
     ])
 
 
+def _relay_through_funnel(host: str) -> bool:
+    """Tailscale Funnel publishes only /relay/ of this PC under its *.ts.net name (so test builds
+    on PCs outside the tailnet can translate) and keeps that name as the Host. The relay answers
+    programs holding a token, never pages, so its name is accepted there and nowhere else."""
+    return request.path.startswith("/relay/") and host.endswith(".ts.net")
+
+
 def init_app(app: Flask, *, bind_host: str, secret_key: bytes) -> None:
     app.secret_key = secret_key
     app.config.update(
@@ -151,7 +158,8 @@ def init_app(app: Flask, *, bind_host: str, secret_key: bytes) -> None:
     def _check_host_and_csrf():
         # Host validation complements binding to loopback or one chosen private address:
         # it blocks DNS-rebinding pages from talking to the app through the browser.
-        if host_without_port(request.host) not in app.config["TRUSTED_HOSTS_SET"]:
+        host = host_without_port(request.host)
+        if host not in app.config["TRUSTED_HOSTS_SET"] and not _relay_through_funnel(host):
             abort(403)
         if request.method not in _SAFE_METHODS:
             # Browsers mark cross-site requests; refuse them before even looking at the token.
