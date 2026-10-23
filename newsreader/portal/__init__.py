@@ -108,12 +108,15 @@ class Portal:
 def build(news_app) -> Portal:
     """The sites of this PC (one for now) behind one address."""
     from newsreader import branding
-    from newsreader.web import security
+    from newsreader.web import public, security
     news = Site(NEWS_MOUNT, branding.APP_NAME, branding.APP_TAGLINE,
                 "BBC・中央社・聯合ニュースと、技術系の InfoQ・iThome などを毎時取得。原文と訳を並べ、同じニュースを各社で比べる。",
                 news_app, preview=lambda: news_now(news_app))
     trusted = news_app.config["TRUSTED_HOSTS_SET"]
-    return Portal([news], allowed_hosts=lambda host: security.host_without_port(host) in trusted)
+    def allowed(host: str) -> bool:
+        host = security.host_without_port(host)
+        return host in trusted or public.is_funnel_host(host)  # テスト公開 (web/public.py)
+    return Portal([news], allowed_hosts=allowed)
 
 
 #: Headlines the index shows from the news site.

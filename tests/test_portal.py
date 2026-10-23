@@ -64,6 +64,7 @@ class PortalTests(unittest.TestCase):
     def test_the_public_name_reads_and_translates_but_changes_nothing(self):
         funnel = {"Host": "haruxera.tail1234.ts.net"}
         self.assertEqual(self.client.post("/relay/v1/ping", headers={**funnel, "Authorization": "Bearer nbr_x"}).status_code, 401)
+        self.assertEqual(self.client.get("/", headers=funnel).status_code, 200)
         page = self.client.get("/news/", headers=funnel)
         self.assertEqual(page.status_code, 200)
         html = page.get_data(as_text=True)
