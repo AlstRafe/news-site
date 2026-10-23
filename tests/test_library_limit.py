@@ -27,9 +27,9 @@ class LibraryLimitTests(unittest.TestCase):
 
         self.patches = [mock.patch.object(autofetch, "SOURCES", SOURCES),
                         mock.patch.object(autofetch, "_article_links",
-                                          lambda source: [f"https://x/{source['name']}{i}" for i in range(5)]),
+                                          lambda source, feed="": [f"https://x/{source['name']}{i}" for i in range(5)]),
                         mock.patch.object(autofetch, "_fetch_article", fetch),
-                        mock.patch.object(autofetch, "_existing_article_urls", lambda directory: set())]
+                        mock.patch.object(autofetch, "_existing_article_urls", lambda directory, keep=(): set())]
         for patch in self.patches:
             patch.start()
 

@@ -90,6 +90,18 @@
     });
   }
 
+  // 2b. An article's "…の一覧へ戻る" goes back to the very list the reader came from (its kind of
+  //     news, outlet, search and page), not to the outlet's first page.
+  document.querySelectorAll("a[data-list-back]").forEach(link => {
+    try {
+      const from = new URL(document.referrer);
+      if (from.origin === location.origin && from.pathname === `${base}/` && from.search) {
+        link.href = from.href;
+        link.textContent = "一覧へ戻る";
+      }
+    } catch (_) { /* no referrer */ }
+  });
+
   // 3. "今すぐ更新" on /stories: start a regrouping, poll its status, reload when done.
   const refresh = document.querySelector('[data-action="stories-refresh"]');
   if (refresh) {

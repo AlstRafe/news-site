@@ -6,7 +6,8 @@ APP_NAME_JA = "ニュースブリッジ"
 APP_TAGLINE = "翻訳して読み比べるニュース"
 
 #: The language of each outlet, for colour-coding its badge (en / zh / ko). Unknown: "".
-SOURCE_LANGUAGES = {"BBC": "en", "CNA": "zh", "Yonhap": "ko", "NAVER NEWS": "ko"}
+SOURCE_LANGUAGES = {"BBC": "en", "CNA": "zh", "Yonhap": "ko", "NAVER NEWS": "ko",
+                    "InfoQ": "en", "The New Stack": "en", "iThome": "zh", "ZDNet Korea": "ko"}
 
 
 def source_language(source: str | None) -> str:

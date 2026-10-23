@@ -93,6 +93,6 @@ def build(news_app) -> Portal:
     """The sites of this PC (one for now) behind one address."""
     from newsreader.web import security
     news = Site(NEWS_MOUNT, "News Site", "ニュースを訳して読み比べる",
-                "BBC・中央社・聯合ニュースを毎時取得。原文と訳を並べ、同じニュースを各社で比べる。", news_app)
+                "BBC・中央社・聯合ニュースと、技術系の InfoQ・iThome などを毎時取得。原文と訳を並べ、同じニュースを各社で比べる。", news_app)
     trusted = news_app.config["TRUSTED_HOSTS_SET"]
     return Portal([news], allowed_hosts=lambda host: security.host_without_port(host) in trusted)

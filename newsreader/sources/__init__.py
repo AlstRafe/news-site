@@ -7,7 +7,7 @@ CNA — the precedence v3 used), then Yonhap (added after v3, replaces NAVER col
 """
 from __future__ import annotations
 
-from newsreader.sources import bbc, cna, naver, yonhap
+from newsreader.sources import bbc, cna, generic, naver, yonhap
 from newsreader.sources.base import (
     ALLOWED_EXTENSIONS,
     IMAGE_EXTENSIONS,
@@ -20,7 +20,14 @@ from newsreader.sources.base import (
     extract_published,
 )
 
-SITES = (bbc, naver, cna, yonhap)
+#: Technology outlets (networks, programming, security) read without a hand-written adapter.
+TECH_SITES = (
+    generic.site("InfoQ", {"www.infoq.com"}),
+    generic.site("The New Stack", {"thenewstack.io"}),
+    generic.site("iThome", {"www.ithome.com.tw"}),
+    generic.site("ZDNet Korea", {"zdnet.co.kr", "www.zdnet.co.kr"}),
+)
+SITES = (bbc, naver, cna, yonhap, *TECH_SITES)
 
 #: Bump whenever a change to any adapter can change ``extract_article`` output.
 #: The index stores the version each row was parsed with and re-parses stale rows
@@ -29,7 +36,8 @@ SITES = (bbc, naver, cna, yonhap)
 #: 2 = images inside <template> are ignored (O-03).
 #: 3 = Yonhap: the reporter's e-mail and the closing copyright / tip-line are not body text.
 #: 4 = the kind of news (library/genres.py) is stored per article; CNA filing codes dropped.
-PARSER_VERSION = 4
+#: 5 = technology outlets (generic.py) and the 開発・ネットワーク kind.
+PARSER_VERSION = 5
 
 
 def detect(page: Page):

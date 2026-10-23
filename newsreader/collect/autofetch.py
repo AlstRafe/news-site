@@ -12,7 +12,7 @@ import xml.etree.ElementTree as ET
 from logging.handlers import RotatingFileHandler
 from pathlib import Path
 from urllib.error import HTTPError, URLError
-from urllib.parse import urljoin, urlsplit, urlunsplit
+from urllib.parse import parse_qsl, urlencode, urljoin, urlsplit, urlunsplit
 from urllib.request import Request, urlopen
 from urllib.robotparser import RobotFileParser
 
@@ -26,6 +26,7 @@ MAX_NEW_PER_SOURCE_PER_CYCLE = 3
 #: Each outlet's section feeds (経済, テクノロジー ...) add at most this many per feed and cycle, after
 #: its main (international) feed, so the kinds of news the lists can show are not world news only.
 MAX_NEW_PER_SECTION_FEED = 2
+TECH_PER_CYCLE = 5
 
 
 #: A page that could not be read as an article (a BBC video page without text, for example) is
@@ -107,6 +108,46 @@ SOURCES = (
         "article_hosts": {"www.yna.co.kr"},
         "is_article": lambda url: urlsplit(url).path.startswith("/view/AKR"),
     },
+    # Technology outlets (networks, programming, security), read by sources/generic.py; the
+    # reader asked for more of these, so each may add TECH_PER_CYCLE articles an hour.
+    {
+        "name": "InfoQ",
+        "directory": "InfoQ",
+        "per_cycle": TECH_PER_CYCLE,
+        "kind": "rss",
+        "url": "https://feed.infoq.com/",
+        "article_hosts": {"www.infoq.com"},
+        "is_article": lambda url: re.match(r"/news/\d{4}/\d{2}/[^/]+$", urlsplit(url).path) is not None,
+    },
+    {
+        "name": "The New Stack",
+        "directory": "The New Stack",
+        "per_cycle": TECH_PER_CYCLE,
+        "kind": "rss",
+        "url": "https://thenewstack.io/feed/",
+        "article_hosts": {"thenewstack.io"},
+        "is_article": lambda url: re.match(r"/[a-z0-9][a-z0-9-]{8,}$", urlsplit(url).path) is not None,
+    },
+    {
+        "name": "iThome",
+        "directory": "iThome",
+        "per_cycle": TECH_PER_CYCLE,
+        "kind": "rss",
+        "url": "https://www.ithome.com.tw/rss",
+        "article_hosts": {"www.ithome.com.tw"},
+        "is_article": lambda url: re.match(r"/news/\d+$", urlsplit(url).path) is not None,
+    },
+    {
+        "name": "ZDNet Korea",
+        "directory": "ZDNet Korea",
+        "per_cycle": TECH_PER_CYCLE,
+        "kind": "rss",
+        "url": "https://feeds.feedburner.com/zdkorea",
+        "article_hosts": {"zdnet.co.kr"},
+        # Articles are /view/?no=<number>: that one query parameter is the article.
+        "keep_query": ("no",),
+        "is_article": lambda url: urlsplit(url).path == "/view" and re.search(r"(?:^|&)no=\d+", urlsplit(url).query) is not None,
+    },
 )
 
 _log = logging.getLogger("news_autofetch")
@@ -125,12 +166,15 @@ def configure_logging(log_directory: Path) -> None:
     _log.addHandler(handler)
 
 
-def _normalize_url(url: str) -> str:
+def _normalize_url(url: str, keep: tuple[str, ...] = ()) -> str:
+    """Scheme and host lower-cased, no trailing slash, no fragment; the query is dropped except
+    the parameters a site's addresses depend on (``keep``)."""
     parts = urlsplit(url.strip())
     if parts.scheme.lower() not in {"http", "https"} or not parts.hostname:
         return ""
     path = parts.path.rstrip("/") or "/"
-    return urlunsplit((parts.scheme.lower(), parts.netloc.lower(), path, "", ""))
+    query = urlencode(sorted((k, v) for k, v in parse_qsl(parts.query) if k in keep)) if keep else ""
+    return urlunsplit((parts.scheme.lower(), parts.netloc.lower(), path, query, ""))
 
 
 def _host_allowed(url: str, allowed_hosts: set[str]) -> bool:
@@ -233,7 +277,7 @@ def _article_links(source: dict, feed: str = "") -> list[str]:
     accepted = []
     seen = set()
     for link in links:
-        normalized = _normalize_url(link)
+        normalized = _normalize_url(link, source.get("keep_query", ()))
         if not normalized or normalized in seen:
             continue
         if not _host_allowed(normalized, source["article_hosts"]):
@@ -245,7 +289,7 @@ def _article_links(source: dict, feed: str = "") -> list[str]:
     return accepted
 
 
-def _existing_article_urls(directory: Path) -> set[str]:
+def _existing_article_urls(directory: Path, keep: tuple[str, ...] = ()) -> set[str]:
     existing = set()
     if not directory.is_dir():
         return existing
@@ -260,7 +304,7 @@ def _existing_article_urls(directory: Path) -> set[str]:
             url = str(canonical.get("href", "")) if canonical else ""
             if not url and og_url:
                 url = str(og_url.get("content", ""))
-            normalized = _normalize_url(url)
+            normalized = _normalize_url(url, keep)
             if normalized:
                 existing.add(normalized)
         except OSError:
@@ -270,7 +314,7 @@ def _existing_article_urls(directory: Path) -> set[str]:
 
 def _filename_for(source: dict, url: str) -> str:
     parts = urlsplit(url)
-    slug = re.sub(r"[^A-Za-z0-9_-]+", "_", parts.path.strip("/"))[:100].strip("_")
+    slug = re.sub(r"[^A-Za-z0-9_-]+", "_", parts.path.strip("/") + ("_" + parts.query if parts.query else ""))[:100].strip("_")
     digest = hashlib.sha256(url.encode("utf-8")).hexdigest()[:10]
     return f"{source['directory'].lower().replace(' ', '_')}_{slug or 'article'}_{digest}.html"
 
@@ -282,7 +326,8 @@ def _fetch_article(source: dict, url: str, destination: Path) -> str:
     if result is None:
         return "skipped"
     data, final_url, content_type = result
-    final_url = _normalize_url(final_url)
+    keep = source.get("keep_query", ())
+    final_url = _normalize_url(final_url, keep)
     if not final_url or not _host_allowed(final_url, source["article_hosts"]) or not source["is_article"](final_url):
         _log.warning("Redirected outside the allowed article host; skipped %s", url)
         return "unreadable"
@@ -294,7 +339,7 @@ def _fetch_article(source: dict, url: str, destination: Path) -> str:
     except ReaderError as exc:
         _log.info("Unsupported or incomplete article skipped (%s): %s", type(exc).__name__, url)
         return "unreadable"
-    canonical = _normalize_url(article.get("url", ""))
+    canonical = _normalize_url(article.get("url", ""), keep)
     if not canonical or not _host_allowed(canonical, source["article_hosts"]):
         _log.warning("Article has no supported canonical URL; skipped %s", url)
         return "unreadable"
@@ -344,7 +389,7 @@ def fetch_cycle(
             site["limited"] = True
             totals[source["name"]] = 0
             continue
-        existing = _existing_article_urls(directory)
+        existing = _existing_article_urls(directory, source.get("keep_query", ()))
         try:
             links = _article_links(source)
         except (HTTPError, URLError, OSError, TimeoutError, ValueError) as exc:
@@ -367,7 +412,7 @@ def fetch_cycle(
             if link in queued:
                 continue
             queued.add(link)
-            allowance = MAX_NEW_PER_SECTION_FEED if feed_number else MAX_NEW_PER_SOURCE_PER_CYCLE
+            allowance = MAX_NEW_PER_SECTION_FEED if feed_number else source.get("per_cycle", MAX_NEW_PER_SOURCE_PER_CYCLE)
             if saved_from.get(feed_number, 0) >= allowance:
                 continue
             if link in existing:

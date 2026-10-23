@@ -45,7 +45,7 @@
 {% if topics %}<p>ホームの「追っている話題」に、新しいものから6件まで表示します（最大10件）。</p><ul class="glossary-list">{% for t in topics %}<li><span><a href="{{ url_for('index', q=t) }}">{{ t }}</a></span><button type="submit" name="action" value="remove_topic:{{ loop.index0 }}" class="secondary">やめる</button></li>{% endfor %}</ul>{% else %}<p class="hint">記事を検索して「この話題を追う」を押すと、こことホームに表示されます。日本語の語でも、英語・中国語・韓国語の記事をまとめて探します。</p>{% endif %}
 </section>
 <section class="panel settings-panel" id="stories-settings"><h2>読み比べ（同じニュースのまとめ）</h2>
-<p>BBC・CNA・聯合ニュースの記事から同じニュースを探してまとめます。英語以外の見出しは、上で選んだ翻訳サービスで<strong>見出しだけ</strong>英訳して照合します（本文は送信しません）。英訳は1回きりで保存され、同じ見出しを再送信することはありません。</p>
+<p>取得したすべての媒体の記事から同じニュースを探してまとめます。英語以外の見出しは、上で選んだ翻訳サービスで<strong>見出しだけ</strong>英訳して照合します（本文は送信しません）。英訳は1回きりで保存され、同じ見出しを再送信することはありません。</p>
 <label class="check-row"><input type="checkbox" name="stories_enabled" value="1" {% if story_settings.stories_enabled %}checked{% endif %}> 英語以外の見出しを英訳して照合する</label>
 <label for="stories_daily_chars">見出し英訳の1日の上限（文字）</label><input id="stories_daily_chars" name="stories_daily_chars" type="text" inputmode="numeric" maxlength="7" value="{{ story_settings.stories_daily_chars }}" required>
 <p class="hint">{{ "{:,}".format(story_range[0]) }}〜{{ "{:,}".format(story_range[1]) }}文字。見出しは1本あたり20〜60文字程度なので、既定の8,000文字で1日150本前後を英訳できます。上限に達した見出しは翌日に回り、英語の見出しはこの設定に関係なく照合されます。オフにした場合も、英訳済みの見出しはそのまま使います。</p>

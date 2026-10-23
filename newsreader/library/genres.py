@@ -21,6 +21,7 @@ from urllib.parse import urlsplit
 GENRES: tuple[tuple[str, str], ...] = (
     ("politics", "政治・外交"),
     ("economy", "経済"),
+    ("dev", "開発・ネットワーク"),
     ("tech", "テクノロジー"),
     ("science", "科学・環境"),
     ("health", "健康・医療"),
@@ -70,6 +71,14 @@ _WORDS: dict[str, dict[str, str]] = {
         "zh": "人工智慧 AI 晶片 半導體 輝達 台積電 科技 軟體 網路 駭客 資安 社群媒體 機器人 量子 衛星 火箭 手機 微軟 谷歌 加密貨幣 比特幣 演算法 OpenAI ChatGPT 太空",
         "ko": "인공지능 AI 반도체 엔비디아 오픈AI 챗GPT 소프트웨어 인터넷 해킹 사이버 소셜미디어 로봇 양자 위성 우주 로켓 스마트폰 구글 마이크로소프트 가상화폐 비트코인 플랫폼 빅테크",
     },
+    "dev": {
+        "en": "programming, programmer, developer, open source, open-source, github, linux, kubernetes, cloud native, "
+              "networking, network outage, router, protocol, API, database, compiler, rust, python, javascript, "
+              "typescript, java, golang, framework, devops, data center, datacenter, vulnerability, CVE, patch, zero-day, "
+              "ransomware, malware, observability, microservice, serverless, container, LLM inference, coding agent",
+        "zh": "開發者 開發人員 程式 開源 雲端 資安 漏洞 伺服器 資料庫 Linux Kubernetes API 框架 網通 路由器 頻寬 資料中心 勒索軟體 惡意程式 修補 DevOps 容器 程式碼",
+        "ko": "개발자 프로그래밍 오픈소스 클라우드 네트워크 서버 데이터베이스 취약점 리눅스 쿠버네티스 데이터센터 랜섬웨어 악성코드 보안패치 코딩",
+    },
     "science": {
         "en": "climate, scientist, species, emissions, carbon, environment, wildlife, glacier, fossil, NASA, planet, asteroid, heatwave, biodiversity, astronomer, archaeolog",
         "zh": "氣候 科學家 物種 排放 碳 環境 冰川 生態 化石 NASA 暖化 考古",
@@ -98,7 +107,7 @@ _WORDS: dict[str, dict[str, str]] = {
 }
 
 #: When two kinds score the same, the more specific one wins (war words are in many stories).
-_TIE_ORDER = ("tech", "health", "science", "economy", "culture", "society", "politics")
+_TIE_ORDER = ("dev", "tech", "health", "science", "economy", "culture", "society", "politics")
 TITLE_WEIGHT = 3
 MIN_SCORE = 3
 BODY_CHARS = 2_000
@@ -163,7 +172,16 @@ def from_words(title: str, paragraphs: list[str]) -> str:
     return next(genre for genre in _TIE_ORDER if scores.get(genre) == best)
 
 
+#: Outlets that only cover technology: their articles are 開発・ネットワーク or テクノロジー unless the
+#: words point to economy, science or health (a chip maker's results, say).
+TECH_OUTLETS = {"InfoQ": "dev", "The New Stack": "dev", "iThome": "tech", "ZDNet Korea": "tech"}
+_TECH_KINDS = ("dev", "tech", "economy", "science", "health")
+
+
 def classify(source: str, url: str, section: str, title: str, paragraphs: list[str]) -> str:
+    if source in TECH_OUTLETS:
+        found = from_words(title, paragraphs)
+        return found if found in _TECH_KINDS else TECH_OUTLETS[source]
     return from_section(source, url, section) or from_words(title, paragraphs)
 
 
