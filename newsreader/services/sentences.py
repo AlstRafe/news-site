@@ -63,6 +63,19 @@ def _as_utf16(text: str, lengths: list[int]) -> list[int] | None:
     return None
 
 
+def cut(text: str, lengths: list[int]) -> list[str]:
+    """``text`` in pieces of the given UTF-16 lengths (which must add up to it)."""
+    data, out, i = text.encode("utf-16-le"), [], 0
+    for n in lengths:
+        out.append(data[i * 2:(i + n) * 2].decode("utf-16-le", "replace"))
+        i += n
+    return out
+
+
+def utf16_lengths(pieces: list[str]) -> list[int]:
+    return [_utf16(piece) for piece in pieces]
+
+
 def split(text: str) -> list[str]:
     """Sentences, keeping every character (the pieces join back to ``text``)."""
     pieces, start = [], 0

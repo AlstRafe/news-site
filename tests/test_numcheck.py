@@ -15,6 +15,8 @@ CASES = [
     ("In 2026, the G7 met 3 times.", "2026年、G7は3回会合した。", []),
     ("He was 1 of 2 survivors.", "彼は二人の生存者の一人だった。", []),
     ("Prices rose 15% in 2025.", "2025年に物価は上昇した。", ["15"]),
+    # A comma after a figure is punctuation, not part of it.
+    ("Pike, 50, who killed her in 1995, was 12,000 km away.", "パイクは1995年に彼女を殺害した。", ["50", "12,000"]),
 ]
 
 

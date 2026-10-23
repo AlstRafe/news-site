@@ -133,7 +133,7 @@
     a.href = url;
     a.target = "_blank";
     a.rel = "noopener noreferrer";
-    a.textContent = `${label || "辞書で確認"} ↗`;
+    a.textContent = `${label || "辞書で確認"}`;
     p.appendChild(a);
     container.appendChild(p);
   }

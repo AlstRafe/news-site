@@ -165,9 +165,10 @@ def _translate_batch(provider: str, texts: list[str], target: str) -> list[str]:
     if provider == "relay":
         from newsreader.services import relay
         try:
-            return relay.translate(texts, target)
+            out = relay.translate(texts, target)
         except (relay.RelayError, SecretStoreError) as exc:
             raise TranslationError(str(exc)) from None
+        return [polished(target, source, text) for source, text in zip(texts, out)]
     if provider == "azure":
         try:
             key = get_secret("azure_api_key")
@@ -202,7 +203,7 @@ def _translate_batch(provider: str, texts: list[str], target: str) -> list[str]:
             lengths = translations[0].get("sentLen")
             if isinstance(lengths, dict) and marked == source:  # lengths of marked-up text would not fit
                 sentences.remember(target, source, translated, lengths.get("srcSentLen"), lengths.get("transSentLen"))
-            results.append(translated)
+            results.append(polished(target, source, translated))
         estimated_chars = sum(len(text) for text in texts)
         raw_metered = response_headers.get("x-metered-usage", "").strip()
         try:
@@ -324,6 +325,10 @@ def translate_titles(titles: list[str], target: str, *, kind: str = "title", max
     prefix = _key_prefix(provider, target)
     keys = [hashlib.sha256((prefix + "\0" + target + "\0" + title).encode("utf-8")).hexdigest() for title in cleaned]
     results = [cache_get(kind, key) if title else "" for title, key in zip(cleaned, keys)]
+    for i, (title, value) in enumerate(zip(cleaned, results)):
+        if title and isinstance(value, str) and (fixed := polished(target, title, value)) != value:
+            results[i] = fixed
+            cache_put(kind, keys[i], fixed, max_entries=TITLE_CACHE_ENTRIES)
     missing = [i for i, value in enumerate(results) if not isinstance(value, str)]
     if missing:
         fresh: list[str] = []
@@ -335,6 +340,29 @@ def translate_titles(titles: list[str], target: str, *, kind: str = "title", max
     return [value if isinstance(value, str) else "" for value in results]
 
 
+#: Fixed names the engine gets wrong, applied when the source names them: (in source, wrong, right).
+_JA_NAMES = (("中央社", re.compile("中央通信(?!社)"), "中央社"),)
+
+
+def polished(target: str, source: str, translated: str) -> str:
+    """The engine's Japanese as one consistently written article (ja_polish), keeping the
+    sentence-by-sentence pairing: the kept sentence lengths are moved to the polished text."""
+    if target != "ja" or not translated:
+        return translated
+    from newsreader.services import ja_polish, sentences
+    kept = sentences.reported(target, source, translated)
+    lengths = sentences._as_utf16(translated, kept["tr"]) if kept and isinstance(kept.get("tr"), list) else None
+    pieces = sentences.cut(translated, lengths) if lengths else [translated]
+    out = ja_polish.polish_pieces(pieces)
+    for name, wrong, right in _JA_NAMES:
+        if name in source:
+            out = [wrong.sub(right, piece) for piece in out]
+    text = "".join(out)
+    if text != translated and lengths:
+        sentences.remember(target, source, text, kept["src"], sentences.utf16_lengths(out))
+    return text
+
+
 def _run_batches(provider: str, target: str, batches: list[list[str]]) -> list[str]:
     """Translate batches in order, reusing the per-batch cache; returns one result per input piece."""
     translated: list[str] = []
@@ -343,7 +371,11 @@ def _run_batches(provider: str, target: str, batches: list[list[str]]) -> list[s
                                       + json.dumps(batch, ensure_ascii=False)).encode("utf-8")).hexdigest()
         part_cached = cache_get("translation_part", part_digest)
         if isinstance(part_cached, list) and len(part_cached) == len(batch) and all(isinstance(item, str) for item in part_cached):
-            translated.extend(part_cached)
+            # Kept before ja_polish existed: polished now, and kept that way.
+            fixed = [polished(target, source, text) for source, text in zip(batch, part_cached)]
+            if fixed != part_cached:
+                cache_put("translation_part", part_digest, fixed, max_entries=1000)
+            translated.extend(fixed)
             continue
         part_translated = _translate_batch(provider, batch, target)
         translated.extend(part_translated)
@@ -363,7 +395,7 @@ def translate_text(text: str, target: str, *, limit: int) -> str:
     digest = hashlib.sha256((_key_prefix(provider, target) + "\0" + target + "\0" + text).encode("utf-8")).hexdigest()
     cached = cache_get("translation", digest)
     if isinstance(cached, str):
-        return cached
+        return polished(target, text, cached)
     translated = _run_batches(provider, target, _chunks(text.splitlines() or [text]))
     output = "\n\n".join(translated)
     cache_put("translation", digest, output, max_entries=300)

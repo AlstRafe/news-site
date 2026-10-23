@@ -74,9 +74,10 @@
       meta.content = forDark ? "#1b1d22" : "#ffffff";
     });
     if (toggle) {
-      const label = THEMES[theme] || THEMES.auto;  // the icon follows data-theme via CSS
-      toggle.setAttribute("aria-label", `テーマ: ${label}`);
-      toggle.title = `テーマ: ${label}`;
+      const label = THEMES[theme] || THEMES.auto;
+      toggle.textContent = "配色 " + ({ light: "ライト", dark: "ダーク" }[theme] || "自動");
+      toggle.setAttribute("aria-label", `表示の明るさ: ${label}（押すと切り替え）`);
+      toggle.title = `表示の明るさ: ${label}`;
     }
   };
   applyTheme(readTheme());

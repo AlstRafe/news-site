@@ -1,7 +1,7 @@
 {% extends "base.html" %}
 {% block head %}<title>今日の読み比べ | {{ app_name }}</title>{% endblock %}
 {% block main_class %} digest-page{% endblock %}
-{% block content %}<a class="back" href="{{ url_for('stories_page') }}">← 読み比べへ</a>
+{% block content %}<a class="back" href="{{ url_for('stories_page') }}">読み比べへ</a>
 <div class="list-head"><h1>今日の読み比べ</h1><span class="count">直近 {{ hours }} 時間</span>{% if groups %}<button type="button" class="gloss-toggle" id="gloss-toggle" aria-pressed="false" title="見出しの下に訳を表示（一度訳した見出しは保存して再送信しません）">見出しを訳す</button>{% endif %}</div>
 <nav class="chips" aria-label="期間">{% for h in (24, 48, 72) %}<a class="chip{% if hours == h %} active{% endif %}" href="{{ url_for('digest_page', hours=h) }}">{{ h }} 時間</a>{% endfor %}</nav>
 {% if names %}<section class="digest-names" aria-labelledby="names-head"><h2 id="names-head">よく出た名前</h2>
@@ -18,5 +18,5 @@
 {% if stats.outlets %}<section class="digest-outlets" aria-labelledby="digest-outlets-head"><h2 id="digest-outlets-head">媒体ごと</h2>
 <div class="outlet-grid">{% for o in stats.outlets %}<section class="outlet-card"><h3><span class="badge" data-lang="{{ o.source|src_lang }}">{{ o.source }}</span> {{ o.articles }} 本 <small>（この媒体だけ {{ o.scoops }} 本）</small></h3>
 {% if o.recent_scoops %}<ul class="outlet-scoops">{% for a in o.recent_scoops %}<li><a href="{{ url_for('show_article', article_id=a.id) }}" data-gloss-id="{{ a.id }}"{{ o.source|lang_attr }}>{{ a.title }}</a><span class="story-time">{{ a.published|localtime_short }}</span></li>{% endfor %}</ul>{% endif %}</section>{% endfor %}</div>
-<p class="hint"><a href="{{ url_for('outlets_page') }}">媒体くらべ →</a></p></section>{% endif %}
+<p class="hint"><a href="{{ url_for('outlets_page') }}">媒体くらべ</a></p></section>{% endif %}
 {% endblock %}

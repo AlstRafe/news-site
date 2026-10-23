@@ -8,7 +8,7 @@
     thousand: 1e3, million: 1e6, billion: 1e9, trillion: 1e12, bn: 1e9, m: 1e6, k: 1e3,
   };
   // A figure, then an optional scale written after it ("1.2 million", "53만", "1万2000" is two parts).
-  const FIGURE = /(\d[\d,]*(?:\.\d+)?)\s*(thousand|million|billion|trillion|bn|[万萬만億억千천兆조])?/gi;
+  const FIGURE = /(\d(?:[\d,]*\d)?(?:\.\d+)?)\s*(thousand|million|billion|trillion|bn|[万萬만億억千천兆조])?/gi;
 
   function values(text) {
     const out = [];

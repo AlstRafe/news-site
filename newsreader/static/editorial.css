@@ -28,9 +28,15 @@ a{color:inherit;}
 .brand small{font-family:var(--sans);letter-spacing:.08em;color:var(--soft);}
 .topnav a.nav-text{color:var(--ink);font-weight:600;text-decoration:none;padding-bottom:3px;border-bottom:2px solid transparent;}
 .topnav a.nav-text:hover,.topnav a.nav-text[aria-current="page"]{border-bottom-color:var(--accent);}
-.status-badge{background:none!important;border:1px solid var(--rule);color:var(--soft)!important;}
-.theme-toggle{background:none;border:1px solid var(--rule);color:var(--ink);}
-.theme-toggle,.chart-dot,.arc-list li::before,.status-badge::before{border-radius:50%!important;}
+/* collection state and the light/dark switch: words in the masthead, not chips and icons */
+.status-badge{background:none!important;border:0;padding:0 4px!important;min-height:36px;display:inline-flex!important;align-items:center;color:var(--soft)!important;font-weight:500!important;
+  text-decoration:none;}
+.status-badge::before{display:none!important;}
+.status-badge.tone-bad{color:var(--accent)!important;}
+.theme-toggle{width:auto!important;height:auto!important;min-height:32px;padding:0 4px!important;background:none!important;border:0;
+  color:var(--soft);font-size:12px!important;font-weight:500;text-decoration:underline;text-underline-offset:3px;}
+.theme-toggle:hover{color:var(--ink);}
+.chart-dot,.arc-list li::before{border-radius:50%!important;}
 
 /* controls: square, quiet */
 button,.button{background:var(--ink);color:var(--paper);font-weight:600;}
@@ -84,7 +90,9 @@ input,select,textarea{background:var(--sheet);color:var(--ink);border:1px solid 
 
 /* phone tab bar */
 .tabbar{background:var(--paper);border-top:1px solid var(--rule-strong);}
-.tabbar a[aria-current="page"]{color:var(--accent);}
+.tabbar a{min-height:48px!important;font-size:13px!important;font-weight:600!important;color:var(--soft)!important;letter-spacing:.06em;
+  border-top:2px solid transparent;margin-top:-1px;}
+.tabbar a[aria-current="page"]{color:var(--ink)!important;border-top-color:var(--accent);}
 
 /* pressed states and word lists: ink, not candy colours */
 .segmented{background:none;border:1px solid var(--rule-strong);padding:0;}
@@ -93,3 +101,12 @@ input,select,textarea{background:var(--sheet);color:var(--ink);border:1px solid 
 .word-chips .word-chip,.word-chips.only .word-chip,.word-chips.shared .word-chip{background:none!important;color:var(--ink)!important;
   border-bottom:1px solid var(--rule)!important;padding:2px 2px 3px!important;}
 .word-chips.only .word-chip{border-bottom-color:var(--accent)!important;}
+
+/* 対訳: the translation is set like a newspaper's second text under the original, not as a
+   tinted call-out box with a coloured bar. */
+.title-tr{font-family:var(--serif);font-weight:600;color:var(--ink-2);}
+.bi-tr{font-family:var(--serif);font-size:15.5px;line-height:1.95;color:var(--ink-2);background:none!important;border:0!important;
+  border-top:1px solid var(--rule)!important;padding:10px 0 0!important;margin:0 0 30px;}
+.num-check,.num-check-card{background:none!important;border:0!important;padding:0!important;color:var(--accent);}
+.num-check::before,.num-check-card::before{content:"※ ";}
+.bi-float{background:var(--paper)!important;color:var(--ink)!important;border:1px solid var(--rule-strong)!important;}

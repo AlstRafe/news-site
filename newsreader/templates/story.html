@@ -12,7 +12,7 @@
 <div class="cmp-tr" data-cmp-for="{{ m.id }}" hidden></div>
 <button type="button" class="text-button exclude-button" data-exclude-id="{{ m.id }}">別のニュース</button>
 </article>{% endmacro %}
-{% block content %}<a class="back" href="{{ url_for('stories_page') }}">← 読み比べの一覧へ</a>
+{% block content %}<a class="back" href="{{ url_for('stories_page') }}">読み比べの一覧へ</a>
 <div class="eyebrow">読み比べ · {{ story.columns|length }} 媒体 · {{ story.members|length }} 本</div>
 <h1><span data-gloss-id="{{ story.lead_id }}"{{ story.lead_source|lang_attr }}>{{ story.lead_title }}</span></h1>
 <p class="story-summary">{% if story.first %}最初の報道: <span class="badge" data-lang="{{ story.first.source|src_lang }}">{{ story.first.source }}</span> {{ story.first.published|localtime }}{% endif %}{% if story.newest_time and story.newest_time != story.oldest %} · 最新: {{ story.newest_time|localtime }}{% endif %}{% if arc %} · <a href="#arc-title">このニュースの流れ（ほか {{ arc|length - 1 }} 件）</a>{% endif %}</p>

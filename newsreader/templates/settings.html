@@ -1,9 +1,9 @@
 {% extends "base.html" %}
 {% block head %}<title>アプリ設定 | {{ app_name }}</title>{% endblock %}
 {% block main_class %} settings-page{% endblock %}
-{% block content %}<a class="back" href="{{ url_for('index') }}">← 記事一覧へ戻る</a>
+{% block content %}<a class="back" href="{{ url_for('index') }}">記事一覧へ戻る</a>
 <h1>アプリ設定</h1>
-<p class="lead">この画面からAPIキーや接続先をいつでも変更できます。APIキーは画面に再表示せず、このPCのWindows資格情報ストアに保存します。キー欄を空欄にすると現在の登録内容を維持します。</p>
+<p class="lead">APIキーはこのPCのWindows資格情報ストアに保存し、画面には二度と表示しません。キー欄を空のまま保存すれば、今のキーがそのまま残ります。</p>
 {% if first_run %}<div class="success" role="status"><strong>初回設定です。</strong> このPCのAPIキーはこの画面から登録してください。設定はこのPCに保存され、次回以降、起動時に初回案内は表示されません。あとから変更する場合も、記事一覧の「設定」からこの画面を開けます。</div>{% endif %}
 {% if message %}<div class="success" role="status">{{ message }}</div>{% endif %}{% if error %}<div class="alert" role="alert">{{ error }}</div>{% endif %}{% if secret_store_error %}<div class="alert" role="alert">{{ secret_store_error }}</div>{% endif %}
 <form method="post" action="{{ url_for('translation_settings') }}" autocomplete="off">
@@ -21,7 +21,7 @@
 <p class="hint">「配布元に頼む」を選ぶと、翻訳する文章は中継先の NewsBridge に送られ、そこで翻訳されます（このPCに翻訳キーは要りません）。</p>
 <h3 class="settings-sub">Azure Translator（このPCのキー）</h3>
 <p>本文・見出し・単語の翻訳と英単語の辞書に Azure Translator を使います。キーはこのPCの資格情報ストアに保存され、配布ZIPには含まれません。</p>
-<div class="credential-row"><div><label for="azure_api_key">Azure Translatorキー <span class="configured">{% if secrets.azure_api_key %}設定済み{% else %}未設定{% endif %}</span></label><input id="azure_api_key" name="azure_api_key" type="password" autocomplete="new-password" placeholder="設定済みの場合は空欄のままで構いません"><a href="https://portal.azure.com/" target="_blank" rel="noopener noreferrer">Azure Portal ↗</a></div><label class="remove-key"><input type="checkbox" name="remove_azure_api_key" value="1"> Azureキーを削除</label></div>
+<div class="credential-row"><div><label for="azure_api_key">Azure Translatorキー <span class="configured">{% if secrets.azure_api_key %}設定済み{% else %}未設定{% endif %}</span></label><input id="azure_api_key" name="azure_api_key" type="password" autocomplete="new-password" placeholder="設定済みの場合は空欄のままで構いません"><a href="https://portal.azure.com/" target="_blank" rel="noopener noreferrer">Azure Portal</a></div><label class="remove-key"><input type="checkbox" name="remove_azure_api_key" value="1"> Azureキーを削除</label></div>
 <label for="azure_region">Azure Translatorリソースのリージョン（地域リソースの場合）</label><input id="azure_region" name="azure_region" type="text" maxlength="80" value="{{ settings.azure_region }}" placeholder="例: japaneast"><p class="hint">Azure PortalのKeys and Endpointに表示される値を入力します。単一サービスのGlobalリソースでは空欄で構いません。F0（無料）リソースを選んでください。</p>
 <button type="submit">翻訳設定を保存</button>
 </section>
@@ -58,14 +58,14 @@
 </div><p class="hint">月間の区切りはこのPCのローカル時刻の暦月です。Azureの応答に計上文字数がある場合はその値を記録し、ない場合は送信文字数を使います。</p>
 </section>
 <section class="panel settings-panel"><h2>料金・上限</h2>
-<div class="provider-notes"><article><h3>Azure Translator</h3><p>F0には毎月200万文字の無料枠があります。上限を超えた場合はF0でエラーとなり、自動で有料のS1に切り替わりません。AzureアカウントとTranslatorリソースの作成が必要です。英単語をタップしたときは、品詞ごとの意味も同じリソースの辞書機能で表示します（送るのはその語だけ。一度引いた語は再送信しません）。</p><a href="https://azure.microsoft.com/en-us/pricing/details/translator/" target="_blank" rel="noopener noreferrer">Azure Translator料金 ↗</a> · <a href="https://learn.microsoft.com/en-us/azure/ai-services/translator/language-support" target="_blank" rel="noopener noreferrer">対応言語 ↗</a></article>
+<div class="provider-notes"><article><h3>Azure Translator</h3><p>F0には毎月200万文字の無料枠があります。上限を超えた場合はF0でエラーとなり、自動で有料のS1に切り替わりません。AzureアカウントとTranslatorリソースの作成が必要です。英単語をタップしたときは、品詞ごとの意味も同じリソースの辞書機能で表示します（送るのはその語だけ。一度引いた語は再送信しません）。</p><a href="https://azure.microsoft.com/en-us/pricing/details/translator/" target="_blank" rel="noopener noreferrer">Azure Translator料金</a> · <a href="https://learn.microsoft.com/en-us/azure/ai-services/translator/language-support" target="_blank" rel="noopener noreferrer">対応言語</a></article>
 <p class="hint">選択範囲または全文の本文は選択中の翻訳サービスへ送信されます。翻訳結果はローカルキャッシュに保存されます。英語への翻訳は一般英語（en）です。eSpeak NGの英国英語IPAはこのPC内で生成します。中国語は教育部辞典の公開検索・項目ページを照会し、注音と語義を表示します。これは公式JSON APIではなくHTML検索ページを読み取る方式です。</p>
-<p><a href="https://dict.revised.moe.edu.tw/index.jsp" target="_blank" rel="noopener noreferrer">教育部《重編國語辭典修訂本》 ↗</a> · <a href="https://stdict.korean.go.kr/" target="_blank" rel="noopener noreferrer">標準国語大辞典 ↗</a></p>
+<p><a href="https://dict.revised.moe.edu.tw/index.jsp" target="_blank" rel="noopener noreferrer">教育部《重編國語辭典修訂本》</a> · <a href="https://stdict.korean.go.kr/" target="_blank" rel="noopener noreferrer">標準国語大辞典</a></p>
 </section>
 <section class="panel settings-panel"><h2>韓国語の漢字語辞書</h2>
 <p>国立国語院「標準国語大辞典」APIから漢字表記と語義を取得します。無料の利用申請が必要です。キーなしでも翻訳は使えますが、漢字語情報は表示されません。</p>
 <div class="credential-row"><div><label for="stdict_api_key">国立国語院 Open APIキー <span class="configured">{% if secrets.stdict_api_key %}設定済み{% else %}未設定{% endif %}</span></label><input id="stdict_api_key" name="stdict_api_key" type="password" autocomplete="new-password" placeholder="設定済みの場合は空欄のままで構いません"></div><label class="remove-key"><input type="checkbox" name="remove_stdict_api_key" value="1"> 辞書キーを削除</label></div>
-<p><a href="https://stdict.korean.go.kr/openapi/openApiInfo.do" target="_blank" rel="noopener noreferrer">国立国語院 APIの案内・利用申請 ↗</a></p>
+<p><a href="https://stdict.korean.go.kr/openapi/openApiInfo.do" target="_blank" rel="noopener noreferrer">国立国語院 APIの案内・利用申請</a></p>
 </section>
 <section class="panel settings-panel"><h2>接続先</h2>
 <p>現在の接続先: <strong>{{ active_bind_host }}:{{ active_port }}</strong>。空欄にすると起動時にこのPCのTailscale IP、LANのプライベートIPを自動選択し、ポートも空いている番号から選びます。<code>start_config.bat</code>に同じ設定がある場合は、そちらの値が優先されます。</p>

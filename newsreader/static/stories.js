@@ -161,7 +161,7 @@
         const full = document.createElement("a");
         full.className = "cmp-full";
         full.href = `${base}/a/${id}?tr=${encodeURIComponent(target)}`;
-        full.textContent = `全文を${targetMenu[target]?.label || target}の対訳で読む →`;
+        full.textContent = `全文を${targetMenu[target]?.label || target}の対訳で読む`;
         box.appendChild(full);
         box.lang = langTag(target);
         box.hidden = false;
