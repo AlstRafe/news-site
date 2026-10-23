@@ -37,7 +37,7 @@
     const translations = {};
     try {
       for (let i = 0; i < ids.length; i += 40) {
-        const payload = await post(base + "/api/translate-titles", { ids: ids.slice(i, i + 40), target: targetLang() });
+        const payload = await post(base + "/api/translate-titles", { ids: ids.slice(i, i + 40), target: targetLang(), auto: true });
         Object.assign(translations, payload.translations || {});
       }
       say("");
@@ -85,12 +85,15 @@
 
   // 3. The opening of every article, in full and translated, to compare how each outlet tells it.
   const leadsButton = document.getElementById("translate-leads");
-  leadsButton?.addEventListener("click", async () => {
+  //    Done when the page opens too (unless translated headlines are off on this device): the
+  //    comparison is what the page is for.
+  const translateLeads = async (auto = false) => {
     const ids = [...new Set([...document.querySelectorAll("[data-article-id]")].map(el => Number(el.dataset.articleId)))];
+    if (!ids.length) return;
     leadsButton.disabled = true;
     leadsButton.textContent = "翻訳しています…";
     try {
-      const payload = await post(base + "/api/translate-leads", { ids: ids.slice(0, 12), target: targetLang() });
+      const payload = await post(base + "/api/translate-leads", { ids: ids.slice(0, 12), target: targetLang(), auto });
       for (const [id, lead] of Object.entries(payload.leads || {})) {
         document.querySelectorAll(`[data-lead-for="${id}"]`).forEach(el => { el.textContent = lead.original; el.classList.add("full"); });
         document.querySelectorAll(`[data-lead-tr-for="${id}"]`).forEach(el => {
@@ -106,7 +109,11 @@
       leadsButton.textContent = "書き出しを訳して比べる";
       say(`書き出しを翻訳できませんでした: ${error.message}`);
     }
-  });
+  };
+  if (leadsButton) {
+    leadsButton.addEventListener("click", () => translateLeads(false));
+    if (readLocal("news-html-reader-list-gloss") !== "0") translateLeads(true);
+  }
 
   // 3b. "言語をそろえる": the other articles' headline and opening in the language of one outlet
   //     (e.g. CNA in English beside BBC), hidden until asked for; the reader's own translations

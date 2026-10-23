@@ -47,6 +47,36 @@ class TranslationError(Exception):
 # ---- 訳語の指定 (D-63) ------------------------------------------------------------
 #: A relay request translates with the client's own glossary (or none), not the 本体's.
 _GLOSSARY_OVERRIDE: contextvars.ContextVar = contextvars.ContextVar("glossary_override", default=None)
+#: Set while a page translates on its own (headlines, captions, the article opened in 対訳): such
+#: requests stop at AUTO_MONTHLY_CHARS a month so they never use up Azure's free 2M characters;
+#: what the reader asks for with a button is never held back.
+_AUTOMATIC: contextvars.ContextVar = contextvars.ContextVar("automatic", default=False)
+AUTO_MONTHLY_CHARS = 1_600_000
+
+
+class automatic:
+    """``with automatic(flag):`` marks the translations inside as not asked for by a button."""
+
+    def __init__(self, on: bool):
+        self.on = bool(on)
+
+    def __enter__(self):
+        self._token = _AUTOMATIC.set(self.on)
+        return self
+
+    def __exit__(self, *exc):
+        _AUTOMATIC.reset(self._token)
+        return False
+
+
+def _check_automatic() -> None:
+    """Raises once the month's automatic translations reach AUTO_MONTHLY_CHARS (inside ``automatic``)."""
+    if not _AUTOMATIC.get():
+        return
+    from newsreader.services import cache
+    used = cache.monthly_translation_usage()["providers"].get("azure", {}).get("metered_chars", 0)
+    if used >= AUTO_MONTHLY_CHARS:
+        raise TranslationError("今月の自動翻訳の目安に達したため、見出しなどの自動翻訳を止めています（ボタンからの翻訳は使えます）。")
 
 
 def glossary_for(target: str) -> list[tuple[str, str]]:
@@ -170,6 +200,7 @@ def _translate_batch(provider: str, texts: list[str], target: str) -> list[str]:
             raise TranslationError(str(exc)) from None
         return [polished(target, source, text) for source, text in zip(texts, out)]
     if provider == "azure":
+        _check_automatic()
         try:
             key = get_secret("azure_api_key")
         except SecretStoreError as exc:

@@ -657,7 +657,7 @@
     if (!on || biTarget || !articleId) return;
     const target = targetSelect.value;
     try {
-      const { ok, payload } = await postJson(base + "/api/translate-titles", { ids: [articleId], target });
+      const { ok, payload } = await postJson(base + "/api/translate-titles", { ids: [articleId], target, auto: true });
       const text = ok && payload.translations ? payload.translations[String(articleId)] : "";
       if (!text || biTarget || target !== targetSelect.value) return;
       biTitle.textContent = text;
@@ -667,24 +667,52 @@
     } catch (_) { /* the headline stays untranslated */ }
   }
 
+  // Picture captions in the reader's language, under each original caption (same switch as the
+  // translated headlines; each caption is kept on the server, so a reload costs nothing).
+  async function showCaptions() {
+    document.querySelectorAll(".cap-tr").forEach(node => node.remove());
+    let on = true;
+    try { on = localStorage.getItem("news-html-reader-list-gloss") !== "0"; } catch (_) { on = true; }
+    const figures = [...document.querySelectorAll(".article-images figure")];
+    if (!on || !articleId || !figures.some(f => f.querySelector("figcaption"))) return;
+    const target = targetSelect.value;
+    try {
+      const { ok, payload } = await postJson(base + "/api/translate-captions", { id: articleId, target });
+      if (!ok || target !== targetSelect.value) return;
+      (payload.captions || []).forEach((text, i) => {
+        const figure = figures[i];
+        const original = figure?.querySelector("figcaption");
+        if (!text || !original || text === original.textContent.trim()) return;
+        const line = document.createElement("p");
+        line.className = "cap-tr";
+        line.lang = langTags[target] || "";
+        line.textContent = text;
+        original.after(line);
+      });
+    } catch (_) { /* captions stay as they are */ }
+  }
+
   targetSelect.addEventListener("change", () => {
     reader.querySelectorAll(".bi-one").forEach(node => node.remove()); // single paragraphs, old language
+    showCaptions();
     if (!biTarget) { showTitleGloss(); return; }
     clearBilingual();
     // With "open in 対訳" on, follow the new language instead of just closing.
-    if (document.getElementById("bi-auto")?.checked) biButton.click();
+    if (document.getElementById("bi-auto")?.checked) toggleBilingual(true);
     else status.textContent = "翻訳先を変えたため対訳を閉じました。";
   });
 
-  biButton.addEventListener("click", toggleBilingual);
-  async function toggleBilingual() {
+  biButton.addEventListener("click", () => toggleBilingual(false));
+  // auto: opened by the page itself ("記事を開いたら対訳で表示する"), which the server holds back
+  // once the month's automatic translations reach their limit; the button is never held back.
+  async function toggleBilingual(auto = false) {
     if (biTarget) { clearBilingual(); status.textContent = ""; syncFloat(); return; }
     const target = targetSelect.value;
     biButton.disabled = true;
     syncFloat();
     status.textContent = "対訳を作成しています…";
     try {
-      const { ok, payload } = await postJson(base + "/api/translate-paragraphs", { id: articleId, target });
+      const { ok, payload } = await postJson(base + "/api/translate-paragraphs", { id: articleId, target, auto: auto === true });
       if (!ok || payload.error) throw new Error(payload.error || "翻訳に失敗しました。");
       const originals = [...reader.querySelectorAll(":scope > p:not(.bi-tr)")];
       if (!Array.isArray(payload.paragraphs) || payload.paragraphs.length !== originals.length) {
@@ -766,6 +794,7 @@
   }
 
   showTitleGloss();
+  showCaptions();
 
   // "?tr=en" (from 読み比べ's 言語をそろえる): open the 対訳 view in that language for this visit
   // only (the saved 翻訳先 is not changed).
@@ -795,12 +824,13 @@
   const BI_AUTO_KEY = "news-html-reader-bilingual-auto";
   const biAuto = document.getElementById("bi-auto");
   if (biAuto) {
-    try { biAuto.checked = localStorage.getItem(BI_AUTO_KEY) === "1"; } catch (_) { /* optional */ }
+    // On unless turned off on this device: a Japanese reader opens an article to read it in Japanese.
+    try { biAuto.checked = localStorage.getItem(BI_AUTO_KEY) !== "0"; } catch (_) { biAuto.checked = true; }
     biAuto.addEventListener("change", () => {
       try { localStorage.setItem(BI_AUTO_KEY, biAuto.checked ? "1" : "0"); } catch (_) { /* optional */ }
       if (biAuto.checked && !biTarget) biButton.click();
     });
-    if (biAuto.checked && !openedFor) biButton.click();
+    if (biAuto.checked && !openedFor) toggleBilingual(true);
   }
 
   wholeButton.addEventListener("click", async () => {

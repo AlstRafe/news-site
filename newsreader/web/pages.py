@@ -238,6 +238,21 @@ def show_article(article_id: int):
     return response
 
 
+@routes.get("/manifest.webmanifest", "web_manifest")
+def web_manifest():
+    """Added to a phone's home screen, the site opens as its own app with its name and icon."""
+    from newsreader import branding
+    response = jsonify({
+        "name": branding.APP_NAME, "short_name": branding.APP_NAME, "description": branding.APP_TAGLINE, "lang": "ja",
+        "start_url": url_for("index"), "scope": url_for("index"), "display": "standalone",
+        "background_color": "#f6f4ef", "theme_color": "#f6f4ef",
+        "icons": [{"src": url_for("static", filename=f"icon-{n}.png"), "sizes": f"{n}x{n}", "type": "image/png"} for n in (192, 512)],
+    })
+    response.mimetype = "application/manifest+json"
+    response.headers["Cache-Control"] = "public, max-age=86400"
+    return response
+
+
 @routes.get("/favicon.ico", "favicon")
 def favicon():
     """Browsers ask for /favicon.ico regardless of <link rel=icon>; answer without a 404."""

@@ -54,7 +54,7 @@
 <section class="panel settings-panel usage-panel"><h2>{{ usage.month }} の翻訳利用量</h2>
 <p>このアプリから翻訳サービスへ送信した分の記録です。キャッシュから返した翻訳は含みません。他のアプリやAzureリソース利用者の使用量、請求画面の合計とは異なる場合があります。</p>
 <div class="usage-grid">
-<article><h3>Azure Translator</h3><p><strong>{{ "{:,}".format(usage.providers.azure.metered_chars) }}</strong> 文字（API計上値の記録）</p><p class="hint">送信文字数の推定: {{ "{:,}".format(usage.providers.azure.source_chars) }} · API要求 {{ usage.providers.azure.requests }} 回 · F0目安 2,000,000文字/月</p><progress class="usage-meter" max="{{ azure_free_limit }}" value="{{ azure_used }}" aria-label="Azure F0の月間無料枠に対するアプリ内使用量">{{ azure_used }} / {{ azure_free_limit }}</progress></article>
+<article><h3>Azure Translator</h3><p><strong>{{ "{:,}".format(usage.providers.azure.metered_chars) }}</strong> 文字（API計上値の記録）</p><p class="hint">送信文字数の推定: {{ "{:,}".format(usage.providers.azure.source_chars) }} · API要求 {{ usage.providers.azure.requests }} 回 · F0目安 2,000,000文字/月</p><p class="hint">見出し・写真説明・開いた記事の対訳など、ボタンを押さずに行う翻訳は、今月 {{ "{:,}".format(auto_limit) }} 文字に達すると止まります（ボタンからの翻訳は続けて使えます）。</p><progress class="usage-meter" max="{{ azure_free_limit }}" value="{{ azure_used }}" aria-label="Azure F0の月間無料枠に対するアプリ内使用量">{{ azure_used }} / {{ azure_free_limit }}</progress></article>
 </div><p class="hint">月間の区切りはこのPCのローカル時刻の暦月です。Azureの応答に計上文字数がある場合はその値を記録し、ない場合は送信文字数を使います。</p>
 </section>
 <section class="panel settings-panel"><h2>料金・上限</h2>

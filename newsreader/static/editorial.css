@@ -237,3 +237,31 @@ h1 .story-gloss{font-size:inherit;line-height:1.4;}
 .gloss-toggle:hover{color:var(--ink)!important;}
 .fact-trail [role="listitem"]{background:none!important;border:0!important;border-bottom:1px solid var(--rule)!important;}
 .story-card{background:none!important;border:0!important;border-top:1px solid var(--rule-strong)!important;padding:16px 0 18px!important;}
+
+/* 写真説明の訳: a second line under the original caption, in the text's colour. */
+.cap-tr{margin:3px 0 0;font-size:12.5px;line-height:1.65;color:var(--ink-2);}
+.gloss-off .cap-tr{display:none;}
+/* 今日のまとめ: outlet, headline, time on one line; a translation on its own line under the headline */
+.digest-firsts li{display:grid!important;grid-template-columns:auto minmax(0,1fr) auto;column-gap:8px;align-items:baseline;}
+.digest-firsts li .card-gloss{grid-column:2/-1;grid-row:2;margin:2px 0 0;font-size:12px;color:var(--soft);}
+
+/* 記事の周り: the provenance line wraps as text, the previous/next articles are ruled entries. */
+.source-link{flex-wrap:wrap!important;overflow:visible!important;}
+.provenance .prov-item{background:none!important;border:0!important;padding:0!important;}
+.provenance .prov-item+.prov-item::before{content:"／";color:var(--rule);margin-right:6px;}
+.next-card{background:none!important;border:0!important;border-top:1px solid var(--rule)!important;padding:14px 0!important;}
+.next-card strong{font-family:var(--serif);}
+
+/* 読み比べ: sections ruled like the rest of the paper, not panels. */
+.story-page .insights,.story-page .story-chart,.story-page .provenance-box,.story-page .story-arc{background:none!important;border:0!important;
+  border-top:1px solid var(--rule)!important;padding-left:0!important;padding-right:0!important;}
+@media(hover:none){.key-hint{display:none;}}
+
+/* 対訳: the translation is what a reader of this site reads, so it is set as the text; the
+   original stays beside it, one size down. */
+.reading.bilingual>p:not(.bi-tr){font-size:15px;line-height:1.9;color:var(--ink-2);margin-bottom:8px;}
+.reading.bilingual .bi-tr{font-size:17px;line-height:2;color:var(--ink);}
+.digest-title .card-gloss{display:block!important;font-family:var(--serif);font-size:17px!important;line-height:1.5!important;color:var(--ink)!important;font-weight:700;margin-bottom:2px;}
+.digest-title .card-gloss+[data-gloss-id]{display:block;font-family:var(--sans);font-size:12.5px;font-weight:500;color:var(--soft);}
+.name-chips a{background:none!important;border:0!important;border-bottom:1px solid var(--rule)!important;}
+.lead-tr,.cmp-tr{background:none!important;border:0!important;border-top:1px solid var(--rule)!important;padding:8px 0 0!important;color:var(--ink)!important;font-family:var(--serif);}

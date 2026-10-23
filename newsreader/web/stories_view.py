@@ -116,8 +116,18 @@ def digest_page():
         headlines = [{"pivot": pivot, "source": source} for pivot, source in db.execute(
             "SELECT s.pivot, a.source FROM articles a JOIN story_items s ON s.article_id = a.id "
             "WHERE a.error = '' AND s.pivot IS NOT NULL AND a.published >= ?", (since,))]
+    names = compare.top_names(headlines)
+    # The names in Japanese (each kept once translated; an automatic translation, so it stops at
+    # the month's limit and the English names stay).
+    from newsreader.services import translation
+    try:
+        with translation.automatic(True):
+            for name, ja in zip(names, translation.translate_titles([n["name"] for n in names], "ja", kind="name", max_chars=60)):
+                name["ja"] = ja if ja and ja.casefold() != name["name"].casefold() else ""
+    except Exception:  # noqa: BLE001 - no key, quota, network: the English names are still right
+        pass
     response = current_app.make_response(render_template("digest.html", groups=groups, stats=stats, hours=hours,
-                                                         names=compare.top_names(headlines)))
+                                                         names=names))
     response.headers["Cache-Control"] = "no-cache"
     return response
 

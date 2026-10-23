@@ -70,7 +70,8 @@ def create_app(library_root: Path | str | None = None, db_path: Path | str | Non
     # answers it, and an open page offers a reload when the two differ.
     app.config.setdefault("APP_VERSION", paths.deployed_version())
     app.jinja_env.globals.update(app_name=branding.APP_NAME, app_name_ja=branding.APP_NAME_JA,
-                                 app_tagline=branding.APP_TAGLINE, outlet_intro=branding.OUTLET_INTRO, app_version=app.config["APP_VERSION"],
+                                 app_tagline=branding.APP_TAGLINE, outlet_intro=branding.OUTLET_INTRO,
+                                 auto_limit=translation.AUTO_MONTHLY_CHARS, app_version=app.config["APP_VERSION"],
                                  build_channel=build_channel())
     app.add_template_filter(branding.source_language, "src_lang")
     app.add_template_filter(branding.lang_attr, "lang_attr")

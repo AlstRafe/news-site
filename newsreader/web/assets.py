@@ -102,10 +102,12 @@ def accepts_gzip() -> bool:
 
 
 def localtime_filter(iso_utc: str) -> str:
-    """Render a stored UTC timestamp in the server's own timezone (no hard-coded zone)."""
+    """A stored UTC timestamp in the server's own timezone (no hard-coded zone), written the
+    Japanese way: "2026年10月23日（金）16:20"."""
     try:
         moment = datetime.strptime(iso_utc, "%Y-%m-%dT%H:%M:%SZ").replace(tzinfo=timezone.utc)
-        return moment.astimezone().strftime("%Y-%m-%d %H:%M")
+        local = moment.astimezone()
+        return f"{local.year}年{local.month}月{local.day}日（{_WEEKDAYS[local.weekday()]}）{local:%H:%M}"
     except (ValueError, TypeError):
         return ""
 

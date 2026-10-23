@@ -13,7 +13,7 @@ from newsreader.library import index
 from newsreader.services.dictionary import british_ipa, lookup_chinese, lookup_korean_hanja
 from newsreader.services.translation import (
     MAX_ARTICLE_CHARS, MAX_SELECTION_CHARS, TARGETS, TranslationError, dictionary_available, dictionary_lookup,
-    translate_paragraphs, translate_text, translate_titles,
+    automatic, translate_paragraphs, translate_text, translate_titles,
 )
 from newsreader.sources import ReaderError
 from newsreader.web.pages import db_path, load_article
@@ -132,7 +132,8 @@ def translate_article_paragraphs():
         return error
     target, article = found
     try:
-        translated = translate_paragraphs([article["title"], *article["paragraphs"]], target, limit=MAX_ARTICLE_CHARS)
+        with automatic(_json_request().get("auto") is True):
+            translated = translate_paragraphs([article["title"], *article["paragraphs"]], target, limit=MAX_ARTICLE_CHARS)
     except TranslationError as exc:
         return jsonify({"error": str(exc)}), 503
     from newsreader.services import sentences
@@ -140,6 +141,31 @@ def translate_article_paragraphs():
     pairs = [sentences.spans(target, original.strip(), text) if text else None
              for original, text in zip(article["paragraphs"], translated[1:])]
     return jsonify({"title": translated[0], "paragraphs": translated[1:], "sentences": pairs})
+
+
+#: A caption is cut to this many characters before it is sent.
+CAPTION_CHARS = 400
+
+
+@routes.post("/api/translate-captions", "translate_image_captions")
+def translate_image_captions():
+    """The captions of the pictures the article page shows, in its order: {"captions": [text|""]}.
+    Each caption is kept on its own like a headline, so a picture used again costs nothing."""
+    found, error = _article_request()
+    if error:
+        return error
+    target, article = found
+    from newsreader.services import images as image_service
+    shown = [image.get("alt", "") for image in article.get("images", [])[:image_service.MAX_IMAGE_COUNT]
+             if image_service.allowed_image_url(image.get("src", ""))]
+    if not any(text.strip() for text in shown):
+        return jsonify({"captions": ["" for _ in shown]})
+    try:
+        with automatic(True):  # the page asks for captions by itself
+            translated = translate_titles(shown, target, kind="caption", max_chars=CAPTION_CHARS)
+    except TranslationError as exc:
+        return jsonify({"error": str(exc)}), 503
+    return jsonify({"captions": translated})
 
 
 #: One list page (24 cards) plus room; more ids in one request are refused.
@@ -160,7 +186,8 @@ def translate_list_titles():
     if not found:
         return jsonify({"translations": {}})
     try:
-        translated = translate_titles([title for _, title in found], target)
+        with automatic(payload.get("auto") is True):
+            translated = translate_titles([title for _, title in found], target)
     except TranslationError as exc:
         return jsonify({"error": str(exc)}), 503
     return jsonify({"translations": {str(i): text for (i, _), text in zip(found, translated) if text}})
@@ -229,7 +256,8 @@ def translate_story_leads():
     if not found:
         return jsonify({"leads": {}})
     try:
-        translated = translate_titles([text for _, text in found], target, kind="lead", max_chars=LEAD_CHARS)
+        with automatic(payload.get("auto") is True):
+            translated = translate_titles([text for _, text in found], target, kind="lead", max_chars=LEAD_CHARS)
     except TranslationError as exc:
         return jsonify({"error": str(exc)}), 503
     return jsonify({"leads": {str(i): {"original": text, "translation": tr} for (i, text), tr in zip(found, translated)}})

@@ -87,3 +87,44 @@ class ListGlossTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class JapaneseFirstTests(ListGlossTests):
+    """Headlines already translated are printed with the page, above the original; pages translate
+    by themselves only up to the month's limit for automatic translation."""
+
+    def test_kept_headlines_are_printed_with_the_list(self):
+        self.post({"ids": self.ids, "target": "ja"})
+        sent = sum(len(c) for c in self.calls)
+        page = self.client.get("/", headers=H).get_data(as_text=True)
+        self.assertIn('<p class="card-gloss" lang="ja">[ja] ', page)
+        self.assertEqual(sum(len(c) for c in self.calls), sent)  # printing them sent nothing
+        article = self.client.get(f"/a/{self.ids[0]}", headers=H).get_data(as_text=True)
+        self.assertIn('class="title-tr kept" id="bi-title" lang="ja">[ja] ', article)
+        self.assertIn('<meta property="og:title" content="[ja] ', article)
+
+    def test_captions_are_translated_in_page_order(self):
+        response = self.client.post("/api/translate-captions", headers={**H, "X-CSRF-Token": self.token},
+                                    json={"id": self.ids[0], "target": "ja"})
+        self.assertEqual(response.status_code, 200)
+        captions = response.get_json()["captions"]
+        self.assertIsInstance(captions, list)
+        self.assertTrue(all(isinstance(c, str) for c in captions))
+
+    def test_automatic_translation_stops_at_the_monthly_limit(self):
+        over = {"providers": {"azure": {"metered_chars": ts.AUTO_MONTHLY_CHARS}}}
+        under = {"providers": {"azure": {"metered_chars": ts.AUTO_MONTHLY_CHARS - 1}}}
+        with mock.patch.object(cache, "monthly_translation_usage", return_value=over):
+            ts._check_automatic()  # a button press goes on
+            with ts.automatic(True), self.assertRaisesRegex(ts.TranslationError, "自動翻訳の目安"):
+                ts._check_automatic()
+            ts._check_automatic()  # the mark ends with the block
+        with mock.patch.object(cache, "monthly_translation_usage", return_value=under), ts.automatic(True):
+            ts._check_automatic()
+
+    def test_home_screen_manifest_and_dates(self):
+        manifest = self.client.get("/manifest.webmanifest", headers=H)
+        self.assertEqual(manifest.status_code, 200)
+        self.assertEqual(manifest.get_json()["start_url"], "/")
+        from newsreader.web.assets import localtime_filter
+        self.assertRegex(localtime_filter("2026-10-23T07:20:00Z"), r"^2026年10月2[34]日（[月火水木金土日]）\d\d:\d\d$")

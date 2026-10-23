@@ -1,5 +1,8 @@
 {% extends "base.html" %}
 {% block head %}<title>{{ article.title }} | {{ app_name }}</title>{% endblock %}
+{% block description %}{{ title_ja ~ '｜' if title_ja }}{{ (article.paragraphs[0] if article.paragraphs else article.title)|truncate(110, True, '…') }}{% endblock %}
+{% block og_type %}article{% endblock %}{% block og_title %}{{ title_ja or article.title }}｜{{ record.source }}{% endblock %}
+{% block og_image %}{% if article.images %}<meta property="og:image" content="{{ request.host_url.rstrip('/') ~ article.images[0].url }}">{% else %}{{ super() }}{% endif %}{% endblock %}{% block twitter_card %}{% if article.images %}summary_large_image{% else %}summary{% endif %}{% endblock %}
 {% block main_class %} article{% endblock %}
 {% block content %}<div class="read-progress" aria-hidden="true"><span id="read-progress"></span></div><a class="back" data-list-back href="{{ url_for('index', source=record.source or None) }}">{{ record.source or '記事一覧' }}の一覧へ戻る</a>
 {% if "動画" in article.kind %}<div class="eyebrow">動画に添えられた文章</div>{% endif %}<p class="title-tr{% if title_ja %} kept{% endif %}" id="bi-title"{% if title_ja %} lang="ja"{% else %} hidden{% endif %}>{{ title_ja }}</p><h1{{ record.source|lang_attr }}>{{ article.title }}</h1>

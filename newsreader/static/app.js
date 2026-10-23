@@ -158,7 +158,7 @@
     const csrfToken = document.querySelector('meta[name="csrf-token"]')?.content || "";
     const originals = () => [...document.querySelectorAll("a.card[data-id] h2, [data-gloss-id]")];
     const idOf = el => Number(el.closest("a.card[data-id]")?.dataset.id || el.dataset.glossId);
-    const glossOf = el => el.previousElementSibling?.classList.contains("card-gloss") ? el.previousElementSibling : null;
+    const glossOf = el => [el.previousElementSibling, el.nextElementSibling].find(n => n?.classList.contains("card-gloss")) || null;
     const clear = () => document.querySelectorAll(".card-gloss, .gloss-error").forEach(node => node.remove());
     const show = async () => {
       document.querySelectorAll(".gloss-error").forEach(node => node.remove());
@@ -171,7 +171,7 @@
         const response = await fetch(base + "/api/translate-titles", {
           method: "POST", credentials: "same-origin",
           headers: { "Content-Type": "application/json", "X-CSRF-Token": csrfToken },
-          body: JSON.stringify({ ids, target: lang })
+          body: JSON.stringify({ ids, target: lang, auto: true })
         });
         const payload = await response.json().catch(() => ({}));
         if (!response.ok) throw new Error(payload.error || "見出しを翻訳できませんでした。");
@@ -183,7 +183,9 @@
           line.className = "card-gloss";
           line.lang = langTag(lang);
           line.textContent = text;
-          el.before(line);
+          // A headline reads in the reader's language first; in the small lists (first reports,
+          // earlier reports) the original keeps its place and the translation follows it.
+          if (el.closest(".digest-firsts, .digest-earlier, .outlet-scoops")) el.after(line); else el.before(line);
         }
       } catch (error) {
         const note = document.createElement("p");
