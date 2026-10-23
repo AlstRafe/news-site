@@ -44,8 +44,8 @@ def create_app(library_root: Path | str | None = None, db_path: Path | str | Non
     """
     from newsreader.library import index
     from newsreader.library.files import validate_directory
-    from newsreader.web import (api, assets, compare_view, pages, reading_view, relay_view, security, settings_view,
-                                status_view, stories_view)
+    from newsreader.web import (api, assets, compare_view, pages, public, reading_view, relay_view, security,
+                                settings_view, status_view, stories_view)
 
     app = Flask("newsreader", template_folder=str(paths.TEMPLATES_DIR), static_folder=None)
     root = Path(library_root).expanduser() if library_root else paths.articles_dir()
@@ -58,6 +58,7 @@ def create_app(library_root: Path | str | None = None, db_path: Path | str | Non
     bind_host = security.configured_bind_host()
     security.init_app(app, bind_host=bind_host,
                       secret_key=secret_key or security.persistent_secret_key(paths.SECRET_KEY_PATH))
+    public.init_app(app)
     assets.init_app(app, dev=assets.is_dev())
     app.jinja_env.globals["speculation_rules"] = security.register_inline_script(
         "speculation_rules", _speculation_rules(mount))

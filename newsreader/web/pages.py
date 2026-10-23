@@ -18,6 +18,7 @@ from newsreader.services import images as image_service
 from newsreader.sources import IMAGE_EXTENSIONS, ReaderError, extract_article
 from newsreader.web.assets import CACHE_LIST, CACHE_PAGE, YEAR
 from newsreader.web.routing import Routes
+from newsreader.web import public
 from newsreader.web.security import csrf_token
 
 PER_PAGE = 24
@@ -172,7 +173,7 @@ def index_page():
         item["ja"] = ja
     # 既読・保存 (the same on the PC and the phone)
     from newsreader.library import reading
-    marks = reading.states(reading.path_for(db), result["items"])
+    marks = {} if public.is_visitor() else reading.states(reading.path_for(db), result["items"])
     for item in result["items"]:
         item["mark"] = marks.get(item["id"], {})
     # ...and those whose outlets disagree on a count (D-59), computed in the background.
@@ -236,11 +237,13 @@ def show_article(article_id: int):
             prov_links.append(m)
     from newsreader.library import reading
     marks_db = reading.path_for(db_path())
-    saved = reading.states(marks_db, [record]).get(article_id, {}).get("saved", False)
-    try:
-        reading.mark_read(marks_db, record)
-    except Exception:  # noqa: BLE001 - a read mark is a convenience; the page is shown regardless
-        pass
+    saved = False
+    if not public.is_visitor():  # a visitor of the public site leaves no marks of the owner's
+        saved = reading.states(marks_db, [record]).get(article_id, {}).get("saved", False)
+        try:
+            reading.mark_read(marks_db, record)
+        except Exception:  # noqa: BLE001 - a read mark is a convenience; the page is shown regardless
+            pass
     response = current_app.make_response(render_template(
         "article.html", article=article, record=record, article_id=article_id, csrf=csrf_token(), saved=saved,
         related=related, neighbours=index.neighbours(db_path(), article_id), prov=prov, prov_links=prov_links,

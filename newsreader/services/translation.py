@@ -52,6 +52,8 @@ _GLOSSARY_OVERRIDE: contextvars.ContextVar = contextvars.ContextVar("glossary_ov
 #: what the reader asks for with a button is never held back.
 _AUTOMATIC: contextvars.ContextVar = contextvars.ContextVar("automatic", default=False)
 AUTO_MONTHLY_CHARS = 1_600_000
+#: Set for a visitor of the public (テスト公開) site: all their translations count as automatic.
+visitor_translations: contextvars.ContextVar = contextvars.ContextVar("visitor_translations", default=False)
 
 
 class automatic:
@@ -71,7 +73,7 @@ class automatic:
 
 def _check_automatic() -> None:
     """Raises once the month's automatic translations reach AUTO_MONTHLY_CHARS (inside ``automatic``)."""
-    if not _AUTOMATIC.get():
+    if not (_AUTOMATIC.get() or visitor_translations.get()):
         return
     from newsreader.services import cache
     used = cache.monthly_translation_usage()["providers"].get("azure", {}).get("metered_chars", 0)

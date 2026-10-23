@@ -10,7 +10,7 @@
 {% if provenance.lines[m.id] %}<p class="story-prov">{{ provenance.lines[m.id] }}</p>{% endif %}
 <p class="lead-tr" data-lead-tr-for="{{ m.id }}" hidden></p>
 <div class="cmp-tr" data-cmp-for="{{ m.id }}" hidden></div>
-<button type="button" class="text-button exclude-button" data-exclude-id="{{ m.id }}">別のニュース</button>
+{% if not visitor() %}<button type="button" class="text-button exclude-button" data-exclude-id="{{ m.id }}">別のニュース</button>{% endif %}
 </article>{% endmacro %}
 {% block content %}<a class="back" href="{{ url_for('stories_page') }}">読み比べの一覧へ</a>
 <div class="eyebrow">読み比べ · {{ story.columns|length }} 媒体 · {{ story.members|length }} 本</div>

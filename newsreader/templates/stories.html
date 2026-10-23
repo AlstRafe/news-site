@@ -15,7 +15,7 @@
 </nav>
 {% if result.query %}<p class="hint search-note">「{{ result.query }}」を含む記事のあるグループ{% if result.english_query %}（英訳「{{ result.english_query }}」でも照合）{% endif %} · <a href="{{ url_for('stories_page', scope=result.scope if result.scope == 'all' else None) }}">検索をやめる</a></p>{% endif %}
 <p class="hint stories-note">{% if info.refreshed %}{{ refreshed_ago }}に集計{% else %}まだ集計していません{% endif %}{% if info.pending %} · 英訳待ちの見出し {{ info.pending }} 件{% endif %}{% if info.key_configured is defined and not info.key_configured %} · 翻訳キー未設定（英語の見出しのみで照合）{% endif %}
-<button type="button" class="link-button" data-action="stories-refresh">今すぐ更新</button><span class="refresh-state" role="status" aria-live="polite"></span>{% if result.stories %}<button type="button" class="gloss-toggle" id="story-gloss-toggle" aria-pressed="true" title="見出しの訳（見出しだけを翻訳サービスに送信。一度訳した見出しは再送信しません）">訳を隠す</button>{% endif %}</p>
+{% if not visitor() %}<button type="button" class="link-button" data-action="stories-refresh">今すぐ更新</button>{% endif %}<span class="refresh-state" role="status" aria-live="polite"></span>{% if result.stories %}<button type="button" class="gloss-toggle" id="story-gloss-toggle" aria-pressed="true" title="見出しの訳（見出しだけを翻訳サービスに送信。一度訳した見出しは再送信しません）">訳を隠す</button>{% endif %}</p>
 <p class="gloss-error hint" id="story-gloss-error" role="status" hidden></p>
 {% for story in result.stories %}
 <section class="story-card">

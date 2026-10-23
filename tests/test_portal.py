@@ -5,6 +5,7 @@ import shutil
 import sys
 import tempfile
 import unittest
+import unittest.mock
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
@@ -60,11 +61,44 @@ class PortalTests(unittest.TestCase):
         response = self.client.get("/news", headers=H)
         self.assertEqual((response.status_code, response.headers["Location"]), (302, "/news/"))
 
-    def test_the_relay_answers_under_the_funnel_name_and_nothing_else_does(self):
+    def test_the_public_name_reads_and_translates_but_changes_nothing(self):
         funnel = {"Host": "haruxera.tail1234.ts.net"}
         self.assertEqual(self.client.post("/relay/v1/ping", headers={**funnel, "Authorization": "Bearer nbr_x"}).status_code, 401)
-        self.assertEqual(self.client.get("/news/", headers=funnel).status_code, 403)
+        page = self.client.get("/news/", headers=funnel)
+        self.assertEqual(page.status_code, 200)
+        html = page.get_data(as_text=True)
+        self.assertNotIn("/news/translation-settings", html)
+        self.assertNotIn("/news/saved", html)
+        self.assertEqual(self.client.get(f"/news/a/{self.article}", headers=funnel).status_code, 200)
+        for owner_page in ("/news/translation-settings", "/news/status", "/news/saved", "/news/words"):
+            self.assertEqual(self.client.get(owner_page, headers=funnel).status_code, 404, owner_page)
+        import re
+        csrf = re.search(r'name="csrf-token" content="([^"]+)"', html).group(1)
+        self.assertEqual(self.client.post("/news/api/saved", json={"id": self.article, "saved": True},
+                                          headers={**funnel, "X-CSRF-Token": csrf}).status_code, 403)
+        # the owner's own address still has everything, and the visit left no 既読 mark
+        self.assertEqual(self.client.get("/news/translation-settings", headers=H).status_code, 200)
+        from newsreader.library import reading
+        self.assertEqual(reading.states(reading.path_for(self.tmp / "library.sqlite3"),
+                                        index.list_articles(self.tmp / "library.sqlite3")["items"]), {})
         self.assertEqual(self.client.post("/relay/v1/ping", headers={"Host": "evil.example", "Authorization": "Bearer nbr_x"}).status_code, 403)
+
+    def test_a_visitors_translations_count_as_automatic(self):
+        from newsreader.services import translation
+        from newsreader.web import public
+        flask_app = self.app
+        with flask_app.test_request_context("/api/translate", base_url="https://haruxera.tail1234.ts.net"):
+            self.assertTrue(public.is_visitor())
+        with flask_app.test_request_context("/api/translate", base_url="http://localhost"):
+            self.assertFalse(public.is_visitor())
+        token = translation.visitor_translations.set(True)
+        try:
+            with unittest.mock.patch("newsreader.services.cache.monthly_translation_usage",
+                                     return_value={"providers": {"azure": {"metered_chars": translation.AUTO_MONTHLY_CHARS}}}):
+                with self.assertRaises(translation.TranslationError):
+                    translation._check_automatic()
+        finally:
+            translation.visitor_translations.reset(token)
 
     def test_old_addresses(self):
         response = self.client.get(f"/a/{self.article}?tr=ja", headers=H)

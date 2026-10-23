@@ -20,6 +20,7 @@ from flask import Flask, abort, request, session
 
 from newsreader import paths
 from newsreader.netpolicy import is_allowed_bind_address
+from newsreader.web.public import is_funnel_host
 
 DEFAULT_BIND_HOST = "127.0.0.1"
 DEFAULT_PORT = 5000
@@ -137,13 +138,6 @@ def content_security_policy() -> str:
     ])
 
 
-def _relay_through_funnel(host: str) -> bool:
-    """Tailscale Funnel publishes only /relay/ of this PC under its *.ts.net name (so test builds
-    on PCs outside the tailnet can translate) and keeps that name as the Host. The relay answers
-    programs holding a token, never pages, so its name is accepted there and nowhere else."""
-    return request.path.startswith("/relay/") and host.endswith(".ts.net")
-
-
 def init_app(app: Flask, *, bind_host: str, secret_key: bytes) -> None:
     app.secret_key = secret_key
     app.config.update(
@@ -158,8 +152,9 @@ def init_app(app: Flask, *, bind_host: str, secret_key: bytes) -> None:
     def _check_host_and_csrf():
         # Host validation complements binding to loopback or one chosen private address:
         # it blocks DNS-rebinding pages from talking to the app through the browser.
+        # The Funnel name (テスト公開, public.py) is let in too; what visitors may do is limited there.
         host = host_without_port(request.host)
-        if host not in app.config["TRUSTED_HOSTS_SET"] and not _relay_through_funnel(host):
+        if host not in app.config["TRUSTED_HOSTS_SET"] and not is_funnel_host(host):
             abort(403)
         if request.method not in _SAFE_METHODS:
             # Browsers mark cross-site requests; refuse them before even looking at the token.
