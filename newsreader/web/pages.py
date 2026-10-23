@@ -115,6 +115,9 @@ def topic_digest(db: Path, topic: str) -> dict:
 @routes.get("/", "index")
 def index_page():
     source = request.args.get("source", "")[:100]
+    from newsreader.library import genres
+    genre = request.args.get("genre", "")
+    genre = genre if genre in genres.LABELS or genre == genres.OTHER else ""
     query = request.args.get("q", "")
     try:
         page = int(request.args.get("page", "1"))
@@ -123,8 +126,9 @@ def index_page():
     db = db_path()
     query = query.strip()[:100]
     english = query_in_english(query) if re.search(r"[^\x00-\x7f]", query) else ""
+    pivot_words = index.search_words(english or query)
     result = index.list_articles(db, source=source, query=query, page=page, per_page=PER_PAGE,
-                                 pivot_words=index.search_words(english or query))
+                                 pivot_words=pivot_words, genre=genre)
     from newsreader.library import stories
     marks = stories.badges(db, [item["id"] for item in result["items"]])
     for item in result["items"]:
@@ -132,19 +136,21 @@ def index_page():
         item["thumb"] = image_url(item["id"], 0, thumb) if image_service.allowed_image_url(thumb) else ""
         item["story"] = marks.get(item["id"])
     # The newest stories several outlets reported, on the first page of the plain list only.
-    highlights = [] if (source or query or result["page"] > 1) else stories.list_stories(db, per_page=6)["stories"]
+    narrowed = bool(source or query or genre or result["page"] > 1)
+    highlights = [] if narrowed else stories.list_stories(db, per_page=6)["stories"]
     # ...and those whose outlets disagree on a count (D-59), computed in the background.
     from newsreader.library import facts_watch
-    disputes = [] if (source or query or result["page"] > 1) else facts_watch.differing(db, limit=3)
+    disputes = [] if narrowed else facts_watch.differing(db, limit=3)
     from newsreader.services.settings import topics as followed_topics
     followed = followed_topics()
-    topic_cards = [] if (source or query or result["page"] > 1) else [topic_digest(db, t) for t in followed[:6]]
+    topic_cards = [] if narrowed else [topic_digest(db, t) for t in followed[:6]]
     state = index.sync_state(db)
-    indexing = bool(state.get("running")) and not result["total"] and not source and not query
+    indexing = bool(state.get("running")) and not result["total"] and not source and not query and not genre
     response = current_app.make_response(render_template(
         "index.html", error=state.get("error", ""), warning=state.get("warning", ""), indexing=indexing,
-        progress=state.get("progress") or [0, 0], items=result["items"], sources=index.sources(db, query, index.search_words(english or query) if query else None),
-        source=source, query=query, english_query=english, page=result["page"], pages=result["pages"],
+        progress=state.get("progress") or [0, 0], items=result["items"], sources=index.sources(db, query, pivot_words if query else None, genre=genre),
+        genres=genres.menu(index.genre_counts(db, source, query, pivot_words if query else None)), genre=genre, genre_names=genres.LABELS,
+        genre_label=genres.LABELS.get(genre, "その他" if genre else ""), source=source, query=query, english_query=english, page=result["page"], pages=result["pages"],
         total=result["total"], csrf=csrf_token(), highlights=highlights, disputes=disputes,
         topic_cards=topic_cards, following=any(t.casefold() == query.casefold() for t in followed) if query else False,
     ))

@@ -4,14 +4,15 @@
 {% if error %}<div class="alert" role="alert">{{ error }}</div>{% endif %}
 {% if warning %}<div class="alert" role="status">{{ warning }}</div>{% endif %}
 <form class="searchbar" method="get" action="{{ url_for('index') }}" role="search">
-{% if source %}<input type="hidden" name="source" value="{{ source }}">{% endif %}
+{% if source %}<input type="hidden" name="source" value="{{ source }}">{% endif %}{% if genre %}<input type="hidden" name="genre" value="{{ genre }}">{% endif %}
 <input type="search" name="q" value="{{ query }}" placeholder="記事を検索（日本語も可）" aria-label="記事を検索" maxlength="100">
 <button type="submit">検索</button>
 </form>
 <nav class="chips" aria-label="ニュースソース">
-<a class="chip{% if not source %} active{% endif %}" href="{{ url_for('index', q=query or None) }}">すべて</a>
-{% for s in sources %}<a class="chip{% if source == s.name %} active{% endif %}" href="{{ url_for('index', source=s.name, q=query or None) }}">{{ s.name or '未分類' }}<span>{{ s.count }}</span></a>{% endfor %}
+<a class="chip{% if not source %} active{% endif %}" href="{{ url_for('index', q=query or None, genre=genre or None) }}">すべて</a>
+{% for s in sources %}<a class="chip{% if source == s.name %} active{% endif %}" href="{{ url_for('index', source=s.name, q=query or None, genre=genre or None) }}">{{ s.name or '未分類' }}<span>{{ s.count }}</span></a>{% endfor %}
 </nav>
+<nav class="genre-row" aria-label="ジャンル"><a{% if not genre %} aria-current="true"{% endif %} href="{{ url_for('index', source=source or None, q=query or None) }}">全ジャンル</a>{% for g in genres %}{% if g.count or genre == g.key %}<a{% if genre == g.key %} aria-current="true"{% endif %} href="{{ url_for('index', source=source or None, q=query or None, genre=g.key) }}">{{ g.label }}<span>{{ g.count }}</span></a>{% endif %}{% endfor %}</nav>
 {% if highlights %}<section class="highlights" aria-labelledby="highlights-head"><div class="highlights-head"><h2 id="highlights-head">複数の媒体が報じたニュース</h2><span class="head-links"><a href="{{ url_for('digest_page') }}">今日のまとめ</a><a href="{{ url_for('stories_page') }}">読み比べへ</a></span></div>
 <div class="highlight-row">{% for story in highlights %}<a class="highlight" href="{{ url_for('story_page', key=story.key) }}"><span class="story-outlets">{% for name, n in story.outlet_counts %}<span class="badge" data-lang="{{ name|src_lang }}">{{ name }}{% if n > 1 %} ×{{ n }}{% endif %}</span>{% endfor %}</span><strong data-gloss-id="{{ story.lead_id }}"{{ story.lead_source|lang_attr }}>{{ story.lead_title }}</strong><span class="story-time">{{ story.newest_time|localtime_short }}</span></a>{% endfor %}</div></section>{% endif %}
 {% if disputes %}<section class="disputes" aria-labelledby="disputes-head"><div class="highlights-head"><h2 id="disputes-head">数字が食い違うニュース</h2><span class="hint">同じ出来事を、媒体ごとに違う数字で報じています</span></div>
@@ -20,19 +21,19 @@
 <div class="topic-grid">{% for t in topic_cards %}<article class="topic-card" data-topic-card="{{ t.q }}"><div class="topic-head"><a class="topic-name" href="{{ url_for('index', q=t.q) }}">{{ t.q }}</a><span class="topic-count{% if t.recent %} fresh{% endif %}">{% if t.recent %}24時間で {{ t.recent }}{% if t.more %}+{% endif %} 本{% else %}新着なし{% endif %}</span><button type="button" class="topic-remove" data-topic-follow="{{ t.q }}" aria-pressed="true" aria-label="「{{ t.q }}」を追うのをやめる" title="追うのをやめる">×</button></div>
 {% if t.articles %}<ul class="topic-items">{% for item in t.articles %}<li><a href="{{ url_for('show_article', article_id=item.id) }}"><span class="badge" data-lang="{{ item.source|src_lang }}">{{ item.source or '未分類' }}</span><span class="topic-title"{{ item.source|lang_attr }}>{{ item.title }}</span><span class="story-time">{{ item.published|localtime_short }}</span></a></li>{% endfor %}</ul>{% else %}<p class="hint">まだ見つかっていません。</p>{% endif %}
 {% if t.total %}<a class="topic-all" href="{{ url_for('index', q=t.q) }}">{{ t.total }} 本すべて</a>{% endif %}</article>{% endfor %}</div></section>{% endif %}
-<div class="list-head"><h1>{% if query %}「{{ query }}」の検索結果{% elif source %}{{ source }}{% else %}新着記事{% endif %}</h1><span class="count">{{ total }} 件</span>{% if query %}<button type="button" class="follow-topic" data-topic-follow="{{ query }}" aria-pressed="{{ 'true' if following else 'false' }}">{% if following %}追跡中（やめる）{% else %}この話題を追う{% endif %}</button>{% endif %}{% if items %}<button type="button" class="gloss-toggle" id="gloss-toggle" aria-pressed="false" title="各見出しの下に訳を表示（見出しだけを翻訳サービスに送信。一度訳した見出しは保存して再送信しません）">見出しを訳す</button>{% endif %}</div>
+<div class="list-head"><h1>{% if query %}「{{ query }}」の検索結果{% elif source %}{{ source }}{% if genre %}・{{ genre_label }}{% endif %}{% elif genre %}{{ genre_label }}{% else %}新着記事{% endif %}</h1><span class="count">{{ total }} 件</span>{% if query %}<button type="button" class="follow-topic" data-topic-follow="{{ query }}" aria-pressed="{{ 'true' if following else 'false' }}">{% if following %}追跡中（やめる）{% else %}この話題を追う{% endif %}</button>{% endif %}{% if items %}<button type="button" class="gloss-toggle" id="gloss-toggle" aria-pressed="false" title="各見出しの下に訳を表示（見出しだけを翻訳サービスに送信。一度訳した見出しは保存して再送信しません）">見出しを訳す</button>{% endif %}</div>
 {% if query %}<p class="hint search-note">{% if english_query %}英語に訳した「{{ english_query }}」でも、全記事の見出し（英訳）を検索しています。{% else %}見出し・冒頭文と、全記事の見出しの英訳を検索しています。日本語などで検索すると英語に訳して探します（翻訳キーが必要）。{% endif %}</p>{% endif %}
 {% if items %}
 <div class="card-grid">{% set ns = namespace(day=none) %}{% for item in items %}
 {% set day = item.published|localday %}{% if day != ns.day %}<h2 class="day-sep">{{ day or '日付不明' }}</h2>{% set ns.day = day %}{% endif %}
 <a class="card" data-id="{{ item.id }}" href="{{ url_for('show_article', article_id=item.id) }}">
 {% set short = (item.source or 'News').split()[0] %}<div class="card-thumb" data-initial="{{ short }}" data-lang="{{ item.source|src_lang }}">{% if item.thumb %}<img src="{{ item.thumb }}" alt="" loading="lazy" decoding="async">{% else %}<span class="thumb-fallback">{{ short }}</span>{% endif %}</div>
-<div class="card-body"><div class="card-meta"><span class="badge" data-lang="{{ item.source|src_lang }}">{{ item.source or '未分類' }}</span><span>{{ (item.published|localclock) if item.published else '' }}</span>{% if item.story %}<span class="story-chip" title="{{ item.story.outlets }}つの媒体が報道（記事の下で読み比べ）">読み比べ {{ item.story.outlets }}媒体</span>{% endif %}</div>
+<div class="card-body"><div class="card-meta"><span class="badge" data-lang="{{ item.source|src_lang }}">{{ item.source or '未分類' }}</span><span>{{ (item.published|localclock) if item.published else '' }}</span>{% if item.genre and not genre %}<span class="card-genre">{{ genre_names[item.genre] }}</span>{% endif %}{% if item.story %}<span class="story-chip" title="{{ item.story.outlets }}つの媒体が報道（記事の下で読み比べ）">読み比べ {{ item.story.outlets }}媒体</span>{% endif %}</div>
 <h2{{ item.source|lang_attr }}>{{ item.title }}</h2>{% if item.lead %}<p{{ item.source|lang_attr }}>{{ item.lead }}</p>{% endif %}</div></a>{% endfor %}</div>
 {% if pages > 1 %}<nav class="pager" aria-label="ページ送り">
-{% if page > 1 %}<a href="{{ url_for('index', source=source or None, q=query or None, page=page-1) }}">新しい記事</a>{% else %}<span></span>{% endif %}
+{% if page > 1 %}<a href="{{ url_for('index', source=source or None, q=query or None, genre=genre or None, page=page-1) }}">新しい記事</a>{% else %}<span></span>{% endif %}
 <span>{{ page }} / {{ pages }}</span>
-{% if page < pages %}<a href="{{ url_for('index', source=source or None, q=query or None, page=page+1) }}">過去の記事</a>{% else %}<span></span>{% endif %}
+{% if page < pages %}<a href="{{ url_for('index', source=source or None, q=query or None, genre=genre or None, page=page+1) }}">過去の記事</a>{% else %}<span></span>{% endif %}
 </nav>{% endif %}
 {% elif indexing %}<p class="empty" role="status">記事の索引を作成しています（{{ progress[0] }} / {{ progress[1] }}）。このページは自動で更新されます。</p>
 {% elif not error %}<p class="empty">{% if query %}該当する記事がありません。検索語を変えてみてください。{% else %}記事がまだありません。<code>articles</code> フォルダの下にサイト名のフォルダを作ってHTMLを入れるか、自動取得の実行を待ってください。{% endif %}</p>{% endif %}

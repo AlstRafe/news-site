@@ -28,7 +28,8 @@ SITES = (bbc, naver, cna, yonhap)
 #: without anyone deleting the index.
 #: 2 = images inside <template> are ignored (O-03).
 #: 3 = Yonhap: the reporter's e-mail and the closing copyright / tip-line are not body text.
-PARSER_VERSION = 3
+#: 4 = the kind of news (library/genres.py) is stored per article; CNA filing codes dropped.
+PARSER_VERSION = 4
 
 
 def detect(page: Page):

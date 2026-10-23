@@ -23,6 +23,9 @@ from newsreader.sources.slim import slim_if_equivalent
 
 USER_AGENT = "PersonalNewsReader/1.0"
 MAX_NEW_PER_SOURCE_PER_CYCLE = 3
+#: Each outlet's section feeds (経済, テクノロジー ...) add at most this many per feed and cycle, after
+#: its main (international) feed, so the kinds of news the lists can show are not world news only.
+MAX_NEW_PER_SECTION_FEED = 2
 
 
 #: A page that could not be read as an article (a BBC video page without text, for example) is
@@ -77,6 +80,9 @@ SOURCES = (
         "directory": "BBC",
         "kind": "rss",
         "url": "https://feeds.bbci.co.uk/news/world/rss.xml",
+        "section_feeds": ("https://feeds.bbci.co.uk/news/business/rss.xml",
+                          "https://feeds.bbci.co.uk/news/technology/rss.xml",
+                          "https://feeds.bbci.co.uk/news/science_and_environment/rss.xml"),
         "article_hosts": {"www.bbc.com", "www.bbc.co.uk"},
         "is_article": lambda url: urlsplit(url).path.startswith("/news/"),
     },
@@ -85,6 +91,8 @@ SOURCES = (
         "directory": "CNA",
         "kind": "rss",
         "url": "https://feeds.feedburner.com/rsscna/intworld",
+        "section_feeds": ("https://feeds.feedburner.com/rsscna/finance",
+                          "https://feeds.feedburner.com/rsscna/technology"),
         "article_hosts": {"www.cna.com.tw", "cna.com.tw"},
         "is_article": lambda url: urlsplit(url).path.startswith("/news/"),
     },
@@ -94,6 +102,8 @@ SOURCES = (
         "directory": "Yonhap",
         "kind": "rss",
         "url": "https://www.yna.co.kr/rss/international.xml",
+        "section_feeds": ("https://www.yna.co.kr/rss/economy.xml",
+                          "https://www.yna.co.kr/rss/industry.xml"),
         "article_hosts": {"www.yna.co.kr"},
         "is_article": lambda url: urlsplit(url).path.startswith("/view/AKR"),
     },
@@ -194,8 +204,8 @@ def _download(url: str, max_bytes: int) -> tuple[bytes, str, str] | None:
     return data, final_url, content_type
 
 
-def _article_links(source: dict) -> list[str]:
-    result = _download(source["url"], MAX_FEED_BYTES)
+def _article_links(source: dict, feed: str = "") -> list[str]:
+    result = _download(feed or source["url"], MAX_FEED_BYTES)
     if result is None:
         return []
     data, final_url, _ = result
@@ -342,8 +352,24 @@ def fetch_cycle(
             site["error"] = f"一覧の取得に失敗（{type(exc).__name__}）"
             totals[source["name"]] = 0
             continue
+        # The main feed first, then each section feed with its own small allowance. A section
+        # feed that cannot be read only costs its own articles this cycle.
+        queue = [(link, 0) for link in links]
+        for number, feed in enumerate(source.get("section_feeds", ()), start=1):
+            try:
+                queue += [(link, number) for link in _article_links(source, feed)]
+            except (HTTPError, URLError, OSError, TimeoutError, ValueError) as exc:
+                _log.warning("%s section feed failed (%s): %s", source["name"], type(exc).__name__, feed)
+        saved_from: dict[int, int] = {}
+        queued: set[str] = set()
 
-        for link in links:
+        for link, feed_number in queue:
+            if link in queued:
+                continue
+            queued.add(link)
+            allowance = MAX_NEW_PER_SECTION_FEED if feed_number else MAX_NEW_PER_SOURCE_PER_CYCLE
+            if saved_from.get(feed_number, 0) >= allowance:
+                continue
             if link in existing:
                 duplicates += 1
                 continue
@@ -365,9 +391,10 @@ def fetch_cycle(
             else:
                 existing.add(result)
                 saved += 1
+                saved_from[feed_number] = saved_from.get(feed_number, 0) + 1
                 held += 1
                 _log.info("Saved %s: %s", source["name"], result)
-            if saved >= MAX_NEW_PER_SOURCE_PER_CYCLE or (limit and held >= limit):
+            if limit and held >= limit:
                 break
         totals[source["name"]] = saved
         site.update(saved=saved, duplicates=duplicates, skipped=skipped, failed=failed)

@@ -76,6 +76,11 @@ def articles_dir() -> Path:
     # folder that no longer exists is no choice either.
     elif saved and configured and not Path(configured).expanduser().exists() and Path(saved).expanduser().exists():
         configured = saved
+    # Under launcher.py, HTML_DIRECTORY is only the launcher's reading of the settings when it
+    # started (it runs for weeks); a folder saved on the settings page since is the newer choice.
+    elif (saved and configured and os.environ.get("NEWS_SUPERVISED") == "1"
+          and not _same_path(configured, saved) and Path(saved).expanduser().is_dir()):
+        configured = saved
     return Path(configured).expanduser() if configured else DEFAULT_ARTICLES_DIR
 
 

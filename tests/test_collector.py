@@ -146,6 +146,33 @@ class CollectionEndToEndTests(unittest.TestCase):
         again = json.loads((self.instance / "status.json").read_text(encoding="utf-8"))["collector"]
         self.assertEqual(again["sites"]["BBC"]["duplicates"] + again["sites"]["BBC"]["saved"], 1)
 
+    def test_section_feeds_add_a_few_articles_each_and_their_kind_is_known(self):
+        responses = dict(RESPONSES)
+        finance = [f"https://www.cna.com.tw/news/afe/20261018000{n}.aspx" for n in (2, 3, 4)]
+        responses["https://feeds.feedburner.com/rsscna/finance"] = (
+            ("<?xml version='1.0'?><rss><channel>" + "".join(f"<item><link>{u}</link></item>" for u in finance)
+             + "</channel></rss>").encode(), "application/rss+xml")
+        for u in finance:
+            responses[u] = (CNA.replace(b"https://www.cna.com.tw/news/aopl/example.aspx", u.encode())
+                            .replace("<h1>".encode(), f"<h1>{u[-8:]} ".encode(), 1), "text/html")
+
+        def opener(request, timeout=None):
+            target = request.full_url if hasattr(request, "full_url") else request
+            if target not in responses:
+                from urllib.error import HTTPError
+                raise HTTPError(target, 404, "not found", {}, None)
+            return FakeResponse(target, *responses[target])
+
+        with mock.patch.object(autofetch, "urlopen", opener):
+            self.assertEqual(runner.main(), 0)
+        collector = json.loads((self.instance / "status.json").read_text(encoding="utf-8"))["collector"]
+        self.assertTrue(collector["ok"], "missing section feeds (404 here) are not a failed collection")
+        self.assertEqual(collector["sites"]["CNA"]["saved"], 1 + autofetch.MAX_NEW_PER_SECTION_FEED)
+        db = self.instance / "library.sqlite3"
+        index.sync(self.root, db, force=True)
+        self.assertEqual(index.genre_counts(db, source="CNA").get("economy"), autofetch.MAX_NEW_PER_SECTION_FEED)
+        self.assertEqual(index.list_articles(db, genre="economy")["total"], autofetch.MAX_NEW_PER_SECTION_FEED)
+
     def run_with(self, url, body, env="1"):
         responses = dict(RESPONSES)
         responses[url] = (body, "text/html")

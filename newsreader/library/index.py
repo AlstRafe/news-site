@@ -25,6 +25,7 @@ from typing import Callable
 
 from newsreader import paths
 from newsreader.library.files import FileInfo, scan_library
+from newsreader.library import genres
 from newsreader.sources import MAX_HTML_BYTES, PARSER_VERSION, ReaderError, extract_article
 
 log = logging.getLogger("newsreader.library")
@@ -133,8 +134,13 @@ def _migration_5(db: sqlite3.Connection) -> None:
         PRIMARY KEY (a, b))""")
 
 
+def _migration_6(db: sqlite3.Connection) -> None:
+    """The kind of news (genres.py): filled as each file is parsed again (PARSER_VERSION 4)."""
+    _add_column(db, "articles", "genre", "TEXT NOT NULL DEFAULT ''")
+
+
 MIGRATIONS: list[Callable[[sqlite3.Connection], None]] = [_migration_1, _migration_2, _migration_3, _migration_4,
-                                                          _migration_5]
+                                                          _migration_5, _migration_6]
 SCHEMA_VERSION = len(MIGRATIONS)
 _schema_lock = threading.Lock()
 _wal_checked: set[str] = set()
@@ -200,7 +206,7 @@ def connect(db_path: Path) -> sqlite3.Connection:
 
 _CONTENT_FIELDS = ("kind", "page_type", "paragraphs", "images")
 _LIST_COLUMNS = ("id, source, filename, title, url, published, lead, thumb_src, "
-                 "paragraph_count, size, mtime, error")
+                 "paragraph_count, size, mtime, error, genre")
 
 
 def encode_content(article: dict) -> bytes:
@@ -239,9 +245,9 @@ def _lead(paragraphs: list[str]) -> str:
     return lead
 
 
-def _parse_file(info: FileInfo) -> dict | None:
+def _parse_file(info: FileInfo, source: str = "") -> dict | None:
     """One row's worth of fields, or None when the file changed while being read (retry later)."""
-    base = {"title": info.path.stem, "url": "", "published": "", "lead": "", "thumb_src": "",
+    base = {"title": info.path.stem, "url": "", "published": "", "lead": "", "thumb_src": "", "genre": "",
             "paragraph_count": 0, "size": info.size, "mtime": info.mtime, "error": "", "content": None,
             "content_key": _content_key(info.size, info.mtime_ns)}
     if info.size > MAX_HTML_BYTES:
@@ -261,20 +267,22 @@ def _parse_file(info: FileInfo) -> dict | None:
         log.warning("Could not parse %s (%s)", info.path.name, type(exc).__name__)
         return {**base, "error": f"解析できませんでした（{type(exc).__name__}）"}
     images = article["images"]
-    return {**base, "title": article["title"], "url": article["url"], "published": article["published"],
+    genre = genres.classify(source, article["url"], genres.section_of(data), article["title"], article["paragraphs"][:6])
+    return {**base, "title": article["title"], "url": article["url"], "published": article["published"], "genre": genre,
             "lead": _lead(article["paragraphs"]), "thumb_src": images[0]["src"] if images else "",
             "paragraph_count": article["paragraph_count"], "content": encode_content(article)}
 
 
 _UPSERT = """
 INSERT INTO articles(source, filename, title, url, published, lead, thumb_src, paragraph_count,
-                     size, mtime, error, content, content_key)
+                     size, mtime, error, content, content_key, genre)
 VALUES(:source, :filename, :title, :url, :published, :lead, :thumb_src, :paragraph_count,
-       :size, :mtime, :error, :content, :content_key)
+       :size, :mtime, :error, :content, :content_key, :genre)
 ON CONFLICT(source, filename) DO UPDATE SET
   title=excluded.title, url=excluded.url, published=excluded.published, lead=excluded.lead,
   thumb_src=excluded.thumb_src, paragraph_count=excluded.paragraph_count, size=excluded.size,
-  mtime=excluded.mtime, error=excluded.error, content=excluded.content, content_key=excluded.content_key
+  mtime=excluded.mtime, error=excluded.error, content=excluded.content, content_key=excluded.content_key,
+  genre=excluded.genre
 """
 
 
@@ -369,7 +377,7 @@ def _sync_locked(root: Path, db_path: Path) -> dict:
         _set_state(db_path, progress=[0, len(work)], warning=warning)
         batch: list[tuple[str, dict]] = []
         for done, ((source, filename), info) in enumerate(work, start=1):
-            row = _parse_file(info)
+            row = _parse_file(info, source)
             if row is None:
                 deferred += 1
             else:
@@ -447,22 +455,42 @@ def start_background_sync(root_provider: Callable[[], Path], db_path: Path, inte
 
 # --------------------------------------------------------------- queries ----
 
-def sources(db_path: Path, query: str = "", pivot_words: list[str] | None = None) -> list[dict]:
-    """Outlets with their article counts — with a search, how many of each match it (every
-    outlet is still listed, so the chips do not jump around)."""
+def _counts(db: sqlite3.Connection, column: str, query: str, pivot_words: list[str] | None,
+            where: str = "", params: tuple = ()) -> tuple[list[str], dict[str, int]]:
+    """Every value of ``column`` (so chips never disappear) and how many articles have it,
+    within a search and the extra condition."""
+    values = [r[0] for r in db.execute(f"SELECT DISTINCT {column} FROM articles WHERE error='' "
+                                       f"ORDER BY {column} COLLATE NOCASE")]
+    counts: dict[str, int] = {}
+    condition = f" AND {where}" if where else ""
+    query = query.strip()[:100]
+    if query:
+        ids = search_ids(db, query, pivot_words)
+        for start in range(0, len(ids), 900):
+            chunk = ids[start:start + 900]
+            for value, n in db.execute(f"SELECT {column}, COUNT(*) FROM articles WHERE id IN ({','.join('?' * len(chunk))})"
+                                       f"{condition} GROUP BY {column}", (*chunk, *params)):
+                counts[value] = counts.get(value, 0) + n
+    else:
+        counts = dict(db.execute(f"SELECT {column}, COUNT(*) FROM articles WHERE error=''{condition} GROUP BY {column}",
+                                 params).fetchall())
+    return values, counts
+
+
+def sources(db_path: Path, query: str = "", pivot_words: list[str] | None = None, genre: str = "") -> list[dict]:
+    """Outlets with their article counts — with a search or a kind of news, how many of each
+    match it (every outlet is still listed, so the chips do not jump around)."""
     with closing(connect(db_path)) as db:
-        rows = db.execute("SELECT source, COUNT(*) AS n FROM articles WHERE error='' "
-                          "GROUP BY source ORDER BY source COLLATE NOCASE").fetchall()
-        matched: dict[str, int] = {}
-        query = query.strip()[:100]
-        if query:
-            ids = search_ids(db, query, pivot_words)
-            for start in range(0, len(ids), 900):
-                chunk = ids[start:start + 900]
-                for source, n in db.execute(f"SELECT source, COUNT(*) FROM articles WHERE id IN ({','.join('?' * len(chunk))}) "
-                                            "GROUP BY source", chunk):
-                    matched[source] = matched.get(source, 0) + n
-    return [{"name": r["source"], "count": matched.get(r["source"], 0) if query else r["n"]} for r in rows]
+        names, counts = _counts(db, "source", query, pivot_words, "genre = ?" if genre else "",
+                                ("" if genre == genres.OTHER else genre,) if genre else ())
+    return [{"name": name, "count": counts.get(name, 0)} for name in names]
+
+
+def genre_counts(db_path: Path, source: str = "", query: str = "", pivot_words: list[str] | None = None) -> dict[str, int]:
+    """How many articles of each kind of news (genres.py) — within an outlet and a search."""
+    with closing(connect(db_path)) as db:
+        _, counts = _counts(db, "genre", query, pivot_words, "source = ?" if source else "", (source,) if source else ())
+    return counts
 
 
 def source_stats(db_path: Path) -> list[dict]:
@@ -546,7 +574,7 @@ def search_ids(db: sqlite3.Connection, query: str, pivot_words: list[str] | None
 
 
 def list_articles(db_path: Path, source: str = "", query: str = "", page: int = 1, per_page: int = 24,
-                  pivot_words: list[str] | None = None) -> dict:
+                  pivot_words: list[str] | None = None, genre: str = "") -> dict:
     """Newest first. Articles without a parsed date fall back to file time. Never loads bodies.
 
     ``pivot_words`` (from ``search_words``) also finds articles whose English headline matches,
@@ -555,6 +583,9 @@ def list_articles(db_path: Path, source: str = "", query: str = "", page: int = 
     if source:
         where.append("source = ?")
         params.append(source)
+    if genre:
+        where.append("genre = ?")
+        params.append("" if genre == genres.OTHER else genre)
     query = query.strip()[:100]
     page = max(1, page)
     with closing(connect(db_path)) as db:

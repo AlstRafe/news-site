@@ -40,6 +40,9 @@ class LibraryDirTests(unittest.TestCase):
         # A launcher started before the folder was moved passes a folder that is gone: the saved one wins.
         with mock.patch.dict("os.environ", {"HTML_DIRECTORY": str(self.tmp / "moved-away")}):
             self.assertEqual(paths.articles_dir(), self.library)
+        # Under the launcher, its HTML_DIRECTORY is the settings as they were when it started.
+        with mock.patch.dict("os.environ", {"HTML_DIRECTORY": str(self.tmp), "NEWS_SUPERVISED": "1"}):
+            self.assertEqual(paths.articles_dir(), self.library)
 
     def test_launcher_uses_the_saved_folder(self):
         import launcher

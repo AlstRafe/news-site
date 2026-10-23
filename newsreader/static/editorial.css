@@ -110,3 +110,17 @@ input,select,textarea{background:var(--sheet);color:var(--ink);border:1px solid 
 .num-check,.num-check-card{background:none!important;border:0!important;padding:0!important;color:var(--accent);}
 .num-check::before,.num-check-card::before{content:"※ ";}
 .bi-float{background:var(--paper)!important;color:var(--ink)!important;border:1px solid var(--rule-strong)!important;}
+
+/* ジャンル: a second, quieter row under the outlets — words separated by thin rules, the
+   chosen one in ink with a rule under it, like a newspaper's section index. */
+.genre-row{display:flex;flex-wrap:nowrap;overflow-x:auto;scrollbar-width:none;margin:-4px 0 18px;padding:0 0 2px;
+  border-bottom:1px solid var(--rule);}
+.genre-row::-webkit-scrollbar{display:none;}
+.genre-row a{flex:none;display:inline-flex;align-items:baseline;gap:4px;min-height:38px;padding:9px 12px 7px;font-size:13px;
+  color:var(--soft);text-decoration:none;border-bottom:2px solid transparent;margin-bottom:-3px;white-space:nowrap;}
+.genre-row a+a{border-left:1px solid var(--rule);}
+.genre-row a:first-child{padding-left:0;}
+.genre-row a span{font-size:11px;color:var(--soft);font-variant-numeric:tabular-nums;}
+.genre-row a[aria-current="true"]{color:var(--ink);font-weight:700;border-bottom-color:var(--ink);}
+.card-genre{font-size:11px;color:var(--soft);}
+.card-genre::before{content:"／";margin-right:2px;color:var(--rule);}
