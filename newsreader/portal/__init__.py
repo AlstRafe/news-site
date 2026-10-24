@@ -4,14 +4,18 @@ News Site (newsreader.web) is mounted at ``/news`` (it builds every link with ``
 only needs ``SCRIPT_NAME``). Addresses from before the mount keep working: a page address
 (``/a/123``, a bookmark) is redirected to the same page under ``/news``; the translation relay
 (``/relay/...``, called by test builds with a fixed address) is answered where it always was.
+CoreLab (the Infra Game project's training game, static files) is served under ``/infra`` when its
+folder is on this PC.
 """
 from __future__ import annotations
 
 import html
+import os
 from pathlib import Path
 from urllib.parse import quote
 
 NEWS_MOUNT = "/news"
+INFRA_MOUNT = "/infra"
 #: Answered at the old address too (POST from test builds; urllib does not follow a redirect for it).
 LEGACY_DIRECT = ("/relay/",)
 _HERE = Path(__file__).resolve().parent
@@ -125,8 +129,46 @@ class Portal:
         return [b""]
 
 
+class StaticFiles:
+    """WSGI: one folder's files, read only ("/" is its index.html). Nothing outside the folder,
+    no dot files or folders (.git, .claude), only the file types below."""
+
+    TYPES = {".html": "text/html; charset=utf-8", ".css": "text/css; charset=utf-8",
+             ".js": "text/javascript; charset=utf-8", ".json": "application/json", ".svg": "image/svg+xml",
+             ".png": "image/png", ".jpg": "image/jpeg", ".webp": "image/webp", ".ico": "image/x-icon",
+             ".woff2": "font/woff2"}
+    #: The game's own scripts only; it sets inline style attributes and a data: favicon, and fetches nothing.
+    CSP = ("default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; "
+           "connect-src 'none'; object-src 'none'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'")
+
+    def __init__(self, root: Path, allowed_hosts=None):
+        self.root = Path(root).resolve()
+        self.allowed_hosts = allowed_hosts
+
+    def __call__(self, environ, start_response):
+        if self.allowed_hosts is not None and not self.allowed_hosts(environ.get("HTTP_HOST", "")):
+            return Portal._plain(start_response, "400 Bad Request", b"Bad Request")
+        if environ.get("REQUEST_METHOD", "GET") not in ("GET", "HEAD"):
+            return Portal._plain(start_response, "405 Method Not Allowed", b"Method Not Allowed")
+        parts = [part for part in environ.get("PATH_INFO", "").split("/") if part] or ["index.html"]
+        file = self.root.joinpath(*parts).resolve()
+        if (any(part.startswith(".") or "\\" in part or ":" in part for part in parts)
+                or not file.is_relative_to(self.root) or file.suffix.lower() not in self.TYPES or not file.is_file()):
+            return Portal._plain(start_response, "404 Not Found", b"Not Found")
+        body = file.read_bytes()
+        start_response("200 OK", [("Content-Type", self.TYPES[file.suffix.lower()]), ("Content-Length", str(len(body))),
+                                  ("Cache-Control", "no-cache"), ("Content-Security-Policy", self.CSP),
+                                  ("X-Content-Type-Options", "nosniff"), ("Referrer-Policy", "same-origin")])
+        return [body]
+
+
+def infra_game_dir() -> Path:
+    """The Infra Game project's folder (``INFRA_GAME_DIR`` overrides)."""
+    return Path(os.environ.get("INFRA_GAME_DIR") or Path.home() / "Documents" / "Claude" / "Infra Game")
+
+
 def build(news_app) -> Portal:
-    """The sites of this PC (one for now) behind one address."""
+    """The sites of this PC behind one address: News Site, and CoreLab when its folder is here."""
     from newsreader import branding
     from newsreader.web import public, security
     news = Site(NEWS_MOUNT, branding.APP_NAME, branding.APP_TAGLINE,
@@ -136,7 +178,14 @@ def build(news_app) -> Portal:
     def allowed(host: str) -> bool:
         host = security.host_without_port(host)
         return host in trusted or public.is_funnel_host(host)  # テスト公開 (web/public.py)
-    return Portal([news], allowed_hosts=allowed,
+    sites = [news]  # the first site also answers the old addresses
+    game = infra_game_dir()
+    if (game / "index.html").is_file():
+        sites.append(Site(INFRA_MOUNT, "CoreLab", "インフラ運用トレーニングゲーム",
+                          "Kubernetes・Docker・Harbor・OpenShift・AWS のよくある障害を、ブラウザの中のターミナルで"
+                          "解決しながら学ぶ。インストール不要、操作はすべて架空データのシミュレーション。",
+                          StaticFiles(game, allowed)))
+    return Portal(sites, allowed_hosts=allowed,
                   public_hosts=lambda host: public.is_funnel_host(security.host_without_port(host)))
 
 

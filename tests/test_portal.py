@@ -125,6 +125,40 @@ class PortalTests(unittest.TestCase):
         finally:
             translation.visitor_translations.reset(token)
 
+    def test_the_infra_game_under_its_path_when_its_folder_is_here(self):
+        game = self.tmp / "Infra Game"
+        (game / "js").mkdir(parents=True)
+        (game / ".git").mkdir()
+        (game / "index.html").write_text('<!doctype html><title>CoreLab</title><script src="./js/app.js"></script>', encoding="utf-8")
+        (game / "js" / "app.js").write_text("1;", encoding="utf-8")
+        (game / ".git" / "config").write_text("[core]", encoding="utf-8")
+        (game / "README.md").write_text("notes", encoding="utf-8")
+        (self.tmp / "secret.js").write_text("2;", encoding="utf-8")
+        with unittest.mock.patch.dict("os.environ", {"INFRA_GAME_DIR": str(game)}):
+            client = Client(portal.build(self.app))
+        page = client.get("/", headers=H).get_data(as_text=True)
+        self.assertIn('<a href="/news/">NewsBridge</a>', page)
+        self.assertIn('<a href="/infra/">CoreLab</a>', page)
+        self.assertLess(page.index("/news/"), page.index("/infra/"))
+        self.assertEqual(client.get("/infra", headers=H).headers["Location"], "/infra/")
+        response = client.get("/infra/", headers=H)
+        self.assertEqual(response.status_code, 200)
+        self.assertIn("<title>CoreLab</title>", response.get_data(as_text=True))
+        self.assertIn("script-src 'self'", response.headers["Content-Security-Policy"])
+        script = client.get("/infra/js/app.js", headers=H)
+        self.assertEqual((script.status_code, script.headers["Content-Type"]), (200, "text/javascript; charset=utf-8"))
+        for hidden in ("/infra/.git/config", "/infra/README.md", "/infra/../secret.js", "/infra/%2e%2e/secret.js",
+                       "/infra/js", "/infra/nothing.js"):
+            self.assertEqual(client.get(hidden, headers=H).status_code, 404, hidden)
+        self.assertEqual(client.post("/infra/", headers=H).status_code, 405)
+        self.assertEqual(client.get("/infra/", headers={"Host": "evil.example"}).status_code, 400)
+        self.assertEqual(client.get("/infra/", headers={"Host": "haruxera.tail1234.ts.net"}).headers["X-Robots-Tag"], "noindex")
+        # without the folder (another PC, a test build) the front page lists News Site only
+        with unittest.mock.patch.dict("os.environ", {"INFRA_GAME_DIR": str(self.tmp / "missing")}):
+            alone = Client(portal.build(self.app))
+        self.assertNotIn("/infra/", alone.get("/", headers=H).get_data(as_text=True))
+        self.assertEqual(alone.get("/infra/", headers=H).status_code, 308)  # an old News Site address, as before
+
     def test_old_addresses(self):
         response = self.client.get(f"/a/{self.article}?tr=ja", headers=H)
         self.assertEqual(response.status_code, 308)
