@@ -57,6 +57,9 @@ class PortalTests(unittest.TestCase):
         self.assertIn(f'href="/news/a/{self.article}"', page)
         self.assertIn('"/news/a/*"', page)  # prefetch rules
         self.assertIn("/news/static/style.css", page)
+        # the way back to the front page, in the top menu and the footer
+        self.assertIn('<a class="nav-text" href="/">サイト一覧</a>', page)
+        self.assertIn('<a href="/">← サイト一覧</a>', page)
         self.assertEqual(self.client.get(f"/news/a/{self.article}", headers=H).status_code, 200)
         response = self.client.get("/news", headers=H)
         self.assertEqual((response.status_code, response.headers["Location"]), (302, "/news/"))
