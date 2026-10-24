@@ -150,8 +150,11 @@ class PortalTests(unittest.TestCase):
         self.assertIn("script-src 'self'", response.headers["Content-Security-Policy"])
         script = client.get("/infra/js/app.js", headers=H)
         self.assertEqual((script.status_code, script.headers["Content-Type"]), (200, "text/javascript; charset=utf-8"))
+        (game / ".claude").mkdir()
+        (game / ".claude" / "settings.json").write_text("{}", encoding="utf-8")
+        (game / "linked").symlink_to(game / ".claude", target_is_directory=True)  # as a Windows short name would
         for hidden in ("/infra/.git/config", "/infra/README.md", "/infra/../secret.js", "/infra/%2e%2e/secret.js",
-                       "/infra/js", "/infra/nothing.js"):
+                       "/infra/js", "/infra/nothing.js", "/infra/linked/settings.json", "/infra/CLAUDE~1/settings.json"):
             self.assertEqual(client.get(hidden, headers=H).status_code, 404, hidden)
         self.assertEqual(client.post("/infra/", headers=H).status_code, 405)
         self.assertEqual(client.get("/infra/", headers={"Host": "evil.example"}).status_code, 400)

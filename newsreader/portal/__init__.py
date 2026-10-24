@@ -152,8 +152,12 @@ class StaticFiles:
             return Portal._plain(start_response, "405 Method Not Allowed", b"Method Not Allowed")
         parts = [part for part in environ.get("PATH_INFO", "").split("/") if part] or ["index.html"]
         file = self.root.joinpath(*parts).resolve()
-        if (any(part.startswith(".") or "\\" in part or ":" in part for part in parts)
-                or not file.is_relative_to(self.root) or file.suffix.lower() not in self.TYPES or not file.is_file()):
+        # The resolved path is checked too: on Windows a short name (CLAUDE~1) reaches a dot folder
+        # that the address never names.
+        if (any(part.startswith(".") or "\\" in part or ":" in part or "~" in part for part in parts)
+                or not file.is_relative_to(self.root)
+                or any(part.startswith(".") for part in file.relative_to(self.root).parts)
+                or file.suffix.lower() not in self.TYPES or not file.is_file()):
             return Portal._plain(start_response, "404 Not Found", b"Not Found")
         body = file.read_bytes()
         start_response("200 OK", [("Content-Type", self.TYPES[file.suffix.lower()]), ("Content-Length", str(len(body))),
