@@ -1,4 +1,4 @@
-"""The front page ("/") and News Site under /news."""
+"""News Site under /news: served on its own (app.py), and as a site of the Home Page server (newsreader.hosting)."""
 from __future__ import annotations
 
 import shutil
@@ -11,14 +11,16 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 from werkzeug.test import Client
 
-from newsreader import portal
+from newsreader import hosting, portal
 from newsreader.library import index
 from newsreader.web import create_app
 
 H = {"Host": "localhost"}
 
 
-class PortalTests(unittest.TestCase):
+class Library(unittest.TestCase):
+    """One article, and News Site over it."""
+
     def setUp(self):
         self.tmp = Path(tempfile.mkdtemp())
         root = self.tmp / "articles" / "BBC"
@@ -37,19 +39,15 @@ class PortalTests(unittest.TestCase):
     def tearDown(self):
         shutil.rmtree(self.tmp, ignore_errors=True)
 
-    def test_front_page_lists_the_sites(self):
+
+class PortalTests(Library):
+
+    def test_on_its_own_the_front_page_is_news_site(self):
+        # (on this PC the Home Page server owns "/" and lists News Site with the other sites)
         response = self.client.get("/", headers=H)
-        self.assertEqual(response.status_code, 200)
-        page = response.get_data(as_text=True)
-        self.assertIn('<a href="/news/">NewsBridge</a>', page)
-        # what the news site has now: its newest headlines, linked under /news
-        self.assertIn('<ul class="now">', page)
-        self.assertIn(f'href="/news/a/{self.article}"', page)
-        self.assertNotIn("{{", page)
-        self.assertIn("default-src 'none'", response.headers["Content-Security-Policy"])
-        self.assertEqual(self.client.get("/portal.css", headers=H).status_code, 200)
-        self.assertEqual(self.client.get("/", headers={"Host": "evil.example"}).status_code, 400)
-        self.assertEqual(self.client.post("/", headers=H).status_code, 405)
+        self.assertEqual((response.status_code, response.headers["Location"]), (302, "/news/"))
+        robots = self.client.get("/robots.txt", headers=H).get_data(as_text=True)
+        self.assertEqual(robots, "User-agent: *\nDisallow: /news/api/\nDisallow: /relay/\n")
 
     def test_news_site_under_its_path(self):
         page = self.client.get("/news/", headers=H).get_data(as_text=True)
@@ -67,7 +65,7 @@ class PortalTests(unittest.TestCase):
     def test_the_public_name_reads_and_translates_but_changes_nothing(self):
         funnel = {"Host": "haruxera.tail1234.ts.net"}
         self.assertEqual(self.client.post("/relay/v1/ping", headers={**funnel, "Authorization": "Bearer nbr_x"}).status_code, 401)
-        self.assertEqual(self.client.get("/", headers=funnel).status_code, 200)
+        self.assertEqual(self.client.get("/", headers=funnel).headers["Location"], "/news/")
         page = self.client.get("/news/", headers=funnel)
         self.assertEqual(page.status_code, 200)
         html = page.get_data(as_text=True)
@@ -128,43 +126,6 @@ class PortalTests(unittest.TestCase):
         finally:
             translation.visitor_translations.reset(token)
 
-    def test_the_infra_game_under_its_path_when_its_folder_is_here(self):
-        game = self.tmp / "Infra Game"
-        (game / "js").mkdir(parents=True)
-        (game / ".git").mkdir()
-        (game / "index.html").write_text('<!doctype html><title>CoreLab</title><script src="./js/app.js"></script>', encoding="utf-8")
-        (game / "js" / "app.js").write_text("1;", encoding="utf-8")
-        (game / ".git" / "config").write_text("[core]", encoding="utf-8")
-        (game / "README.md").write_text("notes", encoding="utf-8")
-        (self.tmp / "secret.js").write_text("2;", encoding="utf-8")
-        with unittest.mock.patch.dict("os.environ", {"INFRA_GAME_DIR": str(game)}):
-            client = Client(portal.build(self.app))
-        page = client.get("/", headers=H).get_data(as_text=True)
-        self.assertIn('<a href="/news/">NewsBridge</a>', page)
-        self.assertIn('<a href="/infra/">CoreLab</a>', page)
-        self.assertLess(page.index("/news/"), page.index("/infra/"))
-        self.assertEqual(client.get("/infra", headers=H).headers["Location"], "/infra/")
-        response = client.get("/infra/", headers=H)
-        self.assertEqual(response.status_code, 200)
-        self.assertIn("<title>CoreLab</title>", response.get_data(as_text=True))
-        self.assertIn("script-src 'self'", response.headers["Content-Security-Policy"])
-        script = client.get("/infra/js/app.js", headers=H)
-        self.assertEqual((script.status_code, script.headers["Content-Type"]), (200, "text/javascript; charset=utf-8"))
-        (game / ".claude").mkdir()
-        (game / ".claude" / "settings.json").write_text("{}", encoding="utf-8")
-        (game / "linked").symlink_to(game / ".claude", target_is_directory=True)  # as a Windows short name would
-        for hidden in ("/infra/.git/config", "/infra/README.md", "/infra/../secret.js", "/infra/%2e%2e/secret.js",
-                       "/infra/js", "/infra/nothing.js", "/infra/linked/settings.json", "/infra/CLAUDE~1/settings.json"):
-            self.assertEqual(client.get(hidden, headers=H).status_code, 404, hidden)
-        self.assertEqual(client.post("/infra/", headers=H).status_code, 405)
-        self.assertEqual(client.get("/infra/", headers={"Host": "evil.example"}).status_code, 400)
-        self.assertEqual(client.get("/infra/", headers={"Host": "haruxera.tail1234.ts.net"}).headers["X-Robots-Tag"], "noindex")
-        # without the folder (another PC, a test build) the front page lists News Site only
-        with unittest.mock.patch.dict("os.environ", {"INFRA_GAME_DIR": str(self.tmp / "missing")}):
-            alone = Client(portal.build(self.app))
-        self.assertNotIn("/infra/", alone.get("/", headers=H).get_data(as_text=True))
-        self.assertEqual(alone.get("/infra/", headers=H).status_code, 308)  # an old News Site address, as before
-
     def test_old_addresses(self):
         response = self.client.get(f"/a/{self.article}?tr=ja", headers=H)
         self.assertEqual(response.status_code, 308)
@@ -172,3 +133,53 @@ class PortalTests(unittest.TestCase):
         # the relay keeps its address (test builds call it with POST and a fixed URL)
         self.assertEqual(self.client.post("/relay/v1/ping", headers=H).status_code,
                          Client(self.app).post("/relay/v1/ping", headers=H).status_code)
+
+
+class HostingTests(Library):
+    """What the Home Page server gets from newsreader.hosting.site, and how News Site steps aside for it."""
+
+    def test_site_for_a_host(self):
+        host = {"port": 5000, "addresses": ["127.0.0.1", "100.70.1.2"], "names": ["100.70.1.2", "haruxera"],
+                "urls": ["http://127.0.0.1:5000/", "http://100.70.1.2:5000/"]}
+        with unittest.mock.patch("newsreader.web.create_app", return_value=self.app) as factory, \
+                unittest.mock.patch.object(hosting, "_hand_over_the_start") as hand_over, \
+                unittest.mock.patch.dict("os.environ", {"NEWS_ALLOWED_HOSTS": "example.lan"}):
+            made = hosting.site("/news", host)
+            import os
+            self.assertEqual(os.environ["NEWS_ALLOWED_HOSTS"], "example.lan,100.70.1.2,haruxera")
+        factory.assert_called_once_with(mount="/news")
+        hand_over.assert_called_once_with(host, "/news")
+        self.assertIs(made["app"], self.app)
+        self.assertEqual((made["name"], made["disallow"], made["legacy"]), ("NewsBridge", ("/api/",), ("/relay/",)))
+        now = made["preview"]()
+        self.assertEqual(now["title"], "新着記事")  # no 読み比べ groups in this library yet
+        self.assertEqual(now["items"][0][1], f"/a/{self.article}")
+        self.assertIsInstance(made["version"](), str)
+
+    def test_the_host_takes_over_the_start_at_logon(self):
+        from newsreader.services import settings
+        with unittest.mock.patch.object(hosting, "HOSTED_PATH", self.tmp / "instance" / "hosted.json"), \
+                unittest.mock.patch.object(settings, "SETTINGS_PATH", self.tmp / "settings.json"), \
+                unittest.mock.patch.object(hosting, "_remove_logon_task") as remove:
+            hosting._hand_over_the_start({"port": 5000, "urls": ["http://127.0.0.1:5000/"]}, "/news")
+            self.assertEqual(hosting.hosted(), {"by": "Home Page", "url": "http://127.0.0.1:5000/news/", "port": 5000})
+            self.assertFalse(settings.start_at_logon())
+        remove.assert_called_once()
+
+    def test_the_launcher_opens_the_hosted_site_instead_of_starting_another(self):
+        import importlib.util
+        import json
+        import socket
+        spec = importlib.util.spec_from_file_location("launcher_under_test", Path(__file__).resolve().parents[1] / "launcher.py")
+        launcher = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(launcher)
+        record = self.tmp / "hosted.json"
+        with socket.socket() as listening, unittest.mock.patch.object(launcher, "HOSTED_PATH", record):
+            self.assertEqual(launcher.hosted_url(), "")  # nothing hosts it
+            listening.bind(("127.0.0.1", 0))
+            listening.listen()
+            port = listening.getsockname()[1]
+            record.write_text(json.dumps({"url": "http://127.0.0.1:5000/news/", "port": port}), encoding="utf-8")
+            self.assertEqual(launcher.hosted_url(), "http://127.0.0.1:5000/news/")
+            listening.close()
+            self.assertEqual(launcher.hosted_url(), "")  # the host is not running: start as before

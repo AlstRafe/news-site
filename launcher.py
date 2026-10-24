@@ -40,6 +40,8 @@ PROJECT_ID = hashlib.sha256(str(PROJECT_ROOT).casefold().encode("utf-8")).hexdig
 LOGON_TASK_NAME = f"{APP_CONFIG['name']}-WebServer-{PROJECT_ID}"
 LEGACY_LOGON_TASK_NAME = f"{APP_CONFIG['name']}-WebServer"
 LOGON_REGISTRATION_PATH = INSTANCE_DIRECTORY / "server-task.json"
+#: Written by newsreader/hosting.py while another server (the Home Page project's) serves this copy.
+HOSTED_PATH = INSTANCE_DIRECTORY / "hosted.json"
 #: A test build made by make_alpha_zip.py carries preset/settings.json (same code, preset values).
 PRESET_SETTINGS_PATH = PROJECT_ROOT / "preset" / "settings.json"
 PRESET_RECORD_PATH = INSTANCE_DIRECTORY / "preset-applied.json"
@@ -655,6 +657,22 @@ def open_background_log():
     return log
 
 
+def hosted_url() -> str:
+    """Where another server (the Home Page project's) serves this copy, when it answers now; else ""."""
+    try:
+        hosted = json.loads(HOSTED_PATH.read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return ""
+    url, port = (hosted.get("url"), hosted.get("port")) if isinstance(hosted, dict) else (None, None)
+    if not isinstance(url, str) or not url or not isinstance(port, int):
+        return ""
+    try:
+        with socket.create_connection(("127.0.0.1", port), timeout=1):
+            return url
+    except OSError:
+        return ""
+
+
 def main(argv: list[str] | None = None) -> int:
     argv = sys.argv[1:] if argv is None else argv
     background = "--background" in argv  # started by the logon task: no window, no browser, no questions
@@ -666,7 +684,7 @@ def main(argv: list[str] | None = None) -> int:
     if background:
         log = open_background_log()
         sys.stdout = sys.stderr = log
-        if background_port_taken(settings):
+        if hosted_url() or background_port_taken(settings):
             print("すでに起動しています。")
             return 0
         wait_for_network(settings)
@@ -688,6 +706,11 @@ def main(argv: list[str] | None = None) -> int:
     if not first_run_marker.exists():
         profile_root.mkdir(parents=True, exist_ok=True)
         first_run_marker.write_text("completed", encoding="ascii")
+    hosted = hosted_url()
+    if hosted:  # the Home Page server serves this copy: no second server, the site opens there
+        print(f"このPCでは Home Page のサーバーが配信しています: {hosted}")
+        webbrowser.open(hosted)
+        return 0
     # Recheck after setup so a changed interface/port error is reported before browser launch.
     settings = read_settings()
     select_connection(settings)
