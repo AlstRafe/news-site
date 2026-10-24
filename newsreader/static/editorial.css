@@ -96,6 +96,8 @@ input,select,textarea{background:var(--sheet);color:var(--ink);border:1px solid 
 .tabbar a{min-height:48px!important;font-size:13px!important;font-weight:600!important;color:var(--soft)!important;letter-spacing:.06em;
   border-top:2px solid transparent;margin-top:-1px;}
 .tabbar a[aria-current="page"]{color:var(--ink)!important;border-top-color:var(--accent);}
+/* Under the Home Page server: the way back to the site list, which the phone's hidden top menu had alone */
+.tabbar a.tab-home{font-size:12px!important;letter-spacing:0;}
 
 /* pressed states and word lists: ink, not candy colours */
 .segmented{background:none;border:1px solid var(--rule-strong);padding:0;}

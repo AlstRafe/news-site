@@ -58,6 +58,7 @@ class PortalTests(Library):
         # the way back to the front page, in the top menu and the footer
         self.assertIn('<a class="nav-text" href="/">サイト一覧</a>', page)
         self.assertIn('<a href="/">← サイト一覧</a>', page)
+        self.assertIn('<a class="tab-home" href="/">サイト一覧</a></nav>', page)  # phones: the tab bar
         self.assertEqual(self.client.get(f"/news/a/{self.article}", headers=H).status_code, 200)
         response = self.client.get("/news", headers=H)
         self.assertEqual((response.status_code, response.headers["Location"]), (302, "/news/"))
@@ -155,6 +156,16 @@ class HostingTests(Library):
         self.assertEqual(now["title"], "新着記事")  # no 読み比べ groups in this library yet
         self.assertEqual(now["items"][0][1], f"/a/{self.article}")
         self.assertIsInstance(made["version"](), str)
+
+    def test_the_front_pages_preview_puts_translated_headlines_first(self):
+        stories = [{"lead_title": f"Headline {n}", "key": f"s{n}"} for n in range(1, 6)]
+        kept = {"Headline 2": "見出し2", "Headline 4": "見出し4"}
+        with unittest.mock.patch("newsreader.web.pages.front_stories", return_value=stories), \
+                unittest.mock.patch("newsreader.services.translation.cached_titles",
+                                    side_effect=lambda titles, target: [kept.get(t, "") for t in titles]):
+            now = hosting.news_now(self.app)
+        self.assertEqual(now["title"], "各社が伝えた話題")
+        self.assertEqual(now["items"], [("見出し2", "/stories/s2"), ("見出し4", "/stories/s4"), ("Headline 1", "/stories/s1")])
 
     def test_the_host_takes_over_the_start_at_logon(self):
         from newsreader.services import settings

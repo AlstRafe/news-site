@@ -104,13 +104,16 @@ def news_now(news_app) -> dict:
     from newsreader.web.status_view import status_data
     db = news_app.config["LIBRARY_DB"]
     with news_app.test_request_context("/"):  # front_stories builds picture URLs
-        stories = front_stories(db)[:PREVIEW]
+        # More than are shown: the front page is read in Japanese, so headlines translated already go
+        # first (an hour's new Korean or English headline waits until someone has opened it here).
+        stories = front_stories(db)
         if stories:
             rows = [(s["lead_title"], f"/stories/{quote(s['key'])}") for s in stories]
         else:
-            rows = [(a["title"], f"/a/{a['id']}") for a in index.list_articles(db, page=1, per_page=PREVIEW)["items"]]
+            rows = [(a["title"], f"/a/{a['id']}") for a in index.list_articles(db, page=1, per_page=PREVIEW * 3)["items"]]
         kept = translation.cached_titles([title for title, _ in rows], "ja")
         badge = status.badge(status_data(), collects=collects_hourly())
+    shown = sorted(zip(rows, kept), key=lambda row: not row[1])[:PREVIEW]  # stable: newest first within each
     return {"title": "各社が伝えた話題" if stories else "新着記事",
             "note": badge["label"] if badge.get("tone") != "idle" else "",
-            "items": [(ja or title, path) for (title, path), ja in zip(rows, kept)]}
+            "items": [(ja or title, path) for (title, path), ja in shown]}
