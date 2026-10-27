@@ -55,7 +55,8 @@ def saved_page():
         items.append({**record, "saved_at": mark["saved_at"], "read": mark["read"],
                       "thumb": image_url(record["id"], 0, thumb) if image_service.allowed_image_url(thumb) else ""})
     from newsreader.services import translation
-    for item, ja in zip(items, translation.cached_titles([i.get("title") or "" for i in items], "ja")):
+    from newsreader.web.pages import page_target
+    for item, ja in zip(items, translation.cached_titles([i.get("title") or "" for i in items], page_target())):
         item["ja"] = ja
     response = current_app.make_response(render_template("saved.html", items=items))
     response.headers["Cache-Control"] = "no-cache"

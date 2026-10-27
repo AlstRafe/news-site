@@ -10,7 +10,7 @@ import re
 
 from flask import jsonify
 
-from newsreader import branding
+from newsreader import branding, i18n
 from newsreader.library import compare, facts_watch, stories
 from newsreader.services import sentences
 from newsreader.services.translation import TARGETS, TranslationError, translate_titles
@@ -109,6 +109,13 @@ def story_facts():
         _show_sentences(items, originals, target)
     except TranslationError as exc:
         return jsonify({"error": str(exc)}), 503
+    # Kept in Japanese (facts_watch above); said in the page's language
+    lang = i18n.current()
+    for category in categories:
+        category["label"] = i18n.text(category["label"])
+        for row in category["rows"]:
+            for fact in row["facts"]:
+                fact["text"] = compare.say_fact(fact["text"], lang)
     return jsonify({"categories": categories, "compared": len(english_of)})
 
 

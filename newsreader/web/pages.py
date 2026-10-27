@@ -11,7 +11,7 @@ from pathlib import Path
 
 from flask import abort, current_app, jsonify, redirect, render_template, request, send_file, url_for
 
-from newsreader import paths
+from newsreader import i18n, paths
 from newsreader.library import index
 from newsreader.library.files import resolve_html_file, validate_directory
 from newsreader.services import images as image_service
@@ -79,10 +79,12 @@ def image_entries(article_id: int, article: dict) -> list[dict]:
 
 def _error_page(message: str, status: int):
     heading = _HEADINGS.get(status, _HEADINGS[400 if status < 500 else 500])
-    if message.startswith(heading):  # said once, as the heading
-        message = message[len(heading):].lstrip("。")
     if status >= 500 and public.is_visitor():  # the owner's log is not theirs to read
         message = "時間をおいて、もう一度開いてみてください。"
+    # In the page's language first: a message that starts with the heading says it once, as the heading
+    message, heading = i18n.text(message), i18n.text(heading)
+    if message.startswith(heading):
+        message = message[len(heading):].lstrip("。. ")
     return render_template("error.html", message=message, status=status, heading=heading), status
 
 
@@ -170,10 +172,11 @@ def index_page():
     # the one most outlets carry leads the page with its picture.
     narrowed = bool(source or query or genre or result["page"] > 1)
     highlights = [] if narrowed else front_stories(db)
-    # Headlines already translated are printed with the page (the rest are fetched after load).
+    # Headlines already translated into the page's language are printed with the page (the rest are
+    # fetched after load).
     from newsreader.services import translation
     kept = translation.cached_titles([item["title"] for item in result["items"]]
-                                     + [story["lead_title"] for story in highlights], "ja")
+                                     + [story["lead_title"] for story in highlights], page_target())
     for item, ja in zip(result["items"] + highlights, kept):
         item["ja"] = ja
     # 既読・保存 (the same on the PC and the phone)
@@ -201,9 +204,14 @@ def index_page():
     return response
 
 
+def page_target() -> str:
+    """The translation target that reads as the page's language (翻訳先 follows it until the reader picks one)."""
+    return i18n.TARGETS[i18n.current()]
+
+
 def _kept_title(title: str) -> str:
     from newsreader.services import translation
-    return translation.cached_titles([title], "ja")[0] if title else ""
+    return translation.cached_titles([title], page_target())[0] if title else ""
 
 
 @routes.get("/a/<int:article_id>", "show_article")
@@ -263,7 +271,8 @@ def web_manifest():
     """Added to a phone's home screen, the site opens as its own app with its name and icon."""
     from newsreader import branding
     response = jsonify({
-        "name": branding.APP_NAME, "short_name": branding.APP_NAME, "description": branding.APP_TAGLINE, "lang": "ja",
+        "name": branding.APP_NAME, "short_name": branding.APP_NAME, "description": i18n.text(branding.APP_TAGLINE),
+        "lang": i18n.current(),
         "start_url": url_for("index"), "scope": url_for("index"), "display": "standalone",
         "background_color": "#f6f4ef", "theme_color": "#f6f4ef",
         "icons": [{"src": url_for("static", filename=f"icon-{n}.png"), "sizes": f"{n}x{n}", "type": "image/png"} for n in (192, 512)],

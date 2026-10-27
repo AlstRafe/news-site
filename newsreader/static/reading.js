@@ -1,6 +1,7 @@
 // Article page: 後で読む, 読み上げ and 文字の大きさ.
 (() => {
   "use strict";
+  const T = NR.t; // a text in the page's language (i18n.js)
   const base = document.querySelector('meta[name="app-base"]')?.content || "";
   const csrf = document.querySelector('meta[name="csrf-token"]')?.content || "";
   const reader = document.getElementById("reading-content");
@@ -10,7 +11,7 @@
       headers: { "Content-Type": "application/json", "X-CSRF-Token": csrf }, body: JSON.stringify(body)
     });
     const payload = await response.json().catch(() => ({}));
-    if (!response.ok) throw new Error(payload.error || "保存できませんでした。");
+    if (!response.ok) throw new Error(payload.error || T("保存できませんでした。"));
     return payload;
   };
 
@@ -22,7 +23,7 @@
     try {
       const payload = await post("/api/saved", { id: Number(save.dataset.id), saved: on });
       save.setAttribute("aria-pressed", String(payload.saved));
-      save.textContent = payload.saved ? "保存済み" : "後で読む";
+      save.textContent = payload.saved ? T("保存済み") : T("後で読む");
     } catch (error) {
       save.textContent = error.message;
     } finally {
@@ -62,7 +63,7 @@
     synth.cancel();
     reader.querySelectorAll(".speaking").forEach(p => p.classList.remove("speaking"));
     aloud.setAttribute("aria-pressed", "false");
-    aloud.textContent = "読み上げ";
+    aloud.textContent = T("読み上げ");
   };
   const start = () => {
     const bilingual = reader.classList.contains("bilingual") && reader.querySelector(".bi-tr");
@@ -73,7 +74,7 @@
     const first = Math.max(0, paragraphs.findIndex(p => p.getBoundingClientRect().bottom > 90));
     speaking = true;
     aloud.setAttribute("aria-pressed", "true");
-    aloud.textContent = "読み上げを止める";
+    aloud.textContent = T("読み上げを止める");
     paragraphs.slice(first).forEach((p, i, list) => {
       const lang = p.lang || p.closest("[lang]")?.lang || "ja";
       const voice = voiceFor(lang);

@@ -1,5 +1,6 @@
 (() => {
   "use strict";
+  const T = NR.t; // a text in the page's language (i18n.js)
   // the path the site is served under ("/news" behind the front page; "" on its own)
   const base = document.querySelector('meta[name="app-base"]')?.content || "";
   const controls = document.getElementById("translation-controls");
@@ -29,10 +30,11 @@
   const targetMenu = (() => { try { return JSON.parse(document.querySelector('meta[name="translation-targets"]')?.content || "{}"); } catch (_) { return {}; } })();
   const targetNames = Object.fromEntries(Object.entries(targetMenu).map(([code, t]) => [code, t.label]));
 
-  try {
-    const saved = localStorage.getItem("news-html-reader-translation-target");
-    if (saved && targetNames[saved] && !targetSelect.querySelector(`option[value="${saved}"]`)?.disabled) targetSelect.value = saved;
-  } catch (_) { /* local storage can be disabled */ }
+  let saved = null;
+  try { saved = localStorage.getItem("news-html-reader-translation-target"); } catch (_) { /* local storage can be disabled */ }
+  // 翻訳先 follows the page's language until the reader picks one
+  const wanted = saved && targetNames[saved] ? saved : NR.target;
+  if (targetNames[wanted] && !targetSelect.querySelector(`option[value="${wanted}"]`)?.disabled) targetSelect.value = wanted;
   targetSelect.addEventListener("change", () => {
     try { localStorage.setItem("news-html-reader-translation-target", targetSelect.value); } catch (_) { /* optional */ }
   });
@@ -59,7 +61,7 @@
   async function copyText(text, button) {
     const originalLabel = button.textContent;
     const value = String(text || "").trim();
-    if (!value) { button.textContent = "コピーする内容なし"; window.setTimeout(() => { button.textContent = originalLabel; }, 1400); return; }
+    if (!value) { button.textContent = T("コピーする内容なし"); window.setTimeout(() => { button.textContent = originalLabel; }, 1400); return; }
     try {
       if (navigator.clipboard?.writeText && window.isSecureContext) {
         await navigator.clipboard.writeText(value);
@@ -75,9 +77,9 @@
         area.remove();
         if (!copied) throw new Error("copy failed");
       }
-      button.textContent = "コピーしました";
+      button.textContent = T("コピーしました");
     } catch (_) {
-      button.textContent = "コピーできません";
+      button.textContent = T("コピーできません");
     }
     window.setTimeout(() => { button.textContent = originalLabel; }, 1400);
   }
@@ -106,7 +108,7 @@
     wordToKeep = keepable ? { word: original, meaning: translation, target, sentence: currentSentence || "" } : null;
     button.hidden = !wordToKeep;
     button.disabled = false;
-    button.textContent = "単語帳に入れる";
+    button.textContent = T("単語帳に入れる");
   }
   document.getElementById("save-word")?.addEventListener("click", async event => {
     const button = event.currentTarget;
@@ -114,9 +116,9 @@
     button.disabled = true;
     try {
       const { ok, payload } = await postJson(base + "/api/words", { ...wordToKeep, id: articleId || undefined });
-      button.textContent = ok ? "単語帳に入れました" : (payload.error || "入れられませんでした");
+      button.textContent = ok ? T("単語帳に入れました") : (payload.error || T("入れられませんでした"));
     } catch (_) {
-      button.textContent = "入れられませんでした";
+      button.textContent = T("入れられませんでした");
       button.disabled = false;
     }
   });
@@ -160,7 +162,7 @@
     a.href = url;
     a.target = "_blank";
     a.rel = "noopener noreferrer";
-    a.textContent = `${label || "辞書で確認"}`;
+    a.textContent = `${label || T("辞書で確認")}`;
     p.appendChild(a);
     container.appendChild(p);
   }
@@ -170,7 +172,7 @@
     if (payload.ipa) {
       const p = document.createElement("p");
       const label = document.createElement("strong");
-      label.textContent = `${payload.ipa_label || "英国英語 IPA"}: `;
+      label.textContent = `${payload.ipa_label || T("英国英語 IPA")}: `;
       p.append(label, document.createTextNode(payload.ipa));
       details.appendChild(p);
     }
@@ -178,7 +180,7 @@
       const box = document.createElement("div");
       box.className = "dictionary-entries";
       const heading = document.createElement("strong");
-      heading.textContent = "漢字語・辞書の語義";
+      heading.textContent = T("漢字語・辞書の語義");
       box.appendChild(heading);
       const list = document.createElement("ul");
       for (const entry of payload.hanja) {
@@ -193,7 +195,7 @@
           a.href = entry.source_url;
           a.target = "_blank";
           a.rel = "noopener noreferrer";
-          a.textContent = "出典";
+          a.textContent = T("出典");
           li.appendChild(a);
         }
         list.appendChild(li);
@@ -202,34 +204,34 @@
       details.appendChild(box);
     } else if (payload.dictionary_configured === false) {
       const p = document.createElement("p");
-      p.textContent = "韓国語の漢字語情報には国立国語院APIキーが必要です。";
+      p.textContent = T("韓国語の漢字語情報には国立国語院APIキーが必要です。");
       if (owner) {
         const a = document.createElement("a");
         a.href = base + "/translation-settings";
-        a.textContent = "翻訳設定を開く";
+        a.textContent = T("翻訳設定を開く");
         p.append(" ", a);
       }
       details.appendChild(p);
     } else if (payload.dictionary_label && payload.dictionary_configured !== false && selectedText.match(/[\uac00-\ud7a3]/)) {
       const p = document.createElement("p");
-      p.textContent = "辞書で一致する漢字語は見つかりませんでした。";
+      p.textContent = T("辞書で一致する漢字語は見つかりませんでした。");
       details.appendChild(p);
     }
     if (payload.zhuyin) {
       const p = document.createElement("p");
       const label = document.createElement("strong");
-      label.textContent = "注音符號: ";
+      label.textContent = T("注音符號: ");
       p.append(label, document.createTextNode(payload.zhuyin));
       details.appendChild(p);
     } else if (payload.dictionary_label && selectedText.match(/[\u3400-\u4dbf\u4e00-\u9fff\uf900-\ufaff]/) && !selectedText.match(/[\uac00-\ud7a3]/)) {
       const p = document.createElement("p");
-      p.textContent = "教育部辞典で完全一致する見出しが見つかりませんでした。";
+      p.textContent = T("教育部辞典で完全一致する見出しが見つかりませんでした。");
       details.appendChild(p);
     }
     if (payload.meaning) {
       const p = document.createElement("p");
       const label = document.createElement("strong");
-      label.textContent = `意味（${payload.meaning_language || "日本語"}）: `;
+      label.textContent = T("意味（{language}）: ", { language: payload.meaning_language || T("日本語") });
       p.append(label, document.createTextNode(payload.meaning));
       details.appendChild(p);
     }
@@ -244,8 +246,8 @@
     const button = document.getElementById("pin-selection");
     if (!button) return;
     button.setAttribute("aria-pressed", String(pinned));
-    button.title = pinned ? "固定を解除（単語の近くに表示）" : "右側に固定（本文を隠さない）";
-    button.setAttribute("aria-label", pinned ? "固定を解除" : "右側に固定");
+    button.title = pinned ? T("固定を解除（単語の近くに表示）") : T("右側に固定（本文を隠さない）");
+    button.setAttribute("aria-label", pinned ? T("固定を解除") : T("右側に固定"));
   }
   try { setPinned(localStorage.getItem(PIN_KEY) === "1"); } catch (_) { setPinned(false); }
 
@@ -360,17 +362,17 @@
     if (!paragraph?.isConnected || inlineTranslation(paragraph)) return;
     const target = targetSelect.value;
     button.disabled = true;
-    button.textContent = "訳しています…";
+    button.textContent = T("訳しています…");
     let text = "";
     let failure = "";
     try {
       const { ok, payload } = await postJson(base + "/api/translate", { text: (paragraph.textContent || "").trim(), target, plain: true });
       if (ok && payload.translation) text = payload.translation;
-      else failure = payload.translation_error || payload.error || "翻訳できませんでした。";
+      else failure = payload.translation_error || payload.error || T("翻訳できませんでした。");
     } catch (_) {
-      failure = "アプリに接続できませんでした。";
+      failure = T("アプリに接続できませんでした。");
     }
-    button.textContent = "段落を対訳表示";
+    button.textContent = T("段落を対訳表示");
     button.disabled = false;
     if (failure) {
       const error = document.getElementById("selection-error");
@@ -397,15 +399,15 @@
     const sequence = requestCounter;
     button.disabled = true;
     document.getElementById("sentence-original").textContent = currentSentence;
-    document.getElementById("sentence-translation").textContent = "翻訳しています…";
+    document.getElementById("sentence-translation").textContent = T("翻訳しています…");
     box.hidden = false;
     placePopup();
     let text;
     try {
       const { ok, payload } = await postJson(base + "/api/translate", { text: currentSentence, target: targetSelect.value, plain: true });
-      text = ok && payload.translation ? payload.translation : (payload.translation_error || payload.error || "翻訳できませんでした。");
+      text = ok && payload.translation ? payload.translation : (payload.translation_error || payload.error || T("翻訳できませんでした。"));
     } catch (_) {
-      text = "アプリに接続できませんでした。";
+      text = T("アプリに接続できませんでした。");
     }
     if (sequence !== requestCounter) return;
     document.getElementById("sentence-translation").textContent = text;
@@ -427,18 +429,18 @@
     clearSelectionDetails();
     const output = document.getElementById("selection-translation");
     output.classList.add("loading");
-    makeParagraphs(output, "翻訳しています…");
+    makeParagraphs(output, T("翻訳しています…"));
     openPopup();
     let payload;
     let ok = true;
     try {
       ({ ok, payload } = await postJson(base + "/api/translate", { text: normalized, target: targetSelect.value }));
     } catch (_) {
-      payload = { translation_error: "アプリに接続できませんでした。サーバーが起動しているか確認してください。" };
+      payload = { translation_error: T("アプリに接続できませんでした。サーバーが起動しているか確認してください。") };
     }
     if (sequence !== requestCounter) return;
     output.classList.remove("loading");
-    if (!ok && !payload.translation_error && !payload.error) payload.translation_error = "翻訳要求に失敗しました。もう一度お試しください。";
+    if (!ok && !payload.translation_error && !payload.error) payload.translation_error = T("翻訳要求に失敗しました。もう一度お試しください。");
     makeParagraphs(output, payload.translation || "");
     if (payload.translation_error || payload.error) {
       const error = document.getElementById("selection-error");
@@ -447,7 +449,7 @@
       if (owner) {
         const link = document.createElement("a");
         link.href = base + "/translation-settings";
-        link.textContent = "翻訳設定を確認";
+        link.textContent = T("翻訳設定を確認");
         document.getElementById("language-details").appendChild(link);
       }
     }
@@ -460,7 +462,7 @@
     if (lost.length) {  // 訳文の数字チェック (D-69)
       const note = document.createElement("p");
       note.className = "num-check-card";
-      note.textContent = `訳文に見当たらない数字: ${lost.join("・")}`;
+      note.textContent = T("訳文に見当たらない数字: {numbers}", { numbers: lost.join(T("・")) });
       document.getElementById("language-details").prepend(note);
     }
     placePopup({ reveal: true });
@@ -473,7 +475,7 @@
     const details = document.getElementById("language-details");
     const box = document.createElement("div");
     box.className = "senses loading";
-    box.textContent = "辞書を引いています…";
+    box.textContent = T("辞書を引いています…");
     details.prepend(box);
     let result = null;
     try { result = await postJson(base + "/api/dictionary", { text, target }); } catch (_) { result = null; }
@@ -493,7 +495,7 @@
     }
     const source = document.createElement("p");
     source.className = "senses-source";
-    source.textContent = String(result.payload.label || "辞書");
+    source.textContent = String(result.payload.label || T("辞書"));
     box.appendChild(source);
     placePopup({ reveal: true }); // the card grew: keep the word in view above a phone's sheet
   }
@@ -750,7 +752,7 @@
     clearBilingual();
     // With "open in 対訳" on, follow the new language instead of just closing.
     if (document.getElementById("bi-auto")?.checked) toggleBilingual(true);
-    else status.textContent = "翻訳先を変えたため対訳を閉じました。";
+    else status.textContent = T("翻訳先を変えたため対訳を閉じました。");
   });
 
   biButton.addEventListener("click", () => {
@@ -772,13 +774,13 @@
     reader.classList.toggle("tr-only", prefersOnly());
     syncMode();
     syncFloat();
-    status.textContent = "対訳を作成しています…";
+    status.textContent = T("対訳を作成しています…");
     try {
       const { ok, payload } = await postJson(base + "/api/translate-paragraphs", { id: articleId, target, auto: auto === true });
-      if (!ok || payload.error) throw new Error(payload.error || "翻訳に失敗しました。");
+      if (!ok || payload.error) throw new Error(payload.error || T("翻訳に失敗しました。"));
       const originals = [...reader.querySelectorAll(":scope > p:not(.bi-tr)")];
       if (!Array.isArray(payload.paragraphs) || payload.paragraphs.length !== originals.length) {
-        throw new Error("段落の対応が取れませんでした。本文の下の「全文をまとめて翻訳する」をお試しください。");
+        throw new Error(T("段落の対応が取れませんでした。本文の下の「全文をまとめて翻訳する」をお試しください。"));
       }
       reader.querySelectorAll(".bi-tr").forEach(node => node.remove()); // single-paragraph ones
       unwrapSentences();
@@ -798,7 +800,7 @@
           const note = document.createElement("p");
           note.className = "bi-tr num-check";
           note.setAttribute("role", "note");
-          note.textContent = `訳文に見当たらない数字: ${lost.join("・")}（原文の数字を確かめてください）`;
+          note.textContent = T("訳文に見当たらない数字: {numbers}（原文の数字を確かめてください）", { numbers: lost.join(T("・")) });
           translated.after(note);
           doubtful += 1;
         }
@@ -815,11 +817,11 @@
       reader.classList.add("bilingual");
       biTarget = target;
       // opened by itself, the 対訳 speaks for itself: only a warning takes room above the text
-      status.textContent = (auto ? "" : `${targetNames[target]}の対訳を表示しました。` +
-        (reader.classList.contains("paired") ? "文にカーソルを合わせる（タップする）と、対応する訳文が光ります。" : "")) +
-        (doubtful ? `${doubtful} 段落で、原文の数字が訳文に見当たりません。` : "");
+      status.textContent = (auto ? "" : T("{language}の対訳を表示しました。", { language: targetNames[target] }) +
+        (reader.classList.contains("paired") ? T("文にカーソルを合わせる（タップする）と、対応する訳文が光ります。") : "")) +
+        (doubtful ? T("{count} 段落で、原文の数字が訳文に見当たりません。", { count: doubtful }) : "");
     } catch (error) {
-      status.textContent = error.message || "翻訳に失敗しました。";
+      status.textContent = error.message || T("翻訳に失敗しました。");
     } finally {
       biButton.disabled = false;
       syncMode();
@@ -834,9 +836,9 @@
   function syncFloat() {
     if (!biFloat) return;
     biFloat.disabled = biButton.disabled;
-    biFloat.textContent = biButton.disabled ? "訳しています…" : biTarget ? "訳を隠す" : "対訳";
+    biFloat.textContent = biButton.disabled ? T("訳しています…") : biTarget ? T("訳を隠す") : T("対訳");
     biFloat.setAttribute("aria-pressed", biTarget ? "true" : "false");
-    biFloat.title = biButton.disabled ? "" : (biTarget ? "対訳を閉じる" : "この記事を対訳で表示") + (status.textContent ? `（${status.textContent}）` : "");
+    biFloat.title = biButton.disabled ? "" : (biTarget ? T("対訳を閉じる") : T("この記事を対訳で表示")) + (status.textContent ? `（${status.textContent}）` : "");
   }
   if (biFloat && "IntersectionObserver" in window) {
     const controls = document.getElementById("translation-controls");
@@ -904,25 +906,25 @@
   wholeButton.addEventListener("click", async () => {
     const target = targetSelect.value;
     wholeButton.disabled = true;
-    status.textContent = "全文を翻訳しています…";
+    status.textContent = T("全文を翻訳しています…");
     wholeResult.hidden = false;
-    document.getElementById("whole-title").textContent = `全文翻訳 · ${targetNames[target]}`;
-    makeParagraphs(document.getElementById("whole-translation"), "翻訳しています…");
+    document.getElementById("whole-title").textContent = T("全文翻訳 · {language}", { language: targetNames[target] });
+    makeParagraphs(document.getElementById("whole-translation"), T("翻訳しています…"));
     try {
       const { ok, payload } = await postJson(base + "/api/translate-article", { id: articleId, target });
-      if (!ok || payload.error) throw new Error(payload.error || "翻訳に失敗しました。");
+      if (!ok || payload.error) throw new Error(payload.error || T("翻訳に失敗しました。"));
       makeParagraphs(document.getElementById("whole-translation"), payload.translation);
-      status.textContent = "翻訳しました。";
+      status.textContent = T("翻訳しました。");
     } catch (error) {
       const output = document.getElementById("whole-translation");
-      makeParagraphs(output, error.message || "翻訳に失敗しました。");
+      makeParagraphs(output, error.message || T("翻訳に失敗しました。"));
       if (owner) {
         const link = document.createElement("a");
         link.href = base + "/translation-settings";
-        link.textContent = "翻訳設定を確認";
+        link.textContent = T("翻訳設定を確認");
         output.appendChild(link);
       }
-      status.textContent = "翻訳に失敗しました。";
+      status.textContent = T("翻訳に失敗しました。");
     } finally {
       wholeButton.disabled = false;
     }

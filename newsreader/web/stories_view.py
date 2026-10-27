@@ -39,7 +39,9 @@ def timeline_chart(story: dict) -> dict | None:
         rows.setdefault(member["source"] or "未分類", []).append(
             {"id": member["id"], "title": member["title"], "published": member["published"],
              "x": round(3 + 94 * (moment - first).total_seconds() / span, 2)})
-    return {"rows": [{"source": source, "y": index * CHART_ROW + CHART_ROW // 2, "points": points}
+    from newsreader import i18n
+    return {"rows": [{"source": source, "y": index * CHART_ROW + CHART_ROW // 2, "points": points,
+                      "label": i18n.text("{outlet} {count} 本", outlet=i18n.text(source), count=len(points))}
                      for index, (source, points) in enumerate(rows.items())],
             "height": len(rows) * CHART_ROW, "first": story["oldest"], "last": story["newest_time"],
             "hours": round(span / 3600, 1)}
@@ -117,13 +119,16 @@ def digest_page():
             "SELECT s.pivot, a.source FROM articles a JOIN story_items s ON s.article_id = a.id "
             "WHERE a.error = '' AND s.pivot IS NOT NULL AND a.published >= ?", (since,))]
     names = compare.top_names(headlines)
-    # The names in Japanese (each kept once translated; an automatic translation, so it stops at
-    # the month's limit and the English names stay).
+    # The names in the page's language (each kept once translated; an automatic translation, so it
+    # stops at the month's limit and the English names stay; an English page has them as they are).
     from newsreader.services import translation
+    from newsreader.web.pages import page_target
+    target = page_target()
     try:
-        with translation.automatic(True):
-            for name, ja in zip(names, translation.translate_titles([n["name"] for n in names], "ja", kind="name", max_chars=60)):
-                name["ja"] = ja if ja and ja.casefold() != name["name"].casefold() else ""
+        if target != "en":
+            with translation.automatic(True):
+                for name, ja in zip(names, translation.translate_titles([n["name"] for n in names], target, kind="name", max_chars=60)):
+                    name["ja"] = ja if ja and ja.casefold() != name["name"].casefold() else ""
     except Exception:  # noqa: BLE001 - no key, quota, network: the English names are still right
         pass
     response = current_app.make_response(render_template("digest.html", groups=groups, stats=stats, hours=hours,

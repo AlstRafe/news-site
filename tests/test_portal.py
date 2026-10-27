@@ -55,10 +55,10 @@ class PortalTests(Library):
         self.assertIn(f'href="/news/a/{self.article}"', page)
         self.assertIn('"/news/a/*"', page)  # prefetch rules
         self.assertIn("/news/static/style.css", page)
-        # the way back to the front page, in the top menu and the footer
-        self.assertIn('<a class="nav-text" href="/">サイト一覧</a>', page)
+        # the way back to the front page: top left as on the PC's other sites (an arrow alone on phones), and the footer
+        self.assertIn('<div class="wrap brand"><a class="portal-link" href="/" title="サイト一覧へ戻る" aria-label="サイト一覧へ戻る">'
+                      '<span aria-hidden="true">←</span><span class="portal-text">サイト一覧</span></a><a class="brand-link"', page)
         self.assertIn('<a href="/">← サイト一覧</a>', page)
-        self.assertIn('<a class="tab-home" href="/">サイト一覧</a></nav>', page)  # phones: the tab bar
         self.assertEqual(self.client.get(f"/news/a/{self.article}", headers=H).status_code, 200)
         response = self.client.get("/news", headers=H)
         self.assertEqual((response.status_code, response.headers["Location"]), (302, "/news/"))

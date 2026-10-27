@@ -256,6 +256,32 @@ def dateline(source: str, first: str) -> dict | None:
     return {"kind": kind, "place": place, "place_ja": ja, "label": label}
 
 
+# --- in the page's language ----------------------------------------------------------------
+# Analyses are kept (in memory) in Japanese; what a page shows is said in its own language when it
+# is made (newsreader/i18n.py; Japanese outside a page). Organisations and places are looked up by
+# their Japanese names.
+
+def _say(ja: str, **values) -> str:
+    from newsreader import i18n
+    return i18n.text(ja, **values)
+
+
+def _places(places: list[str], limit: int = 0) -> str:
+    shown = _say("・").join(_say(place) for place in (places[:limit] if limit else places))
+    return shown + (_say(" ほか{n}", n=len(places) - limit) if limit and len(places) > limit else "")
+
+
+def dateline_label(dateline: dict) -> str:
+    """「東京の特派員」, 「外電のまとめ（キーウ発）」 … in the page's language."""
+    if not dateline:
+        return ""
+    if dateline["kind"] == "compiled":
+        return _say("複数の報道のまとめ")
+    place = _places([part for part in dateline["place_ja"].split("・") if part])
+    return _say({"correspondent": "{place}の特派員", "staff": "{place}の記者", "wire": "外電のまとめ（{place}発）"}[dateline["kind"]],
+                place=place)
+
+
 # --- one article ---------------------------------------------------------------------
 
 def analyze(source: str, paragraphs: list[str]) -> dict:
@@ -290,21 +316,21 @@ def analyze(source: str, paragraphs: list[str]) -> dict:
 
 def _kind_label(kind: str, places: list[str], limit: int = 4) -> str:
     """Several articles of one outlet: 「外電のまとめ（キーウ・モスクワ発）」, 「特派員（東京・ソウル）」."""
-    shown = "・".join(places[:limit]) + (f" ほか{len(places) - limit}" if len(places) > limit else "")
-    return {"correspondent": f"特派員（{shown}）", "staff": f"記者（{shown}）", "wire": f"外電のまとめ（{shown}発）",
-            "compiled": "複数の報道のまとめ"}[kind]
+    if kind == "compiled":
+        return _say("複数の報道のまとめ")
+    return _say({"correspondent": "特派員（{places}）", "staff": "記者（{places}）", "wire": "外電のまとめ（{places}発）"}[kind],
+                places=_places(places, limit))
 
 
 def summary_line(info: dict, limit: int = 3) -> str:
     """One short line: 「東京の特派員 · 出典: 共同通信・NHK」."""
     parts = []
     if info.get("dateline"):
-        parts.append(info["dateline"]["label"])
-    parts += info.get("own", [])[:1]
+        parts.append(dateline_label(info["dateline"]))
+    parts += [_say(label) for label in info.get("own", [])[:1]]
     cites = info.get("cites") or []
     if cites:
-        more = f" ほか{len(cites) - limit}" if len(cites) > limit else ""
-        parts.append("出典: " + "・".join(c["label"] for c in cites[:limit]) + more)
+        parts.append(_say("出典: {list}", list=_places([c["label"] for c in cites], limit)))
     return " · ".join(parts)
 
 

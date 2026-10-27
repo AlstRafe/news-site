@@ -1,6 +1,7 @@
 // 単語帳: remove a word; hide the meanings to test yourself (tap a word to see its meaning).
 (() => {
   "use strict";
+  const T = NR.t; // a text in the page's language (i18n.js)
   const base = document.querySelector('meta[name="app-base"]')?.content || "";
   const csrf = document.querySelector('meta[name="csrf-token"]')?.content || "";
   const list = document.getElementById("word-list");
@@ -24,7 +25,7 @@
   quiz?.addEventListener("click", () => {
     const on = quiz.getAttribute("aria-pressed") !== "true";
     quiz.setAttribute("aria-pressed", String(on));
-    quiz.textContent = on ? "意味を表示" : "意味を隠して復習";
+    quiz.textContent = on ? T("意味を表示") : T("意味を隠して復習");
     list.classList.toggle("quiz", on);
     list.querySelectorAll("li.shown").forEach(li => li.classList.remove("shown"));
   });

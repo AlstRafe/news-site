@@ -1,4 +1,4 @@
 {% extends "base.html" %}
 {% block head %}<title>{{ heading }} | {{ app_name }}</title><meta name="robots" content="noindex">{% endblock %}
-{% block content %}<div class="error-page"><p class="eyebrow">エラー {{ status }}</p><h1>{{ heading }}</h1>{% if message %}<p>{{ message }}</p>{% endif %}
-<p><a class="back" href="{{ url_for('index') }}">記事一覧へ</a></p></div>{% endblock %}
+{% block content %}<div class="error-page"><p class="eyebrow">{{ _('エラー {status}', status=status) }}</p><h1>{{ heading }}</h1>{% if message %}<p>{{ message }}</p>{% endif %}
+<p><a class="back" href="{{ url_for('index') }}">{{ _('記事一覧へ') }}</a></p></div>{% endblock %}

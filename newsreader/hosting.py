@@ -16,7 +16,7 @@ import json
 import os
 from urllib.parse import quote
 
-from newsreader import paths
+from newsreader import branding, i18n, paths
 
 #: Under the mount, for crawlers to leave alone.
 DISALLOW = ("/api/",)
@@ -33,10 +33,10 @@ def site(mount: str = "/news", host: dict | None = None) -> dict:
     "names": [...], "urls": [...]}``, where and under which names the host answers.
 
     Returns the WSGI ``app`` and what the host's front page shows: ``name``, ``subtitle``,
-    ``preview()`` (the stories several outlets carried, and how fresh the collection is),
+    ``preview(lang)`` (the stories several outlets carried, and how fresh the collection is, in the
+    visitor's language: newsreader/i18n.py),
     ``disallow`` (for robots.txt), ``legacy`` (old addresses: the host redirects unknown ones under the
     mount and passes these prefixes as they are) and ``version()`` (the deployed version)."""
-    from newsreader import branding
     from newsreader.services.preset import import_relay_token
     from newsreader.web import create_app
     from newsreader.web.run import _record_web_status
@@ -51,7 +51,7 @@ def site(mount: str = "/news", host: dict | None = None) -> dict:
     _record_web_status(app, addresses[0], int(host.get("port", 5000)), tuple(addresses[1:]))
     _hand_over_the_start(host, mount)
     return {"app": app, "name": branding.APP_NAME, "subtitle": branding.APP_TAGLINE,
-            "preview": lambda: news_now(app), "disallow": DISALLOW, "legacy": LEGACY_DIRECT,
+            "preview": lambda lang=i18n.DEFAULT: news_now(app, lang), "disallow": DISALLOW, "legacy": LEGACY_DIRECT,
             "version": paths.deployed_version}
 
 
@@ -94,26 +94,33 @@ def _remove_logon_task() -> None:
         print(f"News Site のログオン時の自動起動を外せませんでした: {exc!r}", flush=True)
 
 
-def news_now(news_app) -> dict:
-    """The latest stories several outlets carried (or the newest articles), in Japanese where the
-    headline was translated already, and when the collector last ran; paths are under the site."""
+def news_now(news_app, lang: str = i18n.DEFAULT) -> dict:
+    """The latest stories several outlets carried (or the newest articles), in the visitor's language
+    where the headline was translated already (or is in it), and when the collector last ran; paths
+    are under the site."""
+    from flask import g
     from newsreader.library import index, status
+    from newsreader.library.stories import LANG_TARGETS
     from newsreader.services import translation
     from newsreader.services.settings import collects_hourly
     from newsreader.web.pages import front_stories
     from newsreader.web.status_view import status_data
     db = news_app.config["LIBRARY_DB"]
+    target = i18n.TARGETS.get(lang, "ja")
     with news_app.test_request_context("/"):  # front_stories builds picture URLs
-        # More than are shown: the front page is read in Japanese, so headlines translated already go
-        # first (an hour's new Korean or English headline waits until someone has opened it here).
+        g.lang = lang if lang in i18n.LANGS else i18n.DEFAULT
+        # More than are shown: headlines the visitor can read go first (an hour's new Korean or English
+        # headline waits until someone has opened it in their language here).
         stories = front_stories(db)
         if stories:
-            rows = [(s["lead_title"], f"/stories/{quote(s['key'])}") for s in stories]
+            rows = [(s["lead_title"], f"/stories/{quote(s['key'])}", s.get("lead_source") or "") for s in stories]
         else:
-            rows = [(a["title"], f"/a/{a['id']}") for a in index.list_articles(db, page=1, per_page=PREVIEW * 3)["items"]]
-        kept = translation.cached_titles([title for title, _ in rows], "ja")
+            rows = [(a["title"], f"/a/{a['id']}", a.get("source") or "")
+                    for a in index.list_articles(db, page=1, per_page=PREVIEW * 3)["items"]]
+        kept = translation.cached_titles([title for title, _, _ in rows], target)
         badge = status.badge(status_data(), collects=collects_hourly())
-    shown = sorted(zip(rows, kept), key=lambda row: not row[1])[:PREVIEW]  # stable: newest first within each
-    return {"title": "各社が伝えた話題" if stories else "新着記事",
-            "note": badge["label"] if badge.get("tone") != "idle" else "",
-            "items": [(ja or title, path) for (title, path), ja in shown]}
+        title = i18n.text("各社が伝えた話題" if stories else "新着記事")
+    readable = lambda row, said: bool(said) or LANG_TARGETS.get(branding.source_language(row[2]), "") == target  # noqa: E731
+    shown = sorted(zip(rows, kept), key=lambda pair: not readable(*pair))[:PREVIEW]  # stable: newest first within each
+    return {"title": title, "note": badge["label"] if badge.get("tone") != "idle" else "",
+            "items": [(said or headline, path) for (headline, path, _), said in shown]}

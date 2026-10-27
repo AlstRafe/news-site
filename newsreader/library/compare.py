@@ -196,6 +196,85 @@ def facts_in(text: str) -> list[Fact]:
     return found
 
 
+# ---- a figure in the page's language --------------------------------------------------------------
+# Facts are written once, in Japanese ("少なくとも 53人", "1.9兆ドル", "50人超"), and kept that way
+# (facts_watch stores them); a page in another language says them in its own words.
+
+_SAID = re.compile(r"^(?:(?P<pre>少なくとも|約|最大) )?(?:(?P<vague>数十|数百|数千|十数|百|千)人|(?P<num>\d[\d,]*(?:\.\d+)?)"
+                   r"(?P<big>兆|億|万)?(?P<unit>ポイント|%|歳|人|[^\d\s超近未]+)?)(?P<post>超|近く|未満)?$")
+_BIG = {"兆": 1e12, "億": 1e8, "万": 1e4}
+_SAY = {  # lang -> what each Japanese piece is
+    "ko": {"pre": {"少なくとも": "최소 {x}", "約": "약 {x}", "最大": "최대 {x}"},
+           "post": {"超": "{x} 이상", "近く": "{x} 가까이", "未満": "{x} 미만"},
+           "vague": {"数十": "수십 명", "数百": "수백 명", "数千": "수천 명", "十数": "십수 명", "百": "백여 명", "千": "천여 명"},
+           "big": {"兆": "조", "億": "억", "万": "만"},
+           "unit": {"人": "{x}명", "歳": "{x}세", "ポイント": "{x}%p", "%": "{x}%"},
+           "money": {"ドル": "달러", "台湾ドル": "대만달러", "ユーロ": "유로", "ポンド": "파운드", "円": "엔", "ウォン": "원",
+                     "元": "위안", "ルピー": "루피", "ルーブル": "루블", "ディナール": "디나르", "ペソ": "페소", "レアル": "헤알",
+                     "シェケル": "셰켈", "バーツ": "바트", "ルピア": "루피아", "フラン": "프랑", "フリヴニャ": "흐리우냐",
+                     "リンギット": "링깃"}},
+    "en-GB": {"pre": {"少なくとも": "at least {x}", "約": "about {x}", "最大": "up to {x}"},
+              "post": {"超": "more than {x}", "近く": "nearly {x}", "未満": "fewer than {x}"},
+              "vague": {"数十": "dozens", "数百": "hundreds", "数千": "thousands", "十数": "a dozen or so",
+                        "百": "a hundred or so", "千": "a thousand or so"},
+              "unit": {"人": "{x}", "歳": "aged {x}", "ポイント": "{x} points", "%": "{x}%"},
+              "money": {"ドル": "${x}", "台湾ドル": "NT${x}", "ユーロ": "€{x}", "ポンド": "£{x}", "円": "¥{x}", "ウォン": "₩{x}",
+                        "元": "{x} yuan", "ルピー": "{x} rupees", "ルーブル": "{x} roubles", "ディナール": "{x} dinars",
+                        "ペソ": "{x} pesos", "レアル": "{x} reais", "シェケル": "{x} shekels", "バーツ": "{x} baht",
+                        "ルピア": "{x} rupiah", "フラン": "{x} francs", "フリヴニャ": "{x} hryvnias", "リンギット": "{x} ringgit"}},
+    "zh-TW": {"pre": {"少なくとも": "至少{x}", "約": "約{x}", "最大": "最多{x}"},
+              "post": {"超": "超過{x}", "近く": "近{x}", "未満": "不到{x}"},
+              "vague": {"数十": "數十人", "数百": "數百人", "数千": "數千人", "十数": "十多人", "百": "上百人", "千": "上千人"},
+              "big": {"兆": "兆", "億": "億", "万": "萬"},
+              "unit": {"人": "{x}人", "歳": "{x}歲", "ポイント": "{x}個百分點", "%": "{x}%"},
+              "money": {"ドル": "美元", "台湾ドル": "新台幣", "ユーロ": "歐元", "ポンド": "英鎊", "円": "日圓", "ウォン": "韓元",
+                        "元": "人民幣", "ルピー": "盧比", "ルーブル": "盧布", "ディナール": "第納爾", "ペソ": "披索", "レアル": "雷亞爾",
+                        "シェケル": "謝克爾", "バーツ": "泰銖", "ルピア": "印尼盾", "フラン": "法郎", "フリヴニャ": "格里夫納",
+                        "リンギット": "令吉"}},
+}
+
+
+def _english_number(value: float) -> str:
+    for size, word in ((1e12, "trillion"), (1e9, "billion"), (1e6, "million")):
+        if value >= size:
+            return f"{value / size:,.2f}".rstrip("0").rstrip(".") + f" {word}"
+    return f"{value:,.0f}" if value == int(value) else f"{value:,.2f}".rstrip("0").rstrip(".")
+
+
+def say_fact(text: str, lang: str) -> str:
+    """A fact's figure ("少なくとも 53人", "1.9兆ドル", "50人超") as ``lang`` writes it ("최소 53명",
+    "$1.9 trillion", "超過50人"); a figure written another way is shown as it is."""
+    say = _SAY.get(lang)
+    found = _SAID.match(text or "") if say else None
+    if not found:
+        return text
+    if found["vague"]:
+        shown = say["vague"][found["vague"]]
+    else:
+        unit = found["unit"] or ""
+        if lang == "en-GB":
+            number = _english_number(float(found["num"].replace(",", "")) * _BIG.get(found["big"] or "", 1))
+        else:
+            number = found["num"] + (say["big"][found["big"]] if found["big"] else "")
+        if unit in say["unit"]:
+            shown = say["unit"][unit].replace("{x}", number)
+            if lang == "ko" and found["big"] and unit == "人":
+                shown = f"{number} 명"  # 5만 명, but 53명
+        elif unit in say["money"]:
+            money = say["money"][unit]
+            shown = (money.replace("{x}", number) if "{x}" in money else
+                     f"{number}{money}" if lang == "zh-TW" else f"{number} {money}")
+        elif not unit:
+            shown = number
+        else:
+            return text
+    if found["pre"]:
+        shown = say["pre"][found["pre"]].replace("{x}", shown)
+    if found["post"]:
+        shown = say["post"][found["post"]].replace("{x}", shown)
+    return shown
+
+
 # ---- counts read in Korean and Chinese directly (D-65) -------------------------------------------
 # Counts of people are written in a few fixed ways ("최소 53명이 숨졌다", "至少53人死亡",
 # "4軍人罹難"), so they are read from the original text: no translation, no MT drift in numbers.

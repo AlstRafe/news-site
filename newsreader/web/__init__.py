@@ -48,7 +48,7 @@ def create_app(library_root: Path | str | None = None, db_path: Path | str | Non
     """
     from newsreader.library import index
     from newsreader.library.files import validate_directory
-    from newsreader.web import (api, assets, compare_view, pages, public, reading_view, relay_view, security,
+    from newsreader.web import (api, assets, compare_view, language, pages, public, reading_view, relay_view, security,
                                 settings_view, status_view, stories_view)
 
     app = Flask("newsreader", template_folder=str(paths.TEMPLATES_DIR), static_folder=None)
@@ -64,6 +64,7 @@ def create_app(library_root: Path | str | None = None, db_path: Path | str | Non
                       secret_key=secret_key or security.persistent_secret_key(paths.SECRET_KEY_PATH))
     public.init_app(app)
     assets.init_app(app, dev=assets.is_dev())
+    language.init_app(app)  # after assets: its answers are put in the page's language before they are gzipped
     app.jinja_env.globals["speculation_rules"] = security.register_inline_script(
         "speculation_rules", _speculation_rules(mount))
     app.jinja_env.globals["speculation_rules_visitor"] = security.register_inline_script(
@@ -83,6 +84,17 @@ def create_app(library_root: Path | str | None = None, db_path: Path | str | Non
                                  build_channel=build_channel())
     app.add_template_filter(branding.source_language, "src_lang")
     app.add_template_filter(branding.lang_attr, "lang_attr")
+    # Texts kept in Japanese by the library (labels, outlet names, figures), in the page's language:
+    # an outlet's name stays the key (filters, links, data-lang); only what is shown changes.
+    from markupsafe import Markup, escape
+    from newsreader import i18n
+    from newsreader.library import compare
+    app.add_template_filter(lambda name: i18n.text(name) if name else name, "outlet")
+    app.add_template_filter(lambda ja: i18n.text(ja) if ja else ja, "tr")
+    app.add_template_filter(lambda text: compare.say_fact(text, i18n.current()), "fact")
+    app.add_template_filter(lambda value: Markup("<strong>%s</strong>") % escape(value), "strong")
+    from newsreader.library.provenance import dateline_label
+    app.add_template_filter(dateline_label, "dateline_label")
 
     @app.context_processor
     def _translation_targets():

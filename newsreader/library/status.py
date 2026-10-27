@@ -94,16 +94,22 @@ def minutes_since(iso_utc: str) -> int | None:
 
 
 def ago(iso_utc: str) -> str:
+    """"5分前", in the page's language (newsreader/i18n.py)."""
     minutes = minutes_since(iso_utc)
     if minutes is None:
         return ""
     if minutes < 1:
-        return "たった今"
+        return _say("たった今")
     if minutes < 60:
-        return f"{minutes}分前"
+        return _say("{n}分前", n=minutes)
     if minutes < 48 * 60:
-        return f"{minutes // 60}時間前"
-    return f"{minutes // (24 * 60)}日前"
+        return _say("{n}時間前", n=minutes // 60)
+    return _say("{n}日前", n=minutes // (24 * 60))
+
+
+def _say(ja: str, **values) -> str:
+    from newsreader import i18n
+    return i18n.text(ja, **values)
 
 
 def badge(data: dict | None = None, collects: bool = True) -> dict:
@@ -113,19 +119,20 @@ def badge(data: dict | None = None, collects: bool = True) -> dict:
     collector = data.get("collector") or {}
     finished = collector.get("finished", "")
     if collector.get("running"):
-        return {"label": "取得中…", "tone": "ok", "title": "自動取得を実行中です"}
+        return {"label": _say("取得中…"), "tone": "ok", "title": _say("自動取得を実行中です")}
     if not finished:
         if not collects:
-            return {"label": "サンプル記事", "tone": "idle", "title": "テスト版: 記事はサンプルのみで、自動取得はしません"}
-        return {"label": "未取得", "tone": "idle", "title": "自動取得の記録がまだありません"}
+            return {"label": _say("サンプル記事"), "tone": "idle", "title": _say("テスト版: 記事はサンプルのみで、自動取得はしません")}
+        return {"label": _say("未取得"), "tone": "idle", "title": _say("自動取得の記録がまだありません")}
     since = minutes_since(finished)
     if not collector.get("ok", False):
-        return {"label": f"取得失敗 · {ago(finished)}", "tone": "bad", "title": collector.get("error", "")}
+        return {"label": _say("取得失敗 · {when}", when=ago(finished)), "tone": "bad", "title": collector.get("error", "")}
     # The task runs hourly; three missed hours means the PC slept or the task stopped.
     tone = "warn" if since is not None and since > 3 * 60 else "ok"
     sites = (collector.get("sites") or {}).values()
     saved = sum(int(site.get("saved", 0)) for site in sites)
     if sites and all(site.get("limited") for site in sites):  # a test build at its article limit
-        return {"label": "記事数の上限", "tone": "idle", "title": "テスト版の記事数の上限に達しているため、新しい記事は追加していません"}
-    return {"label": f"取得 {ago(finished)}", "tone": tone,
-            "title": f"前回の自動取得で {saved} 件保存" + ("（3時間以上更新がありません）" if tone == "warn" else "")}
+        return {"label": _say("記事数の上限"), "tone": "idle",
+                "title": _say("テスト版の記事数の上限に達しているため、新しい記事は追加していません")}
+    return {"label": _say("取得 {when}", when=ago(finished)), "tone": tone,
+            "title": _say("前回の自動取得で {count} 件保存", count=saved) + (_say("（3時間以上更新がありません）") if tone == "warn" else "")}

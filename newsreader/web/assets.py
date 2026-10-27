@@ -20,7 +20,7 @@ from pathlib import Path
 from flask import Flask, Response, abort, request, url_for
 from werkzeug.security import safe_join
 
-from newsreader import paths
+from newsreader import i18n, paths
 
 YEAR = 365 * 24 * 3600
 MIN_GZIP_BYTES = 1024
@@ -101,15 +101,18 @@ def accepts_gzip() -> bool:
     return request.accept_encodings["gzip"] > 0
 
 
-def localtime_filter(iso_utc: str) -> str:
-    """A stored UTC timestamp in the server's own timezone (no hard-coded zone), written the
-    Japanese way: "2026年10月23日（金）16:20"."""
+def _local(iso_utc: str) -> datetime | None:
+    """A stored UTC timestamp in the server's own timezone (no hard-coded zone)."""
     try:
-        moment = datetime.strptime(iso_utc, "%Y-%m-%dT%H:%M:%SZ").replace(tzinfo=timezone.utc)
-        local = moment.astimezone()
-        return f"{local.year}年{local.month}月{local.day}日（{_WEEKDAYS[local.weekday()]}）{local:%H:%M}"
+        return datetime.strptime(iso_utc, "%Y-%m-%dT%H:%M:%SZ").replace(tzinfo=timezone.utc).astimezone()
     except (ValueError, TypeError):
-        return ""
+        return None
+
+
+def localtime_filter(iso_utc: str) -> str:
+    """The date and time the way the page's language writes them: "2026年10月23日（金）16:20"."""
+    moment = _local(iso_utc)
+    return i18n.date_time(moment) if moment else ""
 
 
 def lag_filter(iso_utc: str, first_iso: str) -> str:
@@ -121,46 +124,29 @@ def lag_filter(iso_utc: str, first_iso: str) -> str:
     except (ValueError, TypeError):
         return ""
     minutes = int((moment - first).total_seconds() // 60)
-    if minutes < 1:
-        return ""
-    if minutes < 60:
-        return f"+{minutes}分"
-    if minutes < 48 * 60:
-        hours, rest = divmod(minutes, 60)
-        return f"+{hours}時間{rest}分" if rest and hours < 6 else f"+{hours}時間"
-    return f"+{minutes // (24 * 60)}日"
+    return "+" + i18n.minutes(minutes) if minutes >= 1 else ""
 
 
 def localtime_short_filter(iso_utc: str) -> str:
     """"10/13 21:00" in the server's timezone (lists where the year is obvious)."""
-    try:
-        moment = datetime.strptime(iso_utc, "%Y-%m-%dT%H:%M:%SZ").replace(tzinfo=timezone.utc)
-        return moment.astimezone().strftime("%m/%d %H:%M")
-    except (ValueError, TypeError):
-        return ""
+    moment = _local(iso_utc)
+    return i18n.short_time(moment) if moment else ""
 
 
 def localclock_filter(iso_utc: str) -> str:
     """"21:00" in the server's timezone (the day is shown by the list's day separators)."""
-    try:
-        moment = datetime.strptime(iso_utc, "%Y-%m-%dT%H:%M:%SZ").replace(tzinfo=timezone.utc)
-        return moment.astimezone().strftime("%H:%M")
-    except (ValueError, TypeError):
-        return ""
-
-
-_WEEKDAYS = "月火水木金土日"
+    moment = _local(iso_utc)
+    return moment.strftime("%H:%M") if moment else ""
 
 
 def localday_filter(iso_utc: str, today=None) -> str:
     """The local day of a UTC timestamp for list separators: "今日 · 10月19日（月）"."""
-    try:
-        moment = datetime.strptime(iso_utc, "%Y-%m-%dT%H:%M:%SZ").replace(tzinfo=timezone.utc).astimezone()
-    except (ValueError, TypeError):
+    moment = _local(iso_utc)
+    if moment is None:
         return ""
-    label = f"{moment.month}月{moment.day}日（{_WEEKDAYS[moment.weekday()]}）"
     days = ((today or datetime.now().astimezone()).date() - moment.date()).days
-    return {0: "今日 · ", 1: "昨日 · "}.get(days, "") + label
+    near = {0: i18n.text("今日"), 1: i18n.text("昨日")}.get(days)
+    return f"{near} · {i18n.day(moment)}" if near else i18n.day(moment)
 
 
 def init_app(app: Flask, *, dev: bool) -> None:

@@ -9,11 +9,12 @@ import re
 
 from flask import abort, jsonify, request
 
+from newsreader import i18n
 from newsreader.library import index
 from newsreader.services.dictionary import british_ipa, lookup_chinese, lookup_korean_hanja
 from newsreader.services.translation import (
-    MAX_ARTICLE_CHARS, MAX_SELECTION_CHARS, TARGETS, TranslationError, dictionary_available, dictionary_lookup,
-    automatic, translate_paragraphs, translate_text, translate_titles,
+    MAX_ARTICLE_CHARS, MAX_SELECTION_CHARS, TARGET_LABELS, TARGETS, TranslationError, dictionary_available,
+    dictionary_lookup, automatic, translate_paragraphs, translate_text, translate_titles,
 )
 from newsreader.sources import ReaderError
 from newsreader.web.pages import db_path, load_article
@@ -80,16 +81,18 @@ def translate_selection():
         response["dictionary_label"] = dictionary["source_label"]
         if dictionary.get("entries"):
             response["meaning"] = "\n".join(entry["definition"] for entry in dictionary["entries"] if entry.get("definition")) or None
-            response["meaning_language"] = "教育部辞典・繁體中文"
-        if not response.get("meaning") and target == "zh-hant":
+            response["meaning_language"] = i18n.text("教育部辞典・繁體中文")
+        # Read in Chinese (翻訳先 繁體中文), a word still gets its meaning in the page's language.
+        own = i18n.TARGETS[i18n.current()]
+        if not response.get("meaning") and target == "zh-hant" and own != "zh-hant":
             try:
-                response["meaning"] = translate_text(text, "ja", limit=MAX_SELECTION_CHARS)
-                response["meaning_language"] = "日本語"
+                response["meaning"] = translate_text(text, own, limit=MAX_SELECTION_CHARS)
+                response["meaning_language"] = TARGET_LABELS[own]
             except TranslationError:
                 response["meaning"] = None
     elif latin:
         response["ipa"] = british_ipa(text)
-        response["ipa_label"] = "英国英語 · eSpeak NG IPA"
+        response["ipa_label"] = i18n.text("英国英語 · eSpeak NG IPA")
         # The senses come from a second request (/api/dictionary) so the translation shows first.
         response["dictionary"] = dictionary_available(text, target)
     return jsonify(response)
@@ -108,7 +111,7 @@ def dictionary_senses():
         senses = dictionary_lookup(text, target)
     except TranslationError as exc:
         return jsonify({"error": str(exc)}), 503
-    return jsonify({"senses": senses, "available": True, "label": "Azure Translator 辞書"})
+    return jsonify({"senses": senses, "available": True, "label": i18n.text("Azure Translator 辞書")})
 
 
 @routes.post("/api/translate-article", "translate_whole_article")
@@ -182,7 +185,10 @@ def translate_list_titles():
             or not all(isinstance(i, int) and not isinstance(i, bool) for i in ids)):
         return jsonify({"error": "記事または翻訳先の指定が不正です。"}), 400
     records = [(i, index.get(db_path(), i)) for i in dict.fromkeys(ids)]
-    found = [(i, record["title"]) for i, record in records if record and record.get("title")]
+    # A headline already in the target language is not sent (an English page has the BBC's as they are).
+    from newsreader.library import stories
+    found = [(i, record["title"]) for i, record in records if record and record.get("title")
+             and stories.LANG_TARGETS.get(stories.headline_language(db_path(), i), "") != target]
     if not found:
         return jsonify({"translations": {}})
     try:
