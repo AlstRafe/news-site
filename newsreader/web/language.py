@@ -31,7 +31,8 @@ def init_app(app) -> None:
         asked = request.args.get(i18n.COOKIE) if request.method in ("GET", "HEAD") else None
         if asked in i18n.LANGS and not request.path.startswith(("/api/", "/i18n/", "/static/")):
             rest = urlencode([(key, value) for key, value in request.args.items(multi=True) if key != i18n.COOKIE])
-            response = redirect(request.script_root + request.path + (f"?{rest}" if rest else ""))
+            path = "/" + request.path.lstrip("/")  # "//other.example/" must not lead off the site
+            response = redirect(request.script_root + path + (f"?{rest}" if rest else ""))
             response.set_cookie(i18n.COOKIE, asked, max_age=i18n.COOKIE_SECONDS, path="/", samesite="Lax",
                                 secure=request.is_secure)
             return response

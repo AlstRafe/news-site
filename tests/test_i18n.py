@@ -207,6 +207,9 @@ class PageTests(StoryTestCase):
         response = self.client.get("/stories?scope=all&lang=ko", headers=H)
         self.assertEqual(response.status_code, 302)
         self.assertEqual(response.headers["Location"], "/stories?scope=all")
+        # an address starting "//" stays on the site (not a protocol-relative link to another host)
+        odd = self.client.get("/", query_string="lang=ko", headers=H, environ_overrides={"PATH_INFO": "//other.example/"})
+        self.assertEqual(odd.headers["Location"], "/other.example/")
         cookie = response.headers["Set-Cookie"]
         self.assertIn("lang=ko", cookie)
         self.assertIn("Path=/", cookie)

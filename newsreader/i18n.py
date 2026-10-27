@@ -117,8 +117,9 @@ def chosen(cookie: str, accept_language: str) -> str:
 def menu(lang: str) -> Markup:
     """The language menu every site of the PC shows in its header: a <details> that needs no script
     (each choice is a link with ?lang=), the current language marked."""
+    marked = ' aria-current="true"'  # (no backslash inside an f-string's braces before Python 3.12)
     items = "".join(f'<li><a href="?{COOKIE}={code}" lang="{code}" hreflang="{code}"'
-                    f'{" aria-current=\"true\"" if code == lang else ""}>{escape(NAMES[code])}</a></li>' for code in LANGS)
+                    f'{marked if code == lang else ""}>{escape(NAMES[code])}</a></li>' for code in LANGS)
     label = escape(text("言語", lang))
     return Markup(f'<details class="lang"><summary title="{label}" aria-label="{label}: {escape(NAMES[lang])}">'
                   '<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3c2.5 2.6 3.8 5.6 3.8 9s-1.3 6.4-3.8 9c-2.5-2.6-3.8-5.6-3.8-9S9.5 5.6 12 3z"/></svg>'
