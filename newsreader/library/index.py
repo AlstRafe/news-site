@@ -12,8 +12,11 @@ schema changes are migrations that keep rows, never rebuilds.
 """
 from __future__ import annotations
 
+import copy
+import functools
 import json
 import logging
+import os
 import re
 import sqlite3
 import threading
@@ -37,6 +40,14 @@ MIN_SYNC_INTERVAL_SECONDS = 30
 #: Files parsed between two short write transactions. Parsing happens with no lock
 #: held, so a collector writing at the same time waits milliseconds, not seconds.
 WRITE_BATCH = 24
+#: The background sync looks at every file at least this often even when neither the library's
+#: folders nor the database changed (an HTML file rewritten in place changes neither).
+FULL_PASS_SECONDS = 600.0
+#: A read kept by ``kept_until_changed`` is used for at most this long, even when the database
+#: looks unchanged (a coarse file clock could hide a write).
+KEEP_SECONDS = 60.0
+#: Answers kept per read before all of them are dropped.
+KEEP_ENTRIES = 128
 
 _sync_lock = threading.Lock()
 #: Per (db, root) monotonic time of the last sync; ``force=False`` calls inside
@@ -348,8 +359,10 @@ def _sync_locked(root: Path, db_path: Path) -> dict:
     with closing(connect(db_path)) as db:
         # Read the index *before* scanning: a file the collector adds in between is then
         # simply not seen yet, instead of its fresh row being mistaken for a deleted file.
-        known = {(r["source"], r["filename"]): (r["content_key"], r["content"] is not None, r["error"])
-                 for r in db.execute("SELECT source, filename, content_key, content, error FROM articles")}
+        # content IS NOT NULL, not the content itself: every article's body is not read for a yes/no.
+        known = {(r["source"], r["filename"]): (r["content_key"], bool(r["has_content"]), r["error"])
+                 for r in db.execute("SELECT source, filename, content_key, content IS NOT NULL AS has_content, error "
+                                     "FROM articles")}
         files = scan_library(root)
 
         gone = [k for k in known if k not in files]
@@ -430,9 +443,23 @@ class BackgroundSync:
         self.thread.join(timeout)
 
     def _run(self) -> None:
+        looked: tuple | None = None
+        full = 0.0
+        asked = False
         while not self._stop.is_set():
             try:
-                result = sync(self.root_provider(), self.db_path, force=True)
+                root = self.root_provider()
+                # Nothing new in the library's folders and no write to the index (the collector indexes
+                # what it saves itself): no pass, so an idle minute costs a few stat calls, not a read
+                # of every row and every file (a small server's whole CPU, every minute). A pass
+                # asked for (trigger) always runs.
+                now = (folders_stamp(root), db_stamp(self.db_path))
+                if now == looked and time.monotonic() - full < FULL_PASS_SECONDS and not asked:
+                    asked = self._wake.wait(self.interval)
+                    self._wake.clear()
+                    continue
+                result = sync(root, self.db_path, force=True)
+                looked, full = (folders_stamp(root), db_stamp(self.db_path)), time.monotonic()
                 changed = result["added"] or result["updated"] or result["removed"]
                 if self.after_change is not None and (changed or self._first):
                     self._first = False
@@ -444,13 +471,73 @@ class BackgroundSync:
                 _set_state(self.db_path, running=False, error=str(exc), finished=time.time())
             except Exception:
                 log.exception("Background library sync failed")
-            self._wake.wait(self.interval)
+            asked = self._wake.wait(self.interval)
             self._wake.clear()
 
 
 def start_background_sync(root_provider: Callable[[], Path], db_path: Path, interval: float = 60.0,
                           after_change: Callable[[dict], None] | None = None) -> BackgroundSync:
     return BackgroundSync(root_provider, db_path, interval, after_change).start()
+
+
+def folders_stamp(root: Path) -> tuple:
+    """The library folder and its site folders as they are now: a file saved, renamed or removed
+    in one of them changes it (the folder's own time). () when the folder cannot be read."""
+    try:
+        with os.scandir(root) as entries:
+            found = [(entry.name, entry.stat(follow_symlinks=False).st_mtime_ns) for entry in entries
+                     if entry.is_dir(follow_symlinks=False)]
+        return (os.stat(root).st_mtime_ns, tuple(sorted(found)))
+    except OSError:
+        return ()
+
+
+def db_stamp(db_path: Path) -> tuple:
+    """The index file and its write-ahead log as they are now: a commit by any process changes it.
+
+    An empty log is left out: SQLite makes a new, empty one whenever a connection opens after the
+    last one closed, which is no change to the data."""
+    try:
+        main = os.stat(db_path)
+    except OSError:
+        return ()
+    try:
+        wal = os.stat(f"{db_path}-wal")
+        log_file = (wal.st_mtime_ns, wal.st_size) if wal.st_size else ()
+    except OSError:
+        log_file = ()
+    return (main.st_ino, main.st_mtime_ns, main.st_size, log_file)
+
+
+def _frozen(value):
+    if isinstance(value, (list, tuple)):
+        return tuple(_frozen(item) for item in value)
+    if isinstance(value, dict):
+        return tuple(sorted((key, _frozen(item)) for key, item in value.items()))
+    return value
+
+
+def kept_until_changed(read):
+    """For a read of the index that depends on its arguments alone: the answer is kept until the
+    index changes (``db_stamp``, at most KEEP_SECONDS), so a list page asked for again runs none of
+    its counting queries. Every caller gets its own copy to change as it likes."""
+    kept: dict = {}
+
+    @functools.wraps(read)
+    def kept_read(db_path, *args, **kwargs):
+        key = (str(db_path), _frozen(args), _frozen(kwargs))
+        stamp = db_stamp(db_path)
+        hit = kept.get(key)
+        if hit is not None and hit[0] == stamp and stamp and time.monotonic() - hit[1] < KEEP_SECONDS:
+            return copy.deepcopy(hit[2])
+        value = read(db_path, *args, **kwargs)
+        if len(kept) >= KEEP_ENTRIES:
+            kept.clear()
+        kept[key] = (stamp, time.monotonic(), value)
+        return copy.deepcopy(value)
+
+    kept_read.forget = kept.clear
+    return kept_read
 
 
 # --------------------------------------------------------------- queries ----
@@ -477,6 +564,7 @@ def _counts(db: sqlite3.Connection, column: str, query: str, pivot_words: list[s
     return values, counts
 
 
+@kept_until_changed
 def sources(db_path: Path, query: str = "", pivot_words: list[str] | None = None, genre: str = "") -> list[dict]:
     """Outlets with their article counts — with a search or a kind of news, how many of each
     match it (every outlet is still listed, so the chips do not jump around)."""
@@ -486,6 +574,7 @@ def sources(db_path: Path, query: str = "", pivot_words: list[str] | None = None
     return [{"name": name, "count": counts.get(name, 0)} for name in names]
 
 
+@kept_until_changed
 def genre_counts(db_path: Path, source: str = "", query: str = "", pivot_words: list[str] | None = None) -> dict[str, int]:
     """How many articles of each kind of news (genres.py) — within an outlet and a search."""
     with closing(connect(db_path)) as db:
@@ -573,6 +662,7 @@ def search_ids(db: sqlite3.Connection, query: str, pivot_words: list[str] | None
     return list(dict.fromkeys(ids + (_pivot_matches(db, pivot_words) if pivot_words else [])))
 
 
+@kept_until_changed
 def list_articles(db_path: Path, source: str = "", query: str = "", page: int = 1, per_page: int = 24,
                   pivot_words: list[str] | None = None, genre: str = "") -> dict:
     """Newest first. Articles without a parsed date fall back to file time. Never loads bodies.

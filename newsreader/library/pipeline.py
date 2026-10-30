@@ -42,11 +42,15 @@ def keep_warm(db_path: Path, interval: float = 60.0) -> threading.Thread:
     collector regroups in its own process, so this looks rather than waits to be told). Each
     round is cheap when nothing changed (stories.arc keeps its results per state)."""
     def loop() -> None:
+        warmed: tuple | None = None
         while True:
-            try:
-                stories.warm_arcs(db_path)
-            except Exception:
-                log.exception("Preparing 続報 failed")
+            now = index.db_stamp(db_path)  # unchanged index: nothing to prepare (no query at all)
+            if now != warmed:
+                try:
+                    stories.warm_arcs(db_path)
+                    warmed = now
+                except Exception:
+                    log.exception("Preparing 続報 failed")
             time.sleep(interval)
 
     thread = threading.Thread(target=loop, name="warm-pages", daemon=True)

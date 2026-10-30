@@ -223,6 +223,7 @@ def _members(db, keys: list[str]) -> dict[str, list[dict]]:
     return grouped
 
 
+@index.kept_until_changed
 def list_stories(db_path: Path, scope: str = "multi", page: int = 1, per_page: int = 20,
                  query: str = "", pivot_words: list[str] | None = None, keys: list[str] | None = None) -> dict:
     """Groups, newest first. scope "multi" = reported by more than one outlet; "all" = any group.
@@ -378,6 +379,7 @@ def headline_language(db_path: Path, article_id: int) -> str:
     return row[0] if row else ""
 
 
+@index.kept_until_changed
 def badges(db_path: Path, article_ids: list[int]) -> dict[int, dict]:
     """For list cards: {article_id: {"key", "count", "outlets"}} for articles in a multi-outlet group."""
     if not article_ids:
