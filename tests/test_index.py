@@ -49,6 +49,64 @@ class IndexTestCase(unittest.TestCase):
         os.utime(path, (stamp, stamp))
 
 
+
+class IdleCostTests(IndexTestCase):
+    """A small server must not spend its CPU when nothing changed (the web app looks every minute)."""
+
+    def test_a_list_is_read_again_only_after_the_index_changed(self):
+        index.sync(self.root, self.db, force=True)
+        index.list_articles.forget()
+        first = index.list_articles(self.db, page=1, per_page=10)
+        first["items"].clear()  # a caller changing its copy changes nothing kept
+        with mock.patch.object(index, "connect", side_effect=AssertionError("queried again")):
+            again = index.list_articles(self.db, page=1, per_page=10)
+            self.assertEqual(len(again["items"]), 4)
+        with closing(index.connect(self.db)) as db:
+            db.execute("UPDATE articles SET title = 'Changed title' WHERE source = 'CNA'")
+        titles = [item["title"] for item in index.list_articles(self.db, page=1, per_page=10)["items"]]
+        self.assertIn("Changed title", titles)
+
+    def test_the_stamps_see_writes_and_new_files_but_not_reads(self):
+        index.sync(self.root, self.db, force=True)
+        db_before, folders_before = index.db_stamp(self.db), index.folders_stamp(self.root)
+        for _ in range(3):
+            with closing(index.connect(self.db)) as db:
+                db.execute("SELECT COUNT(*) FROM articles").fetchone()
+        self.assertEqual(index.db_stamp(self.db), db_before)
+        with closing(index.connect(self.db)) as db:
+            db.execute("UPDATE articles SET lead = 'x' WHERE source = 'BBC'")
+        self.assertNotEqual(index.db_stamp(self.db), db_before)
+        (self.root / "CNA" / "new.html").write_bytes(CNA)
+        self.assertNotEqual(index.folders_stamp(self.root), folders_before)
+        self.assertEqual(index.folders_stamp(self.tmp / "missing"), ())
+
+    def test_the_background_sync_skips_rounds_while_nothing_changed(self):
+        passes = []
+        real = index.sync
+        with mock.patch.object(index, "sync", side_effect=lambda *a, **k: passes.append(1) or real(*a, **k)):
+            worker = index.start_background_sync(lambda: self.root, self.db, interval=0.05)
+            try:
+                deadline = time.monotonic() + 5
+                while not passes and time.monotonic() < deadline:
+                    time.sleep(0.02)
+                time.sleep(0.4)  # several rounds with nothing new
+                self.assertEqual(len(passes), 1)
+                (self.root / "CNA" / "new.html").write_bytes(CNA)
+                deadline = time.monotonic() + 5
+                while len(passes) < 2 and time.monotonic() < deadline:
+                    time.sleep(0.02)
+                self.assertGreaterEqual(len(passes), 2)
+                self.assertIsNotNone(index.find_by_file(self.db, "CNA", "new.html"))
+                count = len(passes)
+                worker.trigger()  # asked for: runs even though nothing changed
+                deadline = time.monotonic() + 5
+                while len(passes) == count and time.monotonic() < deadline:
+                    time.sleep(0.02)
+                self.assertGreater(len(passes), count)
+            finally:
+                worker.stop()
+
+
 class ContentTests(IndexTestCase):
     def test_stored_content_is_exactly_extract_article(self):
         index.sync(self.root, self.db, force=True)
