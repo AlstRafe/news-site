@@ -535,14 +535,14 @@ def start_background_sync(
 
 def folders_stamp(root: Path) -> tuple:
     """The library folder and its site folders as they are now: a file saved, renamed or removed
-    in one of them changes it (the folder's own time). () when the folder cannot be read."""
+    in one of them changes it (the folder's own time). () when the folder cannot be read.
+
+    Each site folder is stat'ed itself: on Windows ``DirEntry.stat()`` answers from the parent's
+    listing, which NTFS updates late, so a new article in a site folder went unseen there."""
     try:
         with os.scandir(root) as entries:
-            found = [
-                (entry.name, entry.stat(follow_symlinks=False).st_mtime_ns)
-                for entry in entries
-                if entry.is_dir(follow_symlinks=False)
-            ]
+            folders = [entry for entry in entries if entry.is_dir(follow_symlinks=False)]
+        found = [(entry.name, os.stat(entry.path, follow_symlinks=False).st_mtime_ns) for entry in folders]
         return (os.stat(root).st_mtime_ns, tuple(sorted(found)))
     except OSError:
         return ()

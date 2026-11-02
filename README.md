@@ -112,8 +112,10 @@ uvx ruff format .   # Python の整形（uv がなければ pip install ruff で
 uvx ruff check .    # Python のチェック
 npm install         # 初回だけ（newsreader/static 用の Prettier と ESLint）
 npm run format      # JS・CSS・Markdown の整形
-npm run lint        # 整形済みかの確認と ESLint
+npm run lint        # 整形済みかの確認と ESLint（警告 0 件まで）
 ```
+
+GitHub に push すると Actions（`.github/workflows/ci.yml`）がテスト（Ubuntu と Windows）・Ruff・Prettier・ESLint を通します。VM は master を 1 分以内に配信するので、赤くなったらすぐ直してください。
 
 テンプレート（Jinja）と `newsreader/locale`・`tests/fixtures` のデータは整形しません（`.prettierignore`）。
 

@@ -227,7 +227,7 @@
     };
     const target = () => {
       const saved = readLocal("news-html-reader-translation-target");
-      let menu = {};
+      let menu;
       try {
         menu = JSON.parse(document.querySelector('meta[name="translation-targets"]')?.content || "{}");
       } catch (_) {

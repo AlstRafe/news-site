@@ -71,6 +71,7 @@ class LogonStartTests(unittest.TestCase):
 
     def test_background_start_opens_no_browser(self):
         with (
+            mock.patch.object(launcher, "hosted_url", return_value=""),  # not the Home Page server running here
             mock.patch.object(launcher, "background_port_taken", return_value=False),
             mock.patch.object(launcher, "open_background_log", return_value=sys.stdout),
             mock.patch.object(launcher, "wait_for_network"),

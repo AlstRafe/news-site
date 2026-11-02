@@ -308,7 +308,7 @@
     }
   })();
   const targetLang = () => {
-    let saved = null;
+    let saved;
     try {
       saved = localStorage.getItem("news-html-reader-translation-target");
     } catch (_) {
