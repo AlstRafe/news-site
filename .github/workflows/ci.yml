@@ -1,14 +1,18 @@
-# Tests and style checks on every push and pull request. The VM serves whatever reaches master
+# Tests and style checks on every push. The VM serves whatever reaches master
 # within a minute, so a red mark here is the warning before (or right after) it goes live.
 name: CI
 
+# Every branch on push (a pull request shows the run of its branch's last commit), or by hand.
 on:
   push:
-  pull_request:
   workflow_dispatch:
 
 permissions:
   contents: read
+
+env:
+  # Windows runners print with cp1252; the scripts print Japanese (the PC's console and the VM's journal take UTF-8).
+  PYTHONUTF8: "1"
 
 concurrency:
   group: ci-${{ github.ref }}
@@ -25,8 +29,8 @@ jobs:
     runs-on: ${{ matrix.os }}
     timeout-minutes: 15
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+      - uses: actions/checkout@v6
+      - uses: actions/setup-python@v6
         with:
           python-version: "3.12"
           cache: pip
@@ -38,11 +42,11 @@ jobs:
     runs-on: ubuntu-24.04
     timeout-minutes: 10
     steps:
-      - uses: actions/checkout@v4
-      - uses: astral-sh/setup-uv@v6
+      - uses: actions/checkout@v6
+      - uses: astral-sh/setup-uv@v7
       - run: uvx ruff@0.16.9 check .
       - run: uvx ruff@0.16.9 format --check .
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v6
         with:
           node-version: 22
           cache: npm
