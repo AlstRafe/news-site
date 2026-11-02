@@ -10,10 +10,11 @@ from unittest import mock
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 sys.path.insert(0, str(Path(__file__).resolve().parent))
+from test_extractor import CNA, NORMAL
+
 from newsreader.library import index
 from newsreader.services import translation as ts
 from newsreader.web import create_app
-from test_extractor import CNA, NORMAL
 
 H = {"Host": "localhost"}
 

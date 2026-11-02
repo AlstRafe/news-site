@@ -4,10 +4,9 @@ Do not edit. Equivalence tests compare newsreader.sources against this file.
 """
 from __future__ import annotations
 
-import json
 import re
 import time
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta, timezone
 from pathlib import Path
 from urllib.parse import urljoin, urlsplit
 
@@ -27,7 +26,7 @@ class ReaderError(Exception):
 _KST = timezone(timedelta(hours=9))
 
 
-def _to_utc_iso(value: str, naive_tz: timezone = timezone.utc) -> str:
+def _to_utc_iso(value: str, naive_tz: timezone = UTC) -> str:
     """Normalise a page timestamp to ``YYYY-MM-DDTHH:MM:SSZ`` (UTC); "" if unparseable."""
     text = (value or "").strip()
     if not text:
@@ -38,7 +37,7 @@ def _to_utc_iso(value: str, naive_tz: timezone = timezone.utc) -> str:
         return ""
     if moment.tzinfo is None:
         moment = moment.replace(tzinfo=naive_tz)
-    return moment.astimezone(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+    return moment.astimezone(UTC).strftime("%Y-%m-%dT%H:%M:%SZ")
 
 
 def extract_published(soup: BeautifulSoup) -> str:

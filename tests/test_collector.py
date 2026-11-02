@@ -15,11 +15,12 @@ from unittest import mock
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 sys.path.insert(0, str(Path(__file__).resolve().parent))
+from test_extractor import CNA, NORMAL
+
 from newsreader.collect import autofetch, runner
 from newsreader.library import index, status
 from newsreader.services import settings
 from newsreader.web import create_app
-from test_extractor import CNA, NORMAL
 
 ROBOTS_OK = b"User-agent: *\nAllow: /\n"
 BBC_ARTICLE = NORMAL.replace(b"<head>", b'<head><link rel="canonical" href="https://www.bbc.com/news/articles/c1">')
@@ -154,7 +155,7 @@ class CollectionEndToEndTests(unittest.TestCase):
              + "</channel></rss>").encode(), "application/rss+xml")
         for u in finance:
             responses[u] = (CNA.replace(b"https://www.cna.com.tw/news/aopl/example.aspx", u.encode())
-                            .replace("<h1>".encode(), f"<h1>{u[-8:]} ".encode(), 1), "text/html")
+                            .replace(b"<h1>", f"<h1>{u[-8:]} ".encode(), 1), "text/html")
 
         def opener(request, timeout=None):
             target = request.full_url if hasattr(request, "full_url") else request

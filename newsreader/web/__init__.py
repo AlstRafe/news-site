@@ -12,7 +12,6 @@ from flask import Flask
 
 from newsreader import paths
 
-
 #: Runs in <head> before the stylesheet applies, so a saved light/dark choice never flashes
 #: the other theme first. No choice saved = follow the OS (prefers-color-scheme).
 THEME_BOOT = ('(function(){try{var t=localStorage.getItem("theme");'
@@ -48,8 +47,20 @@ def create_app(library_root: Path | str | None = None, db_path: Path | str | Non
     """
     from newsreader.library import index
     from newsreader.library.files import validate_directory
-    from newsreader.web import (api, assets, compare_view, language, pages, public, reading_view, relay_view, security,
-                                settings_view, status_view, stories_view)
+    from newsreader.web import (
+        api,
+        assets,
+        compare_view,
+        language,
+        pages,
+        public,
+        reading_view,
+        relay_view,
+        security,
+        settings_view,
+        status_view,
+        stories_view,
+    )
 
     app = Flask("newsreader", template_folder=str(paths.TEMPLATES_DIR), static_folder=None)
     root = Path(library_root).expanduser() if library_root else paths.articles_dir()
@@ -87,6 +98,7 @@ def create_app(library_root: Path | str | None = None, db_path: Path | str | Non
     # Texts kept in Japanese by the library (labels, outlet names, figures), in the page's language:
     # an outlet's name stays the key (filters, links, data-lang); only what is shown changes.
     from markupsafe import Markup, escape
+
     from newsreader import i18n
     from newsreader.library import compare
     app.add_template_filter(lambda name: i18n.text(name) if name else name, "outlet")

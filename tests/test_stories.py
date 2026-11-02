@@ -12,12 +12,14 @@ import shutil
 import sys
 import tempfile
 import unittest
-from unittest import mock
 from contextlib import closing
 from pathlib import Path
+from unittest import mock
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 sys.path.insert(0, str(Path(__file__).resolve().parent / "fixtures"))
+from datetime import UTC
+
 from newsreader.library import index, pipeline, status, stories
 from newsreader.services import settings
 from newsreader.services.translation import TranslationError
@@ -429,9 +431,10 @@ class WebTests(StoryTestCase):
         self.assertIn(f"本日 {len(NOBEL_ZH)} / 8,000 文字", html)
 
     def test_version_time_is_shown_in_local_time(self):
-        from datetime import datetime, timezone
+        from datetime import datetime
+
         from newsreader.web.status_view import local_version
-        expected = datetime(2026, 10, 18, 18, 43, tzinfo=timezone.utc).astimezone().strftime("%Y-%m-%d %H:%M")
+        expected = datetime(2026, 10, 18, 18, 43, tzinfo=UTC).astimezone().strftime("%Y-%m-%d %H:%M")
         self.assertEqual(local_version("phase-9 (abc1234) 2026-10-18 18:43 +0000"), f"phase-9 (abc1234) {expected}")
         self.assertEqual(local_version("dev"), "dev")
         self.assertEqual(local_version(""), "")
@@ -473,9 +476,10 @@ class NameEvidenceTests(unittest.TestCase):
     """D-21: a weak pair must share a name-like token; common words alone do not join events."""
 
     def group(self, *headlines, hours=1):
-        from datetime import datetime, timedelta, timezone
+        from datetime import datetime, timedelta
+
         from newsreader.library import stories_core as core
-        start = datetime(2026, 10, 13, tzinfo=timezone.utc)
+        start = datetime(2026, 10, 13, tzinfo=UTC)
         items = {n: (core.features(h), start + timedelta(hours=hours * n)) for n, h in enumerate(headlines)}
         shapes = {n: core.shapes(h) for n, h in enumerate(headlines)}
         return [sorted(c) for c in core.cluster(items, shapes)], [sorted(c) for c in core.cluster(items)]
@@ -511,9 +515,10 @@ class NameEvidenceTests(unittest.TestCase):
                                                   2: core.shapes("the cockroach is an insect")}))
 
     def test_forbidden_pairs_never_share_a_cluster(self):
-        from datetime import datetime, timedelta, timezone
+        from datetime import datetime, timedelta
+
         from newsreader.library import stories_core as core
-        start = datetime(2026, 10, 13, tzinfo=timezone.utc)
+        start = datetime(2026, 10, 13, tzinfo=UTC)
         heads = [NOBEL_A, NOBEL_B, NOBEL_ZH_EN, *self.FILLER]
         items = {n: (core.features(h), start + timedelta(hours=n)) for n, h in enumerate(heads)}
         shapes = {n: core.shapes(h) for n, h in enumerate(heads)}
@@ -779,9 +784,10 @@ class BodyApartTests(StoryTestCase):
     """D-75: same-language articles whose texts share almost nothing are not grouped."""
 
     def test_headlines_alike_texts_apart(self):
-        from datetime import datetime, timezone
+        from datetime import datetime
+
         from newsreader.library import stories_core as core
-        t = datetime(2026, 10, 13, tzinfo=timezone.utc)
+        t = datetime(2026, 10, 13, tzinfo=UTC)
         items = {1: (core.features(NOBEL_A), t), 2: (core.features(NOBEL_B), t)}
         self.assertEqual(len(core.cluster(items)), 1)
         self.assertEqual(core.cluster(items, apart=lambda a, b: (a, b) == (1, 2)), [])

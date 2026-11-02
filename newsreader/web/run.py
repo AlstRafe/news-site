@@ -123,8 +123,8 @@ def main() -> int:
     except RuntimeError as exc:
         print(f"起動できませんでした: {exc}", file=sys.stderr)
         return 2
-    from newsreader.services.preset import import_relay_token
     from newsreader import portal
+    from newsreader.services.preset import import_relay_token
     from newsreader.web import create_app
 
     import_relay_token()

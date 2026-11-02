@@ -96,7 +96,10 @@ class LogonStartTests(unittest.TestCase):
             launcher.wait_for_network({}, limit=300)  # gives up in the end and starts anyway
 
     def test_old_shared_task_of_this_copy_is_replaced_by_a_per_copy_task(self):
-        import json, os, tempfile, types
+        import json
+        import os
+        import tempfile
+        import types
         tmp = Path(tempfile.mkdtemp())
         (tmp / "pythonw.exe").write_text("")
         record = tmp / "server-task.json"
@@ -130,6 +133,7 @@ if __name__ == "__main__":
 class StartAtLogonSettingTests(unittest.TestCase):
     def test_default_on_and_saved_off(self):
         import tempfile
+
         from newsreader.services import settings
         with tempfile.TemporaryDirectory() as tmp, mock.patch.object(settings, "SETTINGS_PATH", Path(tmp) / "settings.json"):
             self.assertTrue(settings.start_at_logon())

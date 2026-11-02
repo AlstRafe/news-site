@@ -10,7 +10,7 @@ from __future__ import annotations
 import sqlite3
 import threading
 from contextlib import closing
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 
 _SCHEMA = """
@@ -42,7 +42,7 @@ def _connect(path: Path) -> sqlite3.Connection:
 
 
 def _now() -> str:
-    return datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+    return datetime.now(UTC).strftime("%Y-%m-%dT%H:%M:%SZ")
 
 
 def key_of(record: dict) -> str:

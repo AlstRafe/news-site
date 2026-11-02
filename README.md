@@ -102,6 +102,20 @@ python maintenance.py compact [--apply] # 索引と翻訳キャッシュを VACU
 - 保存済みニュースHTMLと画像には各社の著作物が含まれます。配布用ZIPを作るときは記事HTML・画像、`instance`、仮想環境を除外してください。記事の自動取得は受け取った側のPCで実行できます。
 - 本文は保存済みHTMLから読み込みます。画像取得時のみ、BBC・NAVER・CNAの許可済み画像ホストへアクセスします。各サイトの利用規約・著作権に配慮してご利用ください。
 
+### 書式とチェック
+
+Home Page・Infra Game と同じ書式です（1 行 120 字・ダブルクォート・LF。`.editorconfig`・`.prettierrc.json`・`ruff.toml` は各リポジトリで同じファイル）。VS Code は推奨拡張（EditorConfig・Ruff・Prettier・ESLint ほか）を入れると保存時に整形します。
+
+```bash
+uvx ruff format .   # Python の整形（uv がなければ pip install ruff で ruff format .）
+uvx ruff check .    # Python のチェック
+npm install         # 初回だけ（newsreader/static 用の Prettier と ESLint）
+npm run format      # JS・CSS・Markdown の整形
+npm run lint        # 整形済みかの確認と ESLint
+```
+
+テンプレート（Jinja）と `newsreader/locale`・`tests/fixtures` のデータは整形しません（`.prettierignore`）。
+
 ## 自宅PCでの個人用アクセス（Tailscale）
 
 インターネットに直接公開せずスマートフォンから使う場合は、自宅PCとスマートフォンにTailscaleを入れ、同じtailnetへログインします。ルーターのポート開放やPublic IPでの公開は不要です。TailscaleのMagicDNSを有効にすると、スマートフォンのブラウザーからサーバー名でアクセスできます。クライアント接続が必要で、Tailscaleにログインした端末だけがtailnet内のサービスへ接続します。

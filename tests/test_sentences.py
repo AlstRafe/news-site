@@ -71,6 +71,7 @@ class ParagraphPairsApiTests(unittest.TestCase):
     def setUp(self):
         sys.path.insert(0, str(Path(__file__).resolve().parent))
         from test_extractor import NORMAL
+
         from newsreader.library import index as library
         from newsreader.web import create_app
         self.tmp = Path(tempfile.mkdtemp())

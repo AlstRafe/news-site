@@ -47,7 +47,7 @@ def _mb(size: int) -> str:
 
 def _tree_size(path: Path) -> int:
     total = 0
-    for dirpath, dirnames, filenames in os.walk(path, followlinks=False):
+    for dirpath, _dirnames, filenames in os.walk(path, followlinks=False):
         for name in filenames:
             try:
                 info = os.lstat(os.path.join(dirpath, name))
@@ -199,7 +199,7 @@ def prune(root: Path, *, apply: bool, backup: Path | None, delete: bool) -> Outc
         elif not _has_article(folder, stem):
             targets.append((folder, "記事が無い画像キャッシュ"))
     total = 0
-    for folder, why in targets:
+    for folder, _why in targets:
         size = _tree_size(folder)
         total += size
         if not apply:

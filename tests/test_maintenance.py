@@ -12,10 +12,11 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 sys.path.insert(0, str(Path(__file__).resolve().parent))
+from test_extractor import CNA, NAVER, NORMAL
+
 from newsreader.library import index, maintenance
 from newsreader.sources import extract_article
 from newsreader.sources.slim import slim_html, slim_if_equivalent
-from test_extractor import CNA, NAVER, NORMAL
 
 FAT = NORMAL.replace(b"<head>", b'<head><link rel="canonical" href="https://www.bbc.com/news/articles/c1">'
                                  b"<script>" + b"var x = 1;" * 3000 + b"</script><style>p{color:red}</style>")

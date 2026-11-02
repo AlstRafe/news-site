@@ -13,8 +13,17 @@ from newsreader import i18n
 from newsreader.library import index
 from newsreader.services.dictionary import british_ipa, lookup_chinese, lookup_korean_hanja
 from newsreader.services.translation import (
-    MAX_ARTICLE_CHARS, MAX_SELECTION_CHARS, TARGET_LABELS, TARGETS, TranslationError, dictionary_available,
-    dictionary_lookup, automatic, translate_paragraphs, translate_text, translate_titles,
+    MAX_ARTICLE_CHARS,
+    MAX_SELECTION_CHARS,
+    TARGET_LABELS,
+    TARGETS,
+    TranslationError,
+    automatic,
+    dictionary_available,
+    dictionary_lookup,
+    translate_paragraphs,
+    translate_text,
+    translate_titles,
 )
 from newsreader.sources import ReaderError
 from newsreader.web.pages import db_path, load_article

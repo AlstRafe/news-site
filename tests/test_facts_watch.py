@@ -6,7 +6,7 @@ import sys
 import tempfile
 import unittest
 from contextlib import closing
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from unittest import mock
 
@@ -20,7 +20,7 @@ H = {"Host": "localhost"}
 
 
 def iso(hours_ago: float) -> str:
-    return (datetime.now(timezone.utc) - timedelta(hours=hours_ago)).strftime("%Y-%m-%dT%H:%M:%SZ")
+    return (datetime.now(UTC) - timedelta(hours=hours_ago)).strftime("%Y-%m-%dT%H:%M:%SZ")
 
 
 class FactsWatchTests(unittest.TestCase):
@@ -95,7 +95,7 @@ class FactsWatchTests(unittest.TestCase):
         self.assertEqual(facts_watch.differing(self.db), [])
 
     def test_old_groups_are_left_alone(self):
-        later = datetime.now(timezone.utc) + timedelta(days=5)
+        later = datetime.now(UTC) + timedelta(days=5)
         self.assertEqual(facts_watch.refresh(self.db, self.to_english, now=later)["compared"], 0)
 
     def test_home_page_lists_the_disagreement(self):

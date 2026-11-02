@@ -39,7 +39,6 @@ def tailscale_address() -> str | None:
 
     Asked at every server start rather than once by the launcher: Tailscale may come up after
     the PC's logon task has already started the reader."""
-    import json
     import os
     import shutil
     import socket

@@ -22,13 +22,13 @@ import sqlite3
 import threading
 import time
 import zlib
+from collections.abc import Callable
 from contextlib import closing
 from pathlib import Path
-from typing import Callable
 
 from newsreader import paths
-from newsreader.library.files import FileInfo, scan_library
 from newsreader.library import genres
+from newsreader.library.files import FileInfo, scan_library
 from newsreader.sources import MAX_HTML_BYTES, PARSER_VERSION, ReaderError, extract_article
 
 log = logging.getLogger("newsreader.library")
@@ -429,7 +429,7 @@ class BackgroundSync:
         self._stop = threading.Event()
         self.thread = threading.Thread(target=self._run, name="library-sync", daemon=True)
 
-    def start(self) -> "BackgroundSync":
+    def start(self) -> BackgroundSync:
         self.thread.start()
         return self
 

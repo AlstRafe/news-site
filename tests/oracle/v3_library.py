@@ -14,7 +14,12 @@ import time
 from contextlib import closing
 from pathlib import Path
 
-from oracle.v3_extractor import ALLOWED_EXTENSIONS, MAX_HTML_BYTES, ReaderError, extract_article  # ORACLE: import path only
+from oracle.v3_extractor import (  # ORACLE: import path only
+    ALLOWED_EXTENSIONS,
+    MAX_HTML_BYTES,
+    ReaderError,
+    extract_article,
+)
 
 DEFAULT_DB_PATH = Path(__file__).resolve().parent / "instance" / "library.sqlite3"
 LEAD_CHARS = 140

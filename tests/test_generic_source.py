@@ -3,8 +3,7 @@ import unittest
 
 from newsreader.collect import autofetch
 from newsreader.library import genres
-from newsreader.sources import extract_article, generic
-from newsreader.sources.base import Page
+from newsreader.sources import extract_article
 
 BODY = [f"Paragraph {n} of the story explains how the new routing protocol keeps packets moving." for n in range(6)]
 

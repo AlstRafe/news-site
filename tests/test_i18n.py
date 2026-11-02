@@ -179,7 +179,7 @@ class TranslationTests(unittest.TestCase):
         self.assertEqual(i18n.from_browser("de;q=0.9,ko;q=0.8"), "ko")
 
 
-from test_stories import FakeTranslator, StoryTestCase, NOBEL_ZH, NOBEL_ZH_EN  # noqa: E402
+from test_stories import NOBEL_ZH, NOBEL_ZH_EN, FakeTranslator, StoryTestCase  # noqa: E402
 
 H = {"Host": "localhost"}
 VISITOR = {"Host": "haruxera.tail1234.ts.net"}
@@ -269,6 +269,7 @@ class PageTests(StoryTestCase):
 
     def test_dates_and_figures_in_each_language(self):
         from datetime import datetime
+
         from newsreader.library.compare import say_fact
         moment = datetime(2026, 10, 23, 16, 20)
         self.assertEqual(i18n.date_time(moment, "ja"), "2026年10月23日（金）16:20")

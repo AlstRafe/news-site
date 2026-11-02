@@ -7,7 +7,13 @@ from flask import jsonify, request
 
 from newsreader.services import relay
 from newsreader.services.translation import (
-    _GLOSSARY_OVERRIDE, TARGETS, TranslationError, active_provider, dictionary_available, dictionary_lookup, translate_titles,
+    _GLOSSARY_OVERRIDE,
+    TARGETS,
+    TranslationError,
+    active_provider,
+    dictionary_available,
+    dictionary_lookup,
+    translate_titles,
 )
 from newsreader.web.routing import Routes
 

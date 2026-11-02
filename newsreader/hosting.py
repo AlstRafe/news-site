@@ -99,6 +99,7 @@ def news_now(news_app, lang: str = i18n.DEFAULT) -> dict:
     where the headline was translated already (or is in it), and when the collector last ran; paths
     are under the site."""
     from flask import g
+
     from newsreader.library import index, status
     from newsreader.library.stories import LANG_TARGETS
     from newsreader.services import translation

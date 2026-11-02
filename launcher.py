@@ -18,7 +18,6 @@ from datetime import datetime, timedelta
 from pathlib import Path
 from xml.etree import ElementTree
 
-
 APP_CONFIG = {
     "name": "NewsHtmlReader",
     "minimum_python": (3, 10),
@@ -721,7 +720,7 @@ if __name__ == "__main__":
     try:
         raise SystemExit(main())
     except KeyboardInterrupt:
-        raise SystemExit(0)
+        raise SystemExit(0) from None
     except (OSError, ValueError, subprocess.CalledProcessError) as error:
         print(f"起動できませんでした: {error}", file=sys.stderr)
-        raise SystemExit(1)
+        raise SystemExit(1) from None

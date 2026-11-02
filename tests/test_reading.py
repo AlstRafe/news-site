@@ -8,11 +8,12 @@ from unittest import mock
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 sys.path.insert(0, str(Path(__file__).resolve().parent))
+from test_extractor import CNA, NAVER, NORMAL
+
 from newsreader.library import index, reading
 from newsreader.services import cache
 from newsreader.services import translation as ts
 from newsreader.web import create_app
-from test_extractor import CNA, NAVER, NORMAL
 
 H = {"Host": "localhost"}
 

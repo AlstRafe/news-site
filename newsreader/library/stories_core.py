@@ -16,8 +16,8 @@ from __future__ import annotations
 import math
 import re
 from collections import defaultdict
+from datetime import UTC, datetime
 from functools import lru_cache
-from datetime import datetime, timezone
 
 MAX_GAP_HOURS = 72
 CONTAIN_BLEND = 0.5
@@ -189,7 +189,7 @@ def name_tokens(per_item: dict[int, dict[str, frozenset[str]]]) -> set[str]:
 
 def parse_utc(published: str) -> datetime | None:
     try:
-        return datetime.strptime(published, "%Y-%m-%dT%H:%M:%SZ").replace(tzinfo=timezone.utc)
+        return datetime.strptime(published, "%Y-%m-%dT%H:%M:%SZ").replace(tzinfo=UTC)
     except ValueError:
         return None
 

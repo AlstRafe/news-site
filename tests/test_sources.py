@@ -11,11 +11,12 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-from newsreader import sources
-from newsreader.sources import Page, ReaderError, SiteParse, extract_article
 from oracle import v3_extractor
 from oracle.intended import intended_input
 from test_extractor import CNA, NAVER, NORMAL, VIDEO
+
+from newsreader import sources
+from newsreader.sources import Page, ReaderError, SiteParse, extract_article
 
 EDGE_CASES = {
     "empty": b"",

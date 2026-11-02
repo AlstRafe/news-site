@@ -374,11 +374,13 @@ def compare(members: list[dict]) -> dict:
 import threading as _threading
 from collections import OrderedDict as _OrderedDict
 from contextlib import closing as _closing
-from datetime import datetime as _datetime, timedelta as _timedelta, timezone as _timezone
+from datetime import UTC
+from datetime import datetime as _datetime
+from datetime import timedelta as _timedelta
 from pathlib import Path as _Path
 
 #: Analyses kept in memory, keyed by (id, mtime, size): an article's text changes only when re-saved.
-_CACHE: "_OrderedDict[tuple, dict]" = _OrderedDict()
+_CACHE: _OrderedDict[tuple, dict] = _OrderedDict()
 _CACHE_SIZE = 4000
 _CACHE_LOCK = _threading.Lock()
 
@@ -441,7 +443,7 @@ def story(db_path: _Path, members: list[dict]) -> dict:
 def profiles(db_path: _Path, days: int = 7, now: _datetime | None = None) -> dict[str, dict]:
     """媒体くらべ: per outlet, how its articles were reported and whom they cite most."""
     from newsreader.library import index
-    now = (now or _datetime.now(_timezone.utc)).replace(tzinfo=None)
+    now = (now or _datetime.now(UTC)).replace(tzinfo=None)
     since = (now - _timedelta(days=days)).strftime("%Y-%m-%dT%H:%M:%SZ")
     with _closing(index.connect(db_path)) as db:
         rows = db.execute("SELECT id, source, title, url, published, mtime, size, content FROM articles "

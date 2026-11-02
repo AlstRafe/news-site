@@ -29,8 +29,8 @@ def isolated_instance():
     # No test may read or write the real OS credential store, or reach a real translation
     # provider: an in-memory keyring, and a provider call that fails loudly unless a test
     # installs its own fake (the existing tests do, and restore this guard afterwards).
+
     from newsreader.services import translation
-    import keyring as real_keyring
 
     vault: dict[tuple[str, str], str] = {}
 

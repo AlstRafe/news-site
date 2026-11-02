@@ -14,7 +14,7 @@ import mimetypes
 import os
 import threading
 from dataclasses import dataclass
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 
 from flask import Flask, Response, abort, request, url_for
@@ -104,7 +104,7 @@ def accepts_gzip() -> bool:
 def _local(iso_utc: str) -> datetime | None:
     """A stored UTC timestamp in the server's own timezone (no hard-coded zone)."""
     try:
-        return datetime.strptime(iso_utc, "%Y-%m-%dT%H:%M:%SZ").replace(tzinfo=timezone.utc).astimezone()
+        return datetime.strptime(iso_utc, "%Y-%m-%dT%H:%M:%SZ").replace(tzinfo=UTC).astimezone()
     except (ValueError, TypeError):
         return None
 

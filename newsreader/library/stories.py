@@ -18,10 +18,10 @@ import math
 import threading
 import time
 from collections import Counter
+from collections.abc import Callable
 from contextlib import closing
-from datetime import datetime
+from datetime import UTC, datetime
 from pathlib import Path
-from typing import Callable
 
 from newsreader.library import index, status
 from newsreader.library import stories_core as core
@@ -521,8 +521,8 @@ def _body_cosine(bodies: dict, a: int, b: int) -> float | None:
 def warm_arcs(db_path: Path, hours: int = 24) -> int:
     """Work out the 続報 of the last ``hours``' multi-outlet groups ahead of time (今日のまとめ asks
     for all of them at once; after a collection the first visitor would otherwise wait)."""
-    from datetime import timedelta, timezone
-    since = (datetime.now(timezone.utc) - timedelta(hours=hours)).strftime("%Y-%m-%dT%H:%M:%SZ")
+    from datetime import timedelta
+    since = (datetime.now(UTC) - timedelta(hours=hours)).strftime("%Y-%m-%dT%H:%M:%SZ")
     keys = [g["key"] for g in list_stories(db_path, scope="multi", per_page=60)["stories"] if (g["newest"] or "") >= since]
     for key in keys:
         arc(db_path, key)

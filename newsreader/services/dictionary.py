@@ -11,10 +11,11 @@ import urllib.parse
 import urllib.request
 from functools import lru_cache
 
-from bs4 import BeautifulSoup
 import truststore
+from bs4 import BeautifulSoup
 
-from newsreader.services.cache import get as cache_get, put as cache_put
+from newsreader.services.cache import get as cache_get
+from newsreader.services.cache import put as cache_put
 from newsreader.services.settings import SecretStoreError, get_secret
 
 MOE_SEARCH = "https://dict.revised.moe.edu.tw/search.jsp"

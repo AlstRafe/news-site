@@ -17,7 +17,7 @@ from __future__ import annotations
 
 import re
 from dataclasses import dataclass
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta, timezone
 from pathlib import Path
 from urllib.parse import urljoin, urlsplit
 
@@ -45,7 +45,7 @@ class ReaderError(Exception):
 
 # ---------------------------------------------------------------- time ----
 
-def to_utc_iso(value: str, naive_tz: timezone = timezone.utc) -> str:
+def to_utc_iso(value: str, naive_tz: timezone = UTC) -> str:
     """Normalise a page timestamp to ``YYYY-MM-DDTHH:MM:SSZ`` (UTC); "" if unparseable."""
     text = (value or "").strip()
     if not text:
@@ -56,7 +56,7 @@ def to_utc_iso(value: str, naive_tz: timezone = timezone.utc) -> str:
         return ""
     if moment.tzinfo is None:
         moment = moment.replace(tzinfo=naive_tz)
-    return moment.astimezone(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+    return moment.astimezone(UTC).strftime("%Y-%m-%dT%H:%M:%SZ")
 
 
 def extract_published(soup: BeautifulSoup) -> str:
@@ -110,7 +110,7 @@ def _is_image_url(source: str) -> bool:
     return parsed.scheme in {"http", "https"} and Path(parsed.path).suffix.lower() in IMAGE_EXTENSIONS
 
 
-def collect_images(page: "Page", selector: str, title: str) -> list[dict]:
+def collect_images(page: Page, selector: str, title: str) -> list[dict]:
     """Article images (max 8, de-duplicated); falls back to og:image / twitter:image."""
     images: list[dict] = []
     seen: set[str] = set()
@@ -162,7 +162,7 @@ class Page:
     host: str
 
     @classmethod
-    def from_html(cls, html: bytes | str) -> "Page":
+    def from_html(cls, html: bytes | str) -> Page:
         soup = BeautifulSoup(html, "html.parser")
         canonical = soup.select_one('link[rel="canonical"]')
         og_url = soup.select_one('meta[property="og:url"]')

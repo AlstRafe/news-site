@@ -14,7 +14,7 @@ import os
 import tempfile
 import threading
 import time
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 
 from newsreader import paths
@@ -28,7 +28,7 @@ _cache: dict[str, tuple[int, dict]] = {}
 
 
 def now_iso() -> str:
-    return datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+    return datetime.now(UTC).strftime("%Y-%m-%dT%H:%M:%SZ")
 
 
 def read(path: Path | None = None) -> dict:
@@ -87,10 +87,10 @@ def update(section: str, values: dict, path: Path | None = None) -> dict:
 
 def minutes_since(iso_utc: str) -> int | None:
     try:
-        moment = datetime.strptime(iso_utc, "%Y-%m-%dT%H:%M:%SZ").replace(tzinfo=timezone.utc)
+        moment = datetime.strptime(iso_utc, "%Y-%m-%dT%H:%M:%SZ").replace(tzinfo=UTC)
     except (TypeError, ValueError):
         return None
-    return max(0, int((datetime.now(timezone.utc) - moment).total_seconds() // 60))
+    return max(0, int((datetime.now(UTC) - moment).total_seconds() // 60))
 
 
 def ago(iso_utc: str) -> str:

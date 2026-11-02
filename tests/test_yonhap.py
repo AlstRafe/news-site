@@ -29,7 +29,7 @@ YONHAP = '''<html><head>
 <p>yunzhen@yna.co.kr</p>
 <p class="txt-copyright adrs"><a href="https://www.yna.co.kr/">제보는 카카오톡 okjebo</a> &lt;저작권자(c) 연합뉴스, 무단 전재-재배포 금지&gt; 2026/10/19 20:06 송고</p>
 <p>제보는 카카오톡 okjebo &lt;저작권자(c) 연합뉴스, 무단 전재-재배포, AI 학습 및 활용 금지&gt; 2026/10/19 20:06 송고 2026년10월19일 20시06분 송고</p>
-</div></article></body></html>'''.encode("utf-8")
+</div></article></body></html>'''.encode()
 
 
 class YonhapTests(unittest.TestCase):

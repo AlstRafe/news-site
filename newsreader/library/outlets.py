@@ -8,7 +8,7 @@ from __future__ import annotations
 import json
 import statistics
 from contextlib import closing
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from itertools import combinations
 from pathlib import Path
 
@@ -27,7 +27,7 @@ def _parse(stamp: str) -> datetime | None:
 
 
 def stats(db_path: Path, *, days: int = 7, now: datetime | None = None) -> dict:
-    now = (now or datetime.now(timezone.utc)).replace(tzinfo=None)
+    now = (now or datetime.now(UTC)).replace(tzinfo=None)
     since = (now - timedelta(days=days)).strftime(_FORMAT)
     with closing(index.connect(db_path)) as db:
         articles = db.execute("SELECT a.id, a.source, a.published, m.story_key, a.title FROM articles a "
@@ -37,7 +37,7 @@ def stats(db_path: Path, *, days: int = 7, now: datetime | None = None) -> dict:
                            (since,)).fetchall()
     outlets: dict[str, dict] = {}
     groups: dict[str, list[tuple[str, datetime | None]]] = {}
-    for article_id, source, published, key, _title in articles:
+    for _article_id, source, published, key, _title in articles:
         entry = outlets.setdefault(source, {"source": source, "articles": 0, "shared": 0, "scoops": 0, "first": 0,
                                             "later": [], "disputes": 0})
         entry["articles"] += 1

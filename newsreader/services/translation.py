@@ -12,7 +12,9 @@ import urllib.request
 
 import truststore
 
-from newsreader.services.cache import get as cache_get, put as cache_put, record_translation_usage
+from newsreader.services.cache import get as cache_get
+from newsreader.services.cache import put as cache_put
+from newsreader.services.cache import record_translation_usage
 from newsreader.services.settings import SecretStoreError, get_secret, get_settings
 
 #: Translation targets offered in the app, in menu order, with the Azure Translator code.

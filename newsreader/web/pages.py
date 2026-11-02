@@ -6,7 +6,7 @@ and the article come from the index; images are fetched lazily by ``/img`` (D-04
 from __future__ import annotations
 
 import re
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
 
 from flask import abort, current_app, jsonify, redirect, render_template, request, send_file, url_for
@@ -16,9 +16,9 @@ from newsreader.library import index
 from newsreader.library.files import resolve_html_file, validate_directory
 from newsreader.services import images as image_service
 from newsreader.sources import IMAGE_EXTENSIONS, ReaderError, extract_article
+from newsreader.web import public
 from newsreader.web.assets import CACHE_LIST, CACHE_PAGE, YEAR
 from newsreader.web.routing import Routes
-from newsreader.web import public
 from newsreader.web.security import csrf_token
 
 PER_PAGE = 24
@@ -114,7 +114,7 @@ def topic_digest(db: Path, topic: str) -> dict:
     english = query_in_english(topic) if re.search(r"[^\x00-\x7f]", topic) else ""
     result = index.list_articles(db, query=topic, page=1, per_page=TOPIC_SCAN,
                                  pivot_words=index.search_words(english or topic))
-    since = (datetime.now(timezone.utc) - timedelta(hours=24)).strftime("%Y-%m-%dT%H:%M:%SZ")
+    since = (datetime.now(UTC) - timedelta(hours=24)).strftime("%Y-%m-%dT%H:%M:%SZ")
     recent = sum(1 for item in result["items"] if (item.get("published") or "") >= since)
     return {"q": topic, "total": result["total"], "recent": recent, "more": recent >= TOPIC_SCAN,
             "articles": result["items"][:TOPIC_SHOWN]}

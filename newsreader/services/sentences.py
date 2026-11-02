@@ -14,7 +14,8 @@ from __future__ import annotations
 import hashlib
 import re
 
-from newsreader.services.cache import get as cache_get, put as cache_put
+from newsreader.services.cache import get as cache_get
+from newsreader.services.cache import put as cache_put
 
 CACHE_KIND = "sentlen"
 CACHE_ENTRIES = 40_000

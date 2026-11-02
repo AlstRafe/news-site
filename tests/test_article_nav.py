@@ -8,9 +8,12 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 sys.path.insert(0, str(Path(__file__).resolve().parent))
+from datetime import UTC
+
+from test_extractor import CNA, NORMAL
+
 from newsreader.library import index as library
 from newsreader.web import create_app
-from test_extractor import CNA, NORMAL
 
 
 class ArticleNavigationTests(unittest.TestCase):
@@ -87,10 +90,11 @@ if __name__ == "__main__":
 
 class DaySeparatorTests(unittest.TestCase):
     def test_local_day_labels(self):
-        from datetime import datetime, timezone
+        from datetime import datetime
+
         from newsreader.web.assets import localday_filter
         stamp = "2026-10-19T03:00:00Z"
-        local = datetime.strptime(stamp, "%Y-%m-%dT%H:%M:%SZ").replace(tzinfo=timezone.utc).astimezone()
+        local = datetime.strptime(stamp, "%Y-%m-%dT%H:%M:%SZ").replace(tzinfo=UTC).astimezone()
         self.assertTrue(localday_filter(stamp, today=local).startswith("今日 · "))
         from datetime import timedelta
         self.assertTrue(localday_filter(stamp, today=local + timedelta(days=1)).startswith("昨日 · "))

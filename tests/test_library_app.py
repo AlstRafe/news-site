@@ -5,9 +5,10 @@ import unittest
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
-from newsreader.web import create_app
-from newsreader.library import index as library
 from test_extractor import CNA, NAVER, NORMAL
+
+from newsreader.library import index as library
+from newsreader.web import create_app
 
 
 class LibraryAppTests(unittest.TestCase):

@@ -6,7 +6,8 @@ import unittest
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
-from newsreader.library import index, provenance as pv, stories
+from newsreader.library import index, stories
+from newsreader.library import provenance as pv
 from newsreader.web import create_app
 
 H = {"Host": "localhost"}
@@ -117,11 +118,11 @@ class PageTests(unittest.TestCase):
         self.root = self.tmp / "articles"
         for site in ("BBC", "CNA"):
             (self.root / site).mkdir(parents=True)
-        (self.root / "BBC" / "a.html").write_bytes('''<html><head><meta name="pagetype" content="News Article">
+        (self.root / "BBC" / "a.html").write_bytes(b'''<html><head><meta name="pagetype" content="News Article">
 <meta property="article:published_time" content="2026-10-19T10:00:00Z"></head><body>
 <main id="bbc-main"><h1>Paris curfew as France riots spread</h1><article>
 <div data-component="layout-block"><p class="Paragraph-styles__ParagraphStyled-x">Officials told the BBC a curfew begins tonight, AFP news agency reported.</p></div>
-</article></main></body></html>'''.encode())
+</article></main></body></html>''')
         (self.root / "CNA" / "z.html").write_bytes('''<html><head><link rel="canonical" href="https://www.cna.com.tw/news/aopl/x.aspx">
 <meta property="article:published_time" content="2026-10-19T12:00:00Z"></head><body>
 <article class="article"><h1>法國暴動擴大 巴黎宵禁</h1><div class="centralContent">

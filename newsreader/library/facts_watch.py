@@ -10,10 +10,10 @@ also compares money, shares and quotes.
 from __future__ import annotations
 
 import json
+from collections.abc import Callable
 from contextlib import closing
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
-from typing import Callable
 
 from newsreader.library import compare, index, stories
 
@@ -97,7 +97,7 @@ def store(db_path: Path, key: str, members: list[dict], categories: list[dict]) 
         index._write(db, [("INSERT OR REPLACE INTO story_facts(story_key, members, newest, differs, cohesive, summary, "
                            "computed) VALUES(?,?,?,?,?,?,?)",
                            (key, _signature(members), newest, int(any(c["differs"] for c in found)), int(cohesive),
-                            json.dumps(found, ensure_ascii=False), datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")))])
+                            json.dumps(found, ensure_ascii=False), datetime.now(UTC).strftime("%Y-%m-%dT%H:%M:%SZ")))])
 
 
 def native_texts(db_path: Path, members: list[dict]) -> dict[int, str]:
@@ -111,7 +111,7 @@ def refresh(db_path: Path, translate_en: TranslateEn | None = None, *, now: date
     """Compare the counts of people in recent multi-outlet groups not compared yet (or whose
     members changed). Nothing is translated: English articles are read as they are, Korean
     and Chinese ones in their own language (D-65). ``translate_en`` is not used any more."""
-    now = now or datetime.now(timezone.utc)
+    now = now or datetime.now(UTC)
     since = (now - timedelta(hours=RECENT_HOURS)).strftime("%Y-%m-%dT%H:%M:%SZ")
     groups = stories.list_stories(db_path, scope="multi", per_page=MAX_GROUPS_PER_RUN)["stories"]
     with closing(index.connect(db_path)) as db:
@@ -172,7 +172,7 @@ def disputed_keys(db_path: Path) -> list[str]:
 def differing(db_path: Path, *, days: int = 3, limit: int = 4, now: datetime | None = None) -> list[dict]:
     """Recent groups whose outlets disagree on a count, newest first, for the home page:
     [{"key", "title", "lead_source", "kinds": [{"label", "trail": [...]}]}]."""
-    now = now or datetime.now(timezone.utc)
+    now = now or datetime.now(UTC)
     since = (now - timedelta(days=days)).strftime("%Y-%m-%dT%H:%M:%SZ")
     with closing(index.connect(db_path)) as db:
         rows = db.execute("SELECT story_key, members, summary FROM story_facts WHERE differs = 1 AND cohesive = 1 AND newest >= ? "

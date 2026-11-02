@@ -18,10 +18,11 @@ from unittest import mock
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 sys.path.insert(0, str(Path(__file__).resolve().parent))
+from test_extractor import CNA, NAVER, NORMAL
+
 from newsreader.library import index
 from newsreader.services import images as image_service
 from newsreader.web import create_app, security
-from test_extractor import CNA, NAVER, NORMAL
 
 H = {"Host": "localhost"}
 JPEG = b"\xff\xd8\xff\xe0" + b"0" * 2000
@@ -162,6 +163,7 @@ class SecurityTests(WebTestCase):
 
     def test_launcher_and_app_agree_on_bind_addresses(self):
         import ipaddress
+
         import launcher
         from newsreader.netpolicy import is_allowed_bind_address
         from newsreader.services.settings import validate_bind_host
@@ -337,7 +339,7 @@ class AppFactoryTests(unittest.TestCase):
         code = ("import threading, app; "
                 "assert callable(app.main); "
                 "assert threading.active_count() == 1, threading.enumerate()")
-        with tempfile.TemporaryDirectory() as tmp:
+        with tempfile.TemporaryDirectory():
             env = {**os.environ, "PYTHONDONTWRITEBYTECODE": "1"}
             before = set((root / "instance").glob("*")) if (root / "instance").exists() else set()
             subprocess.run([sys.executable, "-c", code], cwd=root, env=env, check=True)
@@ -375,7 +377,7 @@ class AppFactoryTests(unittest.TestCase):
         with mock.patch.dict(os.environ, {"NEWS_BIND_HOST": "127.0.0.1", "NEWS_PORT": "5099", "NEWS_DEV": "",
                                           "WERKZEUG_RUN_MAIN": ""}), \
                 mock.patch.object(run, "serve_until_redeployed", return_value=0) as serve, \
-                mock.patch("newsreader.web.create_app") as factory:
+                mock.patch("newsreader.web.create_app"):
             self.assertEqual(run.main(), 0)
         serve.assert_called_once()
         self.assertEqual(serve.call_args.args[1:3], ("127.0.0.1", 5099))
@@ -384,6 +386,7 @@ class AppFactoryTests(unittest.TestCase):
     def test_supervised_server_restarts_on_new_version_after_finishing_requests(self):
         import socket
         import urllib.request
+
         from newsreader import paths
         from newsreader.web import run
         tmp = Path(tempfile.mkdtemp())
@@ -424,6 +427,7 @@ class AppFactoryTests(unittest.TestCase):
     def test_server_also_answers_on_tailscale_address_and_restarts_cleanly(self):
         import socket
         import urllib.request
+
         from newsreader import paths
         from newsreader.web import run
         tmp = Path(tempfile.mkdtemp())
@@ -472,6 +476,7 @@ class AppFactoryTests(unittest.TestCase):
 
     def test_an_address_that_comes_up_later_restarts_the_server(self):
         import socket
+
         from newsreader import paths
         from newsreader.web import run
         tmp = Path(tempfile.mkdtemp())

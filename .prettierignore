@@ -1,0 +1,8 @@
+# Jinja templates: Prettier does not know {{ }} and {% %}.
+*.html
+# Data: the translations (one text per line, as they are written) and the tests' fixtures.
+newsreader/locale/
+tests/fixtures/
+articles/
+instance/
+package-lock.json

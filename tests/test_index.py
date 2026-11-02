@@ -17,10 +17,11 @@ from unittest import mock
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-from newsreader.library import index
-from newsreader.sources import extract_article
 from oracle import v3_library
 from test_extractor import CNA, NAVER, NORMAL, VIDEO
+
+from newsreader.library import index
+from newsreader.sources import extract_article
 
 FIXTURES = {("BBC", "a.html"): NORMAL, ("BBC", "v.html"): VIDEO, ("NAVER NEWS", "n.html"): NAVER, ("CNA", "c.html"): CNA}
 
