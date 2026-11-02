@@ -1,4 +1,5 @@
 """NAVER NEWS article pages (``n.news.naver.com/article/<office>/<id>``)."""
+
 from __future__ import annotations
 
 from newsreader.sources.base import Page, SiteParse

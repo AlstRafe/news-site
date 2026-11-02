@@ -21,6 +21,7 @@ token's digest in its instance/settings.json). ``--dry-run`` shows the choice an
 
     python make_alpha_zip.py [--relay-url http://100.x.y.z:5000] [--articles 5] [--embed-token] [--dry-run]
 """
+
 from __future__ import annotations
 
 import argparse
@@ -77,7 +78,9 @@ README = """NewsBridge テスト版（{version}）
 
 def library_root() -> Path:
     try:
-        configured = json.loads((PROJECT_ROOT / "instance" / "collector.json").read_text(encoding="utf-8")).get("library_root", "")
+        configured = json.loads((PROJECT_ROOT / "instance" / "collector.json").read_text(encoding="utf-8")).get(
+            "library_root", ""
+        )
     except (OSError, ValueError, TypeError, AttributeError):
         configured = ""
     return Path(configured) if configured else PROJECT_ROOT / "articles"
@@ -98,28 +101,46 @@ def choose_articles(db_path: Path, count: int, sources: set[str] | None = None) 
         # more outlets, then one whose outlets disagree on a figure (数字を比べる has something to
         # show), then the most closely matched; otherwise any group of the most outlets.
         has_facts = db.execute("SELECT 1 FROM sqlite_master WHERE name = 'story_facts'").fetchone() is not None
-        disputed = ("(SELECT COUNT(*) FROM story_facts f WHERE f.story_key = m.story_key AND f.differs = 1)"
-                    if has_facts else "0")
+        disputed = (
+            "(SELECT COUNT(*) FROM story_facts f WHERE f.story_key = m.story_key AND f.differs = 1)"
+            if has_facts
+            else "0"
+        )
         story = None
         for cohesion in (COHESIVE_SCORE, -1.0):
-            story = story or db.execute(f"""SELECT m.story_key FROM story_members m JOIN articles a ON a.id = m.article_id
+            story = (
+                story
+                or db.execute(
+                    f"""SELECT m.story_key FROM story_members m JOIN articles a ON a.id = m.article_id
                                          WHERE {readable} GROUP BY m.story_key
                                          HAVING COUNT(DISTINCT a.source) > 1 AND MIN(m.score) >= ?
                                          ORDER BY COUNT(DISTINCT a.source) DESC, MAX({disputed}) DESC,
                                                   AVG(m.score) DESC, MAX(a.published) DESC LIMIT 1""",
-                                        (cohesion,)).fetchone()
+                    (cohesion,),
+                ).fetchone()
+            )
         chosen: list[dict] = []
         if story:
-            members = [dict(row) for row in db.execute(
-                f"""SELECT a.id, a.source, a.filename, a.title FROM story_members m
+            members = [
+                dict(row)
+                for row in db.execute(
+                    f"""SELECT a.id, a.source, a.filename, a.title FROM story_members m
                     JOIN articles a ON a.id = m.article_id WHERE m.story_key = ? AND {readable}
-                    ORDER BY m.score DESC, a.published DESC""", (story[0],))]
+                    ORDER BY m.score DESC, a.published DESC""",
+                    (story[0],),
+                )
+            ]
             for row in members:  # one per outlet, then the group's other reports (an update, say)
                 if row["source"] not in {c["source"] for c in chosen}:
                     chosen.append(row)
-            chosen += [row for row in members if row not in chosen][:max(0, STORY_ARTICLES - len(chosen))]
-        rest = [dict(r) for r in db.execute(f"SELECT a.id, a.source, a.filename, a.title FROM articles a WHERE {readable}"
-                                            " ORDER BY a.published DESC, a.id DESC LIMIT 400")]
+            chosen += [row for row in members if row not in chosen][: max(0, STORY_ARTICLES - len(chosen))]
+        rest = [
+            dict(r)
+            for r in db.execute(
+                f"SELECT a.id, a.source, a.filename, a.title FROM articles a WHERE {readable}"
+                " ORDER BY a.published DESC, a.id DESC LIMIT 400"
+            )
+        ]
     taken = {c["id"] for c in chosen}
     for row in rest:  # one more per outlet first, so every outlet is represented
         if len(chosen) >= count:
@@ -141,6 +162,7 @@ def default_relay_url() -> str:
     since a tester's PC reaches this one through a shared tailnet, not this PC's own LAN."""
     import ipaddress
     from urllib.parse import urlsplit
+
     try:
         web = json.loads((PROJECT_ROOT / "instance" / "status.json").read_text(encoding="utf-8"))["web"]
         urls = [str(web["url"])] + [str(u) for u in web.get("also") or []]
@@ -155,13 +177,32 @@ def default_relay_url() -> str:
     return urls[0].rstrip("/")
 
 
-def build(out_dir: Path, articles: list[tuple[Path, str]], relay_url: str, token: str, count: int,
-          stamp: str, port: str = "5000", glossary: list[dict] | None = None) -> Path:
+def build(
+    out_dir: Path,
+    articles: list[tuple[Path, str]],
+    relay_url: str,
+    token: str,
+    count: int,
+    stamp: str,
+    port: str = "5000",
+    glossary: list[dict] | None = None,
+) -> Path:
     """Write the ZIP. ``articles`` = (file on disk, path under articles/)."""
-    version = (PROJECT_ROOT / "VERSION").read_text(encoding="utf-8").strip() if (PROJECT_ROOT / "VERSION").is_file() else "dev"
-    preset = {"preset_id": stamp, "build_channel": "alpha", "translation_source": "relay", "relay_url": relay_url,
-              "network_bind_host": "127.0.0.1", "library_limit": count, "start_at_logon": False,
-              "collect_hourly": False}
+    version = (
+        (PROJECT_ROOT / "VERSION").read_text(encoding="utf-8").strip()
+        if (PROJECT_ROOT / "VERSION").is_file()
+        else "dev"
+    )
+    preset = {
+        "preset_id": stamp,
+        "build_channel": "alpha",
+        "translation_source": "relay",
+        "relay_url": relay_url,
+        "network_bind_host": "127.0.0.1",
+        "library_limit": count,
+        "start_at_logon": False,
+        "collect_hourly": False,
+    }
     if glossary:
         preset["glossary"] = glossary  # this installation's 訳語の指定, so the tester's translations match (D-70)
     archive_path = out_dir / f"{FOLDER}-{stamp}.zip"
@@ -176,25 +217,40 @@ def build(out_dir: Path, articles: list[tuple[Path, str]], relay_url: str, token
         archive.writestr(f"{FOLDER}/preset/settings.json", json.dumps(preset, ensure_ascii=False, indent=2))
         if token:  # otherwise the tester enters the 合言葉 handed over separately
             archive.writestr(f"{FOLDER}/preset/relay_token", token)
-        reach = ("配布元の PC が起動している間、インターネット経由で使えます（Tailscale などの準備は不要です）。"
-                 if relay_url.startswith("https://") else
-                 "配布元の PC が起動していて、このPCからその宛先に届く必要があります（Tailscale で共有されたネットワークなど）。")
-        readme = README.format(version=version, port=port, count=count, relay_url=relay_url, reach=reach,
-                               token_step=TOKEN_STEP_EMBEDDED if token else TOKEN_STEP_SEPARATE,
-                               token_note=TOKEN_NOTE_EMBEDDED if token else TOKEN_NOTE_SEPARATE)
+        reach = (
+            "配布元の PC が起動している間、インターネット経由で使えます（Tailscale などの準備は不要です）。"
+            if relay_url.startswith("https://")
+            else "配布元の PC が起動していて、このPCからその宛先に届く必要があります（Tailscale で共有されたネットワークなど）。"
+        )
+        readme = README.format(
+            version=version,
+            port=port,
+            count=count,
+            relay_url=relay_url,
+            reach=reach,
+            token_step=TOKEN_STEP_EMBEDDED if token else TOKEN_STEP_SEPARATE,
+            token_note=TOKEN_NOTE_EMBEDDED if token else TOKEN_NOTE_SEPARATE,
+        )
         archive.writestr(f"{FOLDER}/はじめにお読みください.txt", readme.replace("\n", "\r\n"))
     return archive_path
 
 
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
-    parser.add_argument("--relay-url", default="", help="このインストールにテスト版から届く URL（既定: 起動中の待受けアドレス）")
+    parser.add_argument(
+        "--relay-url", default="", help="このインストールにテスト版から届く URL（既定: 起動中の待受けアドレス）"
+    )
     parser.add_argument("--articles", type=int, default=DEFAULT_ARTICLES)
-    parser.add_argument("--daily-chars", type=int, default=DEFAULT_DAILY_CHARS, help="合言葉ごとの1日の翻訳上限（文字）")
+    parser.add_argument(
+        "--daily-chars", type=int, default=DEFAULT_DAILY_CHARS, help="合言葉ごとの1日の翻訳上限（文字）"
+    )
     parser.add_argument("--out", default=str(PROJECT_ROOT.parent))
     parser.add_argument("--library", default="", help="記事フォルダ（既定: このインストールの収集先）")
-    parser.add_argument("--embed-token", action="store_true",
-                        help="合言葉を発行して ZIP に入れる（既定: 入れない。設定画面で発行して別に渡す）")
+    parser.add_argument(
+        "--embed-token",
+        action="store_true",
+        help="合言葉を発行して ZIP に入れる（既定: 入れない。設定画面で発行して別に渡す）",
+    )
     parser.add_argument("--dry-run", action="store_true")
     args = parser.parse_args(argv)
 
@@ -210,6 +266,7 @@ def main(argv: list[str] | None = None) -> int:
         return 2
     root = Path(args.library) if args.library else library_root()
     from newsreader.collect.autofetch import SOURCES
+
     chosen = choose_articles(paths.DEFAULT_LIBRARY_DB, args.articles, {source["directory"] for source in SOURCES})
     files = []
     for row in chosen:
@@ -227,11 +284,14 @@ def main(argv: list[str] | None = None) -> int:
     token = ""
     if args.embed_token:
         from newsreader.services import relay
+
         token = relay.issue_token(f"テスト版 {stamp}", daily_chars=args.daily_chars)
     archive = build(Path(args.out), files, relay_url, token, args.articles, stamp, glossary=settings.glossary())
     print(f"テスト版を作成しました: {archive}")
     if token:
-        print("合言葉の digest をこのインストールの設定に記録しました（設定画面の「テスト版への翻訳の中継」で無効化できます）。")
+        print(
+            "合言葉の digest をこのインストールの設定に記録しました（設定画面の「テスト版への翻訳の中継」で無効化できます）。"
+        )
     else:
         print("合言葉は入っていません。設定画面の「テスト版への翻訳の中継」で発行し、ZIP とは別に渡してください。")
     return 0

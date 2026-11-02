@@ -1,4 +1,5 @@
 """Translation provider adapters with bounded inputs and a local response cache."""
+
 from __future__ import annotations
 
 import contextvars
@@ -33,8 +34,9 @@ LANG_TAGS = {"ja": "ja", "en": "en", "ko": "ko", "zh-hant": "zh-Hant"}
 
 def target_menu(provider: str) -> dict[str, dict]:
     """{code: {"label", "tag", "available"}} for the pages (the browser reads it from base.html)."""
-    return {code: {"label": TARGET_LABELS[code], "tag": LANG_TAGS[code], "available": True}
-            for code in TARGETS}
+    return {code: {"label": TARGET_LABELS[code], "tag": LANG_TAGS[code], "available": True} for code in TARGETS}
+
+
 MAX_SELECTION_CHARS = 4_000
 MAX_ARTICLE_CHARS = 250_000
 MAX_BATCH_CHARS = 20_000
@@ -78,9 +80,12 @@ def _check_automatic() -> None:
     if not (_AUTOMATIC.get() or visitor_translations.get()):
         return
     from newsreader.services import cache
+
     used = cache.monthly_translation_usage()["providers"].get("azure", {}).get("metered_chars", 0)
     if used >= AUTO_MONTHLY_CHARS:
-        raise TranslationError("今月の自動翻訳の目安に達したため、見出しなどの自動翻訳を止めています（ボタンからの翻訳は使えます）。")
+        raise TranslationError(
+            "今月の自動翻訳の目安に達したため、見出しなどの自動翻訳を止めています（ボタンからの翻訳は使えます）。"
+        )
 
 
 def glossary_for(target: str) -> list[tuple[str, str]]:
@@ -90,6 +95,7 @@ def glossary_for(target: str) -> list[tuple[str, str]]:
         entries = list(override)
     else:
         from newsreader.services.settings import glossary
+
         entries = [(e["source"], e["target"]) for e in glossary() if e["lang"] == target]
     return sorted(dict(entries).items(), key=lambda pair: (-len(pair[0]), pair[0]))
 
@@ -108,12 +114,13 @@ def apply_glossary(text: str, entries: list[tuple[str, str]]) -> str:
         return text
     fixed = dict(entries)
     pattern = re.compile("|".join(re.escape(name) for name, _ in entries))
-    return pattern.sub(lambda m: f'<mstrans:dictionary translation="{fixed[m.group(0)]}">{m.group(0)}</mstrans:dictionary>',
-                       text)
+    return pattern.sub(
+        lambda m: f'<mstrans:dictionary translation="{fixed[m.group(0)]}">{m.group(0)}</mstrans:dictionary>', text
+    )
 
 
 def active_provider() -> str:
-    """"azure" (this PC's key) or "relay" (another NewsBridge translates, relay.py). The provider
+    """ "azure" (this PC's key) or "relay" (another NewsBridge translates, relay.py). The provider
     name is part of every cache key, so the two never mix."""
     return "relay" if get_settings().get("translation_source") == "relay" else "azure"
 
@@ -121,6 +128,7 @@ def active_provider() -> str:
 def provider_ready(provider: str | None = None) -> bool:
     if (provider or active_provider()) == "relay":
         from newsreader.services import relay
+
         return relay.client_configured()
     return bool(get_secret("azure_api_key"))
 
@@ -189,15 +197,20 @@ def _post_json(url: str, headers: dict[str, str], data: bytes, provider: str) ->
         elif exc.code == 403:
             message = "翻訳サービスで利用が拒否されました。APIキー、課金、API有効化、利用上限を確認してください。"
         else:
-            message = f"翻訳サービスがエラーを返しました（HTTP {exc.code}）。設定または時間を置いた再試行をご確認ください。"
+            message = (
+                f"翻訳サービスがエラーを返しました（HTTP {exc.code}）。設定または時間を置いた再試行をご確認ください。"
+            )
         raise TranslationError(message) from None
     except (urllib.error.URLError, TimeoutError, ssl.SSLError, json.JSONDecodeError, UnicodeDecodeError):
-        raise TranslationError("翻訳サービスに接続できませんでした。ネットワークとAPI設定を確認してください。") from None
+        raise TranslationError(
+            "翻訳サービスに接続できませんでした。ネットワークとAPI設定を確認してください。"
+        ) from None
 
 
 def _translate_batch(provider: str, texts: list[str], target: str) -> list[str]:
     if provider == "relay":
         from newsreader.services import relay
+
         try:
             out = relay.translate(texts, target)
         except (relay.RelayError, SecretStoreError) as exc:
@@ -213,8 +226,9 @@ def _translate_batch(provider: str, texts: list[str], target: str) -> list[str]:
             raise TranslationError("Azure Translatorのキーが未設定です。設定画面から登録してください。")
         region = get_settings().get("azure_region", "").strip()
         # Sentence lengths cost nothing extra; kept for sentence-by-sentence pairing (sentences.py).
-        query = urllib.parse.urlencode({"api-version": "3.0", "to": _codes(target)["azure"],
-                                        "includeSentenceLength": "true"})
+        query = urllib.parse.urlencode(
+            {"api-version": "3.0", "to": _codes(target)["azure"], "includeSentenceLength": "true"}
+        )
         entries = glossary_for(target)
         sent = [apply_glossary(text, entries) for text in texts]
         body = json.dumps([{"Text": text} for text in sent], ensure_ascii=False).encode("utf-8")
@@ -224,15 +238,21 @@ def _translate_batch(provider: str, texts: list[str], target: str) -> list[str]:
         payload, response_headers = _post_json(
             "https://api.cognitive.microsofttranslator.com/translate?" + query,
             headers,
-            body, "azure",
+            body,
+            "azure",
         )
         if not isinstance(payload, list) or len(payload) != len(texts):
             raise TranslationError("Azure Translatorから予期しない形式の応答がありました。")
         results = []
         from newsreader.services import sentences
+
         for source, marked, item in zip(texts, sent, payload):
             translations = item.get("translations") if isinstance(item, dict) else None
-            translated = translations[0].get("text") if isinstance(translations, list) and translations and isinstance(translations[0], dict) else None
+            translated = (
+                translations[0].get("text")
+                if isinstance(translations, list) and translations and isinstance(translations[0], dict)
+                else None
+            )
             if not isinstance(translated, str):
                 raise TranslationError("Azure Translatorから予期しない形式の応答がありました。")
             lengths = translations[0].get("sentLen")
@@ -253,16 +273,30 @@ def _translate_batch(provider: str, texts: list[str], target: str) -> list[str]:
 #: An English word or short idiom ("fly", "carry out", "Prime Minister's") — what the Azure
 #: dictionary answers. Anything longer is translated only.
 _DICTIONARY_WORD = re.compile(r"[A-Za-z][A-Za-z'’.-]*(?: [A-Za-z][A-Za-z'’.-]*){0,2}")
-DICTIONARY_POS = {"ADJ": "形容詞", "ADV": "副詞", "CONJ": "接続詞", "DET": "限定詞", "MODAL": "助動詞",
-                  "NOUN": "名詞", "PREP": "前置詞", "PRON": "代名詞", "VERB": "動詞", "OTHER": "その他"}
+DICTIONARY_POS = {
+    "ADJ": "形容詞",
+    "ADV": "副詞",
+    "CONJ": "接続詞",
+    "DET": "限定詞",
+    "MODAL": "助動詞",
+    "NOUN": "名詞",
+    "PREP": "前置詞",
+    "PRON": "代名詞",
+    "VERB": "動詞",
+    "OTHER": "その他",
+}
 DICTIONARY_CACHE_ENTRIES = 20_000
 MAX_DICTIONARY_TERMS = 10
 
 
 def dictionary_available(text: str, target: str) -> bool:
     """English source (a word or short idiom), and a target the Azure dictionary covers."""
-    return (active_provider() in ("azure", "relay") and target in ("ja", "ko", "zh-hant") and len(text.strip()) <= 40
-            and _DICTIONARY_WORD.fullmatch(text.strip()) is not None)
+    return (
+        active_provider() in ("azure", "relay")
+        and target in ("ja", "ko", "zh-hant")
+        and len(text.strip()) <= 40
+        and _DICTIONARY_WORD.fullmatch(text.strip()) is not None
+    )
 
 
 def dictionary_lookup(text: str, target: str) -> list[dict]:
@@ -271,12 +305,15 @@ def dictionary_lookup(text: str, target: str) -> list[dict]:
     and target, including "not found" (an empty list), so a word is sent once."""
     word = text.strip().replace("’", "'")
     provider = active_provider()
-    key = hashlib.sha256((("azure" if provider == "azure" else "relay") + "\0" + target + "\0" + word.lower()).encode("utf-8")).hexdigest()
+    key = hashlib.sha256(
+        (("azure" if provider == "azure" else "relay") + "\0" + target + "\0" + word.lower()).encode("utf-8")
+    ).hexdigest()
     cached = cache_get("dictionary", key)
     if isinstance(cached, list):
         return cached
     if provider == "relay":
         from newsreader.services import relay
+
         try:
             senses = relay.dictionary(word, target)
         except (relay.RelayError, SecretStoreError) as exc:
@@ -295,8 +332,11 @@ def dictionary_lookup(text: str, target: str) -> list[dict]:
     if region:
         headers["Ocp-Apim-Subscription-Region"] = region
     payload, response_headers = _post_json(
-        "https://api.cognitive.microsofttranslator.com/dictionary/lookup?" + query, headers,
-        json.dumps([{"Text": word}], ensure_ascii=False).encode("utf-8"), "azure")
+        "https://api.cognitive.microsofttranslator.com/dictionary/lookup?" + query,
+        headers,
+        json.dumps([{"Text": word}], ensure_ascii=False).encode("utf-8"),
+        "azure",
+    )
     entry = payload[0] if isinstance(payload, list) and len(payload) == 1 and isinstance(payload[0], dict) else None
     translations = entry.get("translations") if entry else None
     if not isinstance(translations, list):
@@ -313,8 +353,11 @@ def dictionary_lookup(text: str, target: str) -> list[dict]:
 
 def _group_senses(translations: list) -> list[dict]:
     """Most confident first; one row per part of speech in the order it first appears."""
-    usable = [t for t in translations if isinstance(t, dict) and isinstance(t.get("displayTarget"), str)
-              and t["displayTarget"].strip()]
+    usable = [
+        t
+        for t in translations
+        if isinstance(t, dict) and isinstance(t.get("displayTarget"), str) and t["displayTarget"].strip()
+    ]
     usable.sort(key=lambda t: -(t.get("confidence") if isinstance(t.get("confidence"), (int, float)) else 0))
     groups: dict[str, list[str]] = {}
     for item in usable[:MAX_DICTIONARY_TERMS]:
@@ -380,6 +423,7 @@ def _finished(kind: str, target: str, source: str, text: str) -> str:
     text = polished(target, source, text)
     if kind == "title" and target == "ja":
         from newsreader.services import ja_polish
+
         text = ja_polish.headline(text)
     return text
 
@@ -397,11 +441,16 @@ def cached_titles(titles: list[str], target: str) -> list[str]:
     out: list[str] = []
     for title in titles:
         title = title.strip()[:1_000]
-        value = cache_get("title", hashlib.sha256((prefix + "\0" + target + "\0" + title).encode("utf-8")).hexdigest()) if title else ""
+        value = (
+            cache_get("title", hashlib.sha256((prefix + "\0" + target + "\0" + title).encode("utf-8")).hexdigest())
+            if title
+            else ""
+        )
         if not isinstance(value, str) or not value:
             out.append("")
         else:  # kept values are polished already (translate_titles rewrites old ones when it meets them)
             from newsreader.services import ja_polish
+
             out.append(ja_polish.headline(value) if target == "ja" else value)
     return out
 
@@ -416,6 +465,7 @@ def polished(target: str, source: str, translated: str) -> str:
     if target != "ja" or not translated:
         return translated
     from newsreader.services import ja_polish, sentences
+
     kept = sentences.reported(target, source, translated)
     lengths = sentences._as_utf16(translated, kept["tr"]) if kept and isinstance(kept.get("tr"), list) else None
     pieces = sentences.cut(translated, lengths) if lengths else [translated]
@@ -433,10 +483,17 @@ def _run_batches(provider: str, target: str, batches: list[list[str]]) -> list[s
     """Translate batches in order, reusing the per-batch cache; returns one result per input piece."""
     translated: list[str] = []
     for batch in batches:
-        part_digest = hashlib.sha256((_key_prefix(provider, target) + "\0" + target + "\0"
-                                      + json.dumps(batch, ensure_ascii=False)).encode("utf-8")).hexdigest()
+        part_digest = hashlib.sha256(
+            (_key_prefix(provider, target) + "\0" + target + "\0" + json.dumps(batch, ensure_ascii=False)).encode(
+                "utf-8"
+            )
+        ).hexdigest()
         part_cached = cache_get("translation_part", part_digest)
-        if isinstance(part_cached, list) and len(part_cached) == len(batch) and all(isinstance(item, str) for item in part_cached):
+        if (
+            isinstance(part_cached, list)
+            and len(part_cached) == len(batch)
+            and all(isinstance(item, str) for item in part_cached)
+        ):
             # Kept before ja_polish existed: polished now, and kept that way.
             fixed = [polished(target, source, text) for source, text in zip(batch, part_cached)]
             if fixed != part_cached:

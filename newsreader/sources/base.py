@@ -13,6 +13,7 @@ purpose; each one is annotated where it mirrors a v3 quirk.
 Saved HTML is parsed as *data*. Nothing from it is rendered as raw HTML or
 evaluated as JavaScript.
 """
+
 from __future__ import annotations
 
 import re
@@ -44,6 +45,7 @@ class ReaderError(Exception):
 
 
 # ---------------------------------------------------------------- time ----
+
 
 def to_utc_iso(value: str, naive_tz: timezone = UTC) -> str:
     """Normalise a page timestamp to ``YYYY-MM-DDTHH:MM:SSZ`` (UTC); "" if unparseable."""
@@ -83,6 +85,7 @@ def extract_published(soup: BeautifulSoup) -> str:
 
 
 # -------------------------------------------------------------- images ----
+
 
 def image_source(image: Tag) -> str:
     """The best URL for one <img>: the largest srcset entry up to 1600w, else the smallest, else src."""
@@ -139,7 +142,9 @@ def collect_images(page: Page, selector: str, title: str) -> list[dict]:
         if len(images) >= MAX_IMAGES:
             break
     if not images:
-        og_image = page.soup.select_one('meta[property="og:image"]') or page.soup.select_one('meta[name="twitter:image"]')
+        og_image = page.soup.select_one('meta[property="og:image"]') or page.soup.select_one(
+            'meta[name="twitter:image"]'
+        )
         if og_image:
             source = urljoin(page.url, str(og_image.get("content", "")).strip())
             if _is_image_url(source):
@@ -148,6 +153,7 @@ def collect_images(page: Page, selector: str, title: str) -> list[dict]:
 
 
 # ---------------------------------------------------------------- page ----
+
 
 @dataclass(frozen=True)
 class Page:

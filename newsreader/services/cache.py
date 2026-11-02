@@ -1,4 +1,5 @@
 """Small SQLite cache for translation and dictionary lookups."""
+
 from __future__ import annotations
 
 import json
@@ -15,8 +16,12 @@ CACHE_PATH = paths.DEFAULT_TRANSLATION_CACHE
 def _connect() -> sqlite3.Connection:
     CACHE_PATH.parent.mkdir(parents=True, exist_ok=True)
     db = sqlite3.connect(CACHE_PATH, timeout=5)
-    db.execute("CREATE TABLE IF NOT EXISTS cache (kind TEXT NOT NULL, cache_key TEXT NOT NULL, value TEXT NOT NULL, expires REAL, updated REAL NOT NULL, PRIMARY KEY(kind, cache_key))")
-    db.execute("CREATE TABLE IF NOT EXISTS translation_usage (id INTEGER PRIMARY KEY, provider TEXT NOT NULL, target TEXT NOT NULL, source_chars INTEGER NOT NULL, metered_chars INTEGER NOT NULL, created REAL NOT NULL)")
+    db.execute(
+        "CREATE TABLE IF NOT EXISTS cache (kind TEXT NOT NULL, cache_key TEXT NOT NULL, value TEXT NOT NULL, expires REAL, updated REAL NOT NULL, PRIMARY KEY(kind, cache_key))"
+    )
+    db.execute(
+        "CREATE TABLE IF NOT EXISTS translation_usage (id INTEGER PRIMARY KEY, provider TEXT NOT NULL, target TEXT NOT NULL, source_chars INTEGER NOT NULL, metered_chars INTEGER NOT NULL, created REAL NOT NULL)"
+    )
     return db
 
 
@@ -29,7 +34,13 @@ def record_translation_usage(provider: str, target: str, source_chars: int, mete
         with _connect() as db:
             db.execute(
                 "INSERT INTO translation_usage(provider,target,source_chars,metered_chars,created) VALUES(?,?,?,?,?)",
-                (provider, target, source_chars, max(0, metered_chars if metered_chars is not None else source_chars), now),
+                (
+                    provider,
+                    target,
+                    source_chars,
+                    max(0, metered_chars if metered_chars is not None else source_chars),
+                    now,
+                ),
             )
     except (OSError, sqlite3.Error):
         # Usage reporting must never turn a successful translation into an error.
@@ -51,7 +62,11 @@ def monthly_translation_usage() -> dict:
     totals = {"azure": {"source_chars": 0, "metered_chars": 0, "requests": 0}}
     for provider, source, metered, requests in rows:
         if provider in totals:
-            totals[provider] = {"source_chars": int(source or 0), "metered_chars": int(metered or 0), "requests": int(requests or 0)}
+            totals[provider] = {
+                "source_chars": int(source or 0),
+                "metered_chars": int(metered or 0),
+                "requests": int(requests or 0),
+            }
     return {"month": f"{now.year}年{now.month}月", "providers": totals}
 
 
@@ -74,9 +89,15 @@ def put(kind: str, key: str, value, ttl: int | None = None, max_entries: int = 5
         now = time.time()
         expires = now + ttl if ttl else None
         with _connect() as db:
-            db.execute("INSERT OR REPLACE INTO cache(kind, cache_key, value, expires, updated) VALUES(?,?,?,?,?)", (kind, key, json.dumps(value, ensure_ascii=False), expires, now))
+            db.execute(
+                "INSERT OR REPLACE INTO cache(kind, cache_key, value, expires, updated) VALUES(?,?,?,?,?)",
+                (kind, key, json.dumps(value, ensure_ascii=False), expires, now),
+            )
             db.execute("DELETE FROM cache WHERE expires IS NOT NULL AND expires <= ?", (now,))
-            db.execute("DELETE FROM cache WHERE rowid IN (SELECT rowid FROM cache WHERE kind=? ORDER BY updated DESC LIMIT -1 OFFSET ?)", (kind, max_entries))
+            db.execute(
+                "DELETE FROM cache WHERE rowid IN (SELECT rowid FROM cache WHERE kind=? ORDER BY updated DESC LIMIT -1 OFFSET ?)",
+                (kind, max_entries),
+            )
     except (OSError, sqlite3.Error, TypeError, ValueError):
         # Caching is an optimization; provider results remain usable if SQLite is unavailable.
         return

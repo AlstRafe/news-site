@@ -1,4 +1,5 @@
 """Single-cycle, low-volume downloader for supported news article pages."""
+
 from __future__ import annotations
 
 import hashlib
@@ -50,8 +51,9 @@ class SkipMemory:
         if path is not None:
             try:
                 data = json.loads(path.read_text(encoding="utf-8"))
-                self.entries = {str(url): float(at) for url, at in data.items()
-                                if self.now - float(at) < SKIP_REMEMBER_SECONDS}
+                self.entries = {
+                    str(url): float(at) for url, at in data.items() if self.now - float(at) < SKIP_REMEMBER_SECONDS
+                }
             except (OSError, ValueError, TypeError, AttributeError):
                 self.entries = {}
 
@@ -76,6 +78,8 @@ class SkipMemory:
 def slim_on_save() -> bool:
     """Save new pages slimmed (D-11; only when extraction is identical). NEWS_SLIM_ON_SAVE=0 keeps originals."""
     return os.environ.get("NEWS_SLIM_ON_SAVE", "1").strip() not in {"0", "false", "no", "off"}
+
+
 MAX_FEED_BYTES = 2 * 1024 * 1024
 REQUEST_TIMEOUT_SECONDS = 20
 SOURCES = (
@@ -84,9 +88,11 @@ SOURCES = (
         "directory": "BBC",
         "kind": "rss",
         "url": "https://feeds.bbci.co.uk/news/world/rss.xml",
-        "section_feeds": ("https://feeds.bbci.co.uk/news/business/rss.xml",
-                          "https://feeds.bbci.co.uk/news/technology/rss.xml",
-                          "https://feeds.bbci.co.uk/news/science_and_environment/rss.xml"),
+        "section_feeds": (
+            "https://feeds.bbci.co.uk/news/business/rss.xml",
+            "https://feeds.bbci.co.uk/news/technology/rss.xml",
+            "https://feeds.bbci.co.uk/news/science_and_environment/rss.xml",
+        ),
         "article_hosts": {"www.bbc.com", "www.bbc.co.uk"},
         "is_article": lambda url: urlsplit(url).path.startswith("/news/"),
     },
@@ -95,8 +101,10 @@ SOURCES = (
         "directory": "CNA",
         "kind": "rss",
         "url": "https://feeds.feedburner.com/rsscna/intworld",
-        "section_feeds": ("https://feeds.feedburner.com/rsscna/finance",
-                          "https://feeds.feedburner.com/rsscna/technology"),
+        "section_feeds": (
+            "https://feeds.feedburner.com/rsscna/finance",
+            "https://feeds.feedburner.com/rsscna/technology",
+        ),
         "article_hosts": {"www.cna.com.tw", "cna.com.tw"},
         "is_article": lambda url: urlsplit(url).path.startswith("/news/"),
     },
@@ -106,8 +114,7 @@ SOURCES = (
         "directory": "Yonhap",
         "kind": "rss",
         "url": "https://www.yna.co.kr/rss/international.xml",
-        "section_feeds": ("https://www.yna.co.kr/rss/economy.xml",
-                          "https://www.yna.co.kr/rss/industry.xml"),
+        "section_feeds": ("https://www.yna.co.kr/rss/economy.xml", "https://www.yna.co.kr/rss/industry.xml"),
         "article_hosts": {"www.yna.co.kr"},
         "is_article": lambda url: urlsplit(url).path.startswith("/view/AKR"),
         # Appointments, obituaries, notices, book and photo listings: lists, not news to read.
@@ -158,21 +165,27 @@ SOURCES = (
         "keep_query": ("no",),
         # Personnel moves and obituaries are notices, not news.
         "skip_title": KOREAN_ROUTINE,
-        "is_article": lambda url: urlsplit(url).path == "/view" and re.search(r"(?:^|&)no=\d+", urlsplit(url).query) is not None,
+        "is_article": lambda url: (
+            urlsplit(url).path == "/view" and re.search(r"(?:^|&)no=\d+", urlsplit(url).query) is not None
+        ),
     },
 )
 
 _log = logging.getLogger("news_autofetch")
 _robots_cache: dict[str, tuple[float, RobotFileParser | None]] = {}
 _robots_lock = threading.Lock()
+
+
 def configure_logging(log_directory: Path) -> None:
     _log.setLevel(logging.INFO)
     if _log.handlers:
         return
     log_directory.mkdir(parents=True, exist_ok=True)
     handler = RotatingFileHandler(
-        log_directory / "news_autofetch.log", maxBytes=1_000_000,
-        backupCount=3, encoding="utf-8",
+        log_directory / "news_autofetch.log",
+        maxBytes=1_000_000,
+        backupCount=3,
+        encoding="utf-8",
     )
     handler.setFormatter(logging.Formatter("%(asctime)s %(levelname)s %(message)s"))
     _log.addHandler(handler)
@@ -246,10 +259,13 @@ def _download(url: str, max_bytes: int) -> tuple[bytes, str, str] | None:
     if not _allowed_by_robots(url):
         _log.info("robots.txt disallows or could not verify %s", url)
         return None
-    request = Request(url, headers={
-        "User-Agent": USER_AGENT,
-        "Accept": "application/rss+xml, application/atom+xml, text/html, application/xml;q=0.9, */*;q=0.5",
-    })
+    request = Request(
+        url,
+        headers={
+            "User-Agent": USER_AGENT,
+            "Accept": "application/rss+xml, application/atom+xml, text/html, application/xml;q=0.9, */*;q=0.5",
+        },
+    )
     with urlopen(request, timeout=REQUEST_TIMEOUT_SECONDS) as response:
         final_url = response.geturl()
         content_type = response.headers.get_content_type().lower()
@@ -326,7 +342,9 @@ def _existing_article_urls(directory: Path, keep: tuple[str, ...] = ()) -> set[s
 
 def _filename_for(source: dict, url: str) -> str:
     parts = urlsplit(url)
-    slug = re.sub(r"[^A-Za-z0-9_-]+", "_", parts.path.strip("/") + ("_" + parts.query if parts.query else ""))[:100].strip("_")
+    slug = re.sub(r"[^A-Za-z0-9_-]+", "_", parts.path.strip("/") + ("_" + parts.query if parts.query else ""))[
+        :100
+    ].strip("_")
     digest = hashlib.sha256(url.encode("utf-8")).hexdigest()[:10]
     return f"{source['directory'].lower().replace(' ', '_')}_{slug or 'article'}_{digest}.html"
 
@@ -343,7 +361,9 @@ def _fetch_article(source: dict, url: str, destination: Path) -> str:
     if not final_url or not _host_allowed(final_url, source["article_hosts"]) or not source["is_article"](final_url):
         _log.warning("Redirected outside the allowed article host; skipped %s", url)
         return "unreadable"
-    if content_type not in {"text/html", "application/xhtml+xml"} and not data.lstrip().lower().startswith((b"<!doctype html", b"<html")):
+    if content_type not in {"text/html", "application/xhtml+xml"} and not data.lstrip().lower().startswith(
+        (b"<!doctype html", b"<html")
+    ):
         _log.warning("Non-HTML response; skipped %s", url)
         return "unreadable"
     try:
@@ -428,7 +448,9 @@ def fetch_cycle(
             if link in queued:
                 continue
             queued.add(link)
-            allowance = MAX_NEW_PER_SECTION_FEED if feed_number else source.get("per_cycle", MAX_NEW_PER_SOURCE_PER_CYCLE)
+            allowance = (
+                MAX_NEW_PER_SECTION_FEED if feed_number else source.get("per_cycle", MAX_NEW_PER_SOURCE_PER_CYCLE)
+            )
             if saved_from.get(feed_number, 0) >= allowance:
                 continue
             if link in existing:
@@ -462,5 +484,3 @@ def fetch_cycle(
         _log.info("%s cycle complete: saved=%d duplicates=%d", source["name"], saved, duplicates)
     remembered.save()
     return totals
-
-

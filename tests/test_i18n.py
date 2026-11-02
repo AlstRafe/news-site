@@ -11,6 +11,7 @@
 
 Run ``python tests/test_i18n.py --missing`` to print the texts still without a translation.
 """
+
 from __future__ import annotations
 
 import ast
@@ -34,16 +35,25 @@ OTHERS = ("ko", "en-GB", "zh-TW")
 #: The owner's own pages (this PC only): kept in Japanese.
 OWNER_TEMPLATES = ("settings.html", "status.html")
 #: Python files whose messages reach a page or a script (errors shown as they are).
-MESSAGE_FILES = ("web/*.py", "services/translation.py", "services/relay.py", "services/settings.py", "sources/base.py",
-                 "library/files.py")
+MESSAGE_FILES = (
+    "web/*.py",
+    "services/translation.py",
+    "services/relay.py",
+    "services/settings.py",
+    "sources/base.py",
+    "library/files.py",
+)
 
 
 def _strings(node) -> list[str]:
     """The Japanese string constants in an expression ("a" if x else "b", {"k": "a"}[x] …); an f-string's
     pieces are not texts (it is said in Japanese)."""
     inside = {id(part) for n in ast.walk(node) if isinstance(n, ast.JoinedStr) for part in ast.walk(n)}
-    return [n.value for n in ast.walk(node) if isinstance(n, ast.Constant) and isinstance(n.value, str)
-            and JP.search(n.value) and id(n) not in inside]
+    return [
+        n.value
+        for n in ast.walk(node)
+        if isinstance(n, ast.Constant) and isinstance(n.value, str) and JP.search(n.value) and id(n) not in inside
+    ]
 
 
 def _calls_to(tree, names: tuple[str, ...]) -> list[str]:
@@ -103,9 +113,12 @@ def data_texts() -> set[str]:
     """What the library keeps in Japanese and the pages show through _() / |tr / |outlet."""
     from newsreader import branding
     from newsreader.library import compare, genres, provenance
+
     out = {"未分類", "その他", branding.APP_TAGLINE}
     out |= set(genres.LABELS.values()) | set(compare.LABELS.values())
-    out |= {org.label for org in provenance.ORGS} | set(provenance.PLACES.values()) | set(provenance.KIND_LABELS.values())
+    out |= (
+        {org.label for org in provenance.ORGS} | set(provenance.PLACES.values()) | set(provenance.KIND_LABELS.values())
+    )
     out |= {label for patterns in provenance._OWN.values() for _, label in patterns}
     out |= {text for pair in branding.OUTLET_INTRO for text in pair}
     return {text for text in out if JP.search(text)}
@@ -130,7 +143,10 @@ def script_texts() -> set[str]:
 
 def missing(lang: str) -> dict[str, list[str]]:
     table = i18n.table(lang)
-    return {"pages": sorted(page_texts() - set(table["pages"])), "scripts": sorted(script_texts() - set(table["scripts"]))}
+    return {
+        "pages": sorted(page_texts() - set(table["pages"])),
+        "scripts": sorted(script_texts() - set(table["scripts"])),
+    }
 
 
 def _forms(value) -> list[str]:
@@ -164,8 +180,9 @@ class TranslationTests(unittest.TestCase):
     def test_the_languages_have_the_same_texts(self):
         tables = [i18n.table(lang) for lang in OTHERS]
         for part in ("pages", "scripts"):
-            self.assertEqual({lang: len(t[part]) for lang, t in zip(OTHERS, tables)},
-                             {lang: len(tables[0][part]) for lang in OTHERS})
+            self.assertEqual(
+                {lang: len(t[part]) for lang, t in zip(OTHERS, tables)}, {lang: len(tables[0][part]) for lang in OTHERS}
+            )
 
     def test_text_fills_in_and_picks_the_form_by_the_number(self):
         self.assertEqual(i18n.text("{count} 件", "ja", count=3), "3 件")
@@ -184,7 +201,9 @@ from test_stories import NOBEL_ZH, NOBEL_ZH_EN, FakeTranslator, StoryTestCase  #
 H = {"Host": "localhost"}
 VISITOR = {"Host": "haruxera.tail1234.ts.net"}
 #: Elements that carry the news itself (headlines, articles, translations of them) or data, not the site's words.
-_NOT_THE_SITE = re.compile(r"<(script|style|title)\b.*?</\1>|<meta\b[^>]*>|<[^>]*\slang=\"(?:ja|zh-Hant|ko|en)\"[^>]*>.*?</", re.S)
+_NOT_THE_SITE = re.compile(
+    r"<(script|style|title)\b.*?</\1>|<meta\b[^>]*>|<[^>]*\slang=\"(?:ja|zh-Hant|ko|en)\"[^>]*>.*?</", re.S
+)
 
 
 class PageTests(StoryTestCase):
@@ -192,23 +211,38 @@ class PageTests(StoryTestCase):
         super().setUp()
         self.refresh(FakeTranslator({NOBEL_ZH: NOBEL_ZH_EN}))
         from newsreader.web import create_app
+
         self.app = create_app(self.root, self.db, start_background=False, secret_key=b"k" * 32)
         self.app.config["STATUS_PATH"] = self.status
         self.client = self.app.test_client()
         from newsreader.library import stories
+
         self.key = stories.list_stories(self.db)["stories"][0]["key"]
         self.article = self.id_of("BBC", "a.html")
 
     def pages(self):
-        return ["/", "/?q=Nobel", "/?genre=other", f"/a/{self.article}", "/stories", f"/stories/{self.key}", "/digest",
-                "/outlets", "/saved", "/words", "/no-such-page"]
+        return [
+            "/",
+            "/?q=Nobel",
+            "/?genre=other",
+            f"/a/{self.article}",
+            "/stories",
+            f"/stories/{self.key}",
+            "/digest",
+            "/outlets",
+            "/saved",
+            "/words",
+            "/no-such-page",
+        ]
 
     def test_the_choice_is_remembered_for_the_whole_host_and_the_address_comes_back_clean(self):
         response = self.client.get("/stories?scope=all&lang=ko", headers=H)
         self.assertEqual(response.status_code, 302)
         self.assertEqual(response.headers["Location"], "/stories?scope=all")
         # an address starting "//" stays on the site (not a protocol-relative link to another host)
-        odd = self.client.get("/", query_string="lang=ko", headers=H, environ_overrides={"PATH_INFO": "//other.example/"})
+        odd = self.client.get(
+            "/", query_string="lang=ko", headers=H, environ_overrides={"PATH_INFO": "//other.example/"}
+        )
         self.assertEqual(odd.headers["Location"], "/other.example/")
         cookie = response.headers["Set-Cookie"]
         self.assertIn("lang=ko", cookie)
@@ -218,7 +252,9 @@ class PageTests(StoryTestCase):
         self.assertIn('<html lang="ko">', html)
         self.assertIn("Cookie", page.headers["Vary"])
         self.assertIn('<meta name="translation-default" content="ko">', html)
-        self.assertRegex(html, r'<script src="/i18n/ko\.js\?v=\w+" defer></script><script src="/static/i18n\.js\?v=\w+" defer>')
+        self.assertRegex(
+            html, r'<script src="/i18n/ko\.js\?v=\w+" defer></script><script src="/static/i18n\.js\?v=\w+" defer>'
+        )
         self.assertEqual(self.client.get("/?lang=xx", headers=H).status_code, 200)  # not a language: no switch
 
     def test_without_a_choice_the_browser_decides(self):
@@ -236,7 +272,7 @@ class PageTests(StoryTestCase):
         self.assertEqual(response.status_code, 200)
         self.assertIn("immutable", response.headers["Cache-Control"])
         body = response.get_data(as_text=True)
-        texts = json.loads(body[body.index("=") + 1:body.rindex(";")])
+        texts = json.loads(body[body.index("=") + 1 : body.rindex(";")])
         self.assertEqual(texts, i18n.table("zh-TW")["scripts"])
         self.assertEqual(self.client.get("/i18n/ja.js", headers=H).status_code, 404)
 
@@ -251,7 +287,7 @@ class PageTests(StoryTestCase):
                     with self.subTest(lang=lang, path=path, visitor=headers is VISITOR):
                         html = self.client.get(path, headers=headers).get_data(as_text=True)
                         self.assertIn(f'<html lang="{lang}">', html)
-                        site = _NOT_THE_SITE.sub("", html[html.index("<body"):])
+                        site = _NOT_THE_SITE.sub("", html[html.index("<body") :])
                         site = re.sub(r'<p class="foot-outlets">.*?</p>', "", site, flags=re.S)  # outlet names
                         left = sorted({m.group(0) for m in re.finditer(r"[^<>\"]*[ぁ-ゖァ-ヺ][^<>\"]*", site)})
                         self.assertEqual(left, [])
@@ -261,8 +297,9 @@ class PageTests(StoryTestCase):
         self.client.get("/", headers=H)
         with self.client.session_transaction() as session:
             csrf = session["csrf"]
-        response = self.client.post("/api/translate-titles", json={"ids": [], "target": "ja"},
-                                    headers={**H, "X-CSRF-Token": csrf})
+        response = self.client.post(
+            "/api/translate-titles", json={"ids": [], "target": "ja"}, headers={**H, "X-CSRF-Token": csrf}
+        )
         self.assertEqual(response.status_code, 400)
         self.assertEqual(response.get_json()["error"], i18n.text("記事または翻訳先の指定が不正です。", "en-GB"))
         self.assertFalse(KANA.search(response.get_json()["error"]))
@@ -271,19 +308,23 @@ class PageTests(StoryTestCase):
         from datetime import datetime
 
         from newsreader.library.compare import say_fact
+
         moment = datetime(2026, 10, 23, 16, 20)
         self.assertEqual(i18n.date_time(moment, "ja"), "2026年10月23日（金）16:20")
         self.assertEqual(i18n.date_time(moment, "ko"), "2026년 10월 23일 (금) 16:20")
         self.assertEqual(i18n.date_time(moment, "en-GB"), "Fri 23 Oct 2026, 16:20")
         self.assertEqual(i18n.date_time(moment, "zh-TW"), "2026年10月23日（週五）16:20")
         self.assertEqual(i18n.minutes(190, "en-GB"), i18n.text("{h}時間{m}分", "en-GB", h=3, m=10))
-        self.assertEqual([say_fact("少なくとも 53人", lang) for lang in OTHERS], ["최소 53명", "at least 53", "至少53人"])
+        self.assertEqual(
+            [say_fact("少なくとも 53人", lang) for lang in OTHERS], ["최소 53명", "at least 53", "至少53人"]
+        )
         self.assertEqual([say_fact("1.9兆ドル", lang) for lang in OTHERS], ["1.9조 달러", "$1.9 trillion", "1.9兆美元"])
         self.assertEqual([say_fact("50人超", lang) for lang in OTHERS], ["50명 이상", "more than 50", "超過50人"])
         self.assertEqual(say_fact("ほかの形", "ko"), "ほかの形")
 
     def test_the_front_pages_preview_in_the_language(self):
         from newsreader import hosting
+
         now = hosting.news_now(self.app, "en-GB")
         self.assertEqual(now["title"], i18n.text("各社が伝えた話題", "en-GB"))
         self.assertFalse(KANA.search(now["title"] + now["note"]))

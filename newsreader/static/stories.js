@@ -6,39 +6,73 @@
   // the path the site is served under ("/news" behind the front page; "" on its own)
   const base = document.querySelector('meta[name="app-base"]')?.content || "";
   const csrf = document.querySelector('meta[name="csrf-token"]')?.content || "";
-  const readLocal = key => { try { return localStorage.getItem(key); } catch (_) { return null; } };
-  const writeLocal = (key, value) => { try { localStorage.setItem(key, value); } catch (_) { /* private mode */ } };
-  const targetMenu = (() => { try { return JSON.parse(document.querySelector('meta[name="translation-targets"]')?.content || "{}"); } catch (_) { return {}; } })();
+  const readLocal = (key) => {
+    try {
+      return localStorage.getItem(key);
+    } catch (_) {
+      return null;
+    }
+  };
+  const writeLocal = (key, value) => {
+    try {
+      localStorage.setItem(key, value);
+    } catch (_) {
+      /* private mode */
+    }
+  };
+  const targetMenu = (() => {
+    try {
+      return JSON.parse(document.querySelector('meta[name="translation-targets"]')?.content || "{}");
+    } catch (_) {
+      return {};
+    }
+  })();
   const targetLang = () => {
     const saved = readLocal("news-html-reader-translation-target");
     return targetMenu[saved]?.available ? saved : NR.target;
   };
-  const langTag = t => targetMenu[t]?.tag || t;
+  const langTag = (t) => targetMenu[t]?.tag || t;
   const post = async (url, body) => {
     const response = await fetch(url, {
-      method: "POST", credentials: "same-origin",
+      method: "POST",
+      credentials: "same-origin",
       headers: { "Content-Type": "application/json", "X-CSRF-Token": csrf },
-      body: JSON.stringify(body)
+      body: JSON.stringify(body),
     });
     const payload = await response.json().catch(() => ({}));
     if (!response.ok) throw new Error(payload.error || T("処理できませんでした。"));
     return payload;
   };
   const errorBox = document.getElementById("story-gloss-error");
-  const say = text => { if (errorBox) { errorBox.textContent = text; errorBox.hidden = !text; } };
+  const say = (text) => {
+    if (errorBox) {
+      errorBox.textContent = text;
+      errorBox.hidden = !text;
+    }
+  };
 
   // 1. Headlines in the reader's language under each original (on by default; remembered).
   const GLOSS_KEY = "news-html-reader-story-gloss";
   const toggle = document.getElementById("story-gloss-toggle");
   const glossTargets = () => [...document.querySelectorAll("[data-gloss-id]")];
-  const clearGloss = () => document.querySelectorAll(".story-gloss").forEach(node => node.remove());
+  const clearGloss = () => document.querySelectorAll(".story-gloss").forEach((node) => node.remove());
   async function showGloss() {
     clearGloss();
-    const ids = [...new Set(glossTargets().map(el => Number(el.dataset.glossId)).filter(Boolean))];
+    const ids = [
+      ...new Set(
+        glossTargets()
+          .map((el) => Number(el.dataset.glossId))
+          .filter(Boolean),
+      ),
+    ];
     const translations = {};
     try {
       for (let i = 0; i < ids.length; i += 40) {
-        const payload = await post(base + "/api/translate-titles", { ids: ids.slice(i, i + 40), target: targetLang(), auto: true });
+        const payload = await post(base + "/api/translate-titles", {
+          ids: ids.slice(i, i + 40),
+          target: targetLang(),
+          auto: true,
+        });
         Object.assign(translations, payload.translations || {});
       }
       say("");
@@ -55,16 +89,21 @@
       line.textContent = text;
       // A group's headline reads in the reader's language first, the original under it; in the
       // lists of articles the original stays first, its translation under it.
-      if (el.closest(".story-members, .story-item, .arc-body, li")) el.after(line); else el.before(line);
+      if (el.closest(".story-members, .story-item, .arc-body, li")) el.after(line);
+      else el.before(line);
     }
   }
-  const setGloss = on => {
+  const setGloss = (on) => {
     if (toggle) {
       toggle.setAttribute("aria-pressed", String(on));
       toggle.textContent = on ? T("訳を隠す") : T("見出しを訳す");
     }
     writeLocal(GLOSS_KEY, on ? "1" : "0");
-    if (on) showGloss(); else { clearGloss(); say(""); }
+    if (on) showGloss();
+    else {
+      clearGloss();
+      say("");
+    }
   };
   if (glossTargets().length) {
     toggle?.addEventListener("click", () => setGloss(toggle.getAttribute("aria-pressed") !== "true"));
@@ -74,13 +113,15 @@
   // 2. A group by outlet or as one timeline (remembered).
   const VIEW_KEY = "news-html-reader-story-view";
   const segs = [...document.querySelectorAll(".segmented .seg")];
-  const setView = view => {
+  const setView = (view) => {
     for (const seg of segs) seg.setAttribute("aria-pressed", String(seg.dataset.view === view));
-    document.querySelectorAll("[data-view-panel]").forEach(panel => { panel.hidden = panel.dataset.viewPanel !== view; });
+    document.querySelectorAll("[data-view-panel]").forEach((panel) => {
+      panel.hidden = panel.dataset.viewPanel !== view;
+    });
     writeLocal(VIEW_KEY, view);
   };
   if (segs.length) {
-    segs.forEach(seg => seg.addEventListener("click", () => setView(seg.dataset.view)));
+    segs.forEach((seg) => seg.addEventListener("click", () => setView(seg.dataset.view)));
     setView(readLocal(VIEW_KEY) === "timeline" ? "timeline" : "outlets");
   }
 
@@ -89,15 +130,20 @@
   //    Done when the page opens too (unless translated headlines are off on this device): the
   //    comparison is what the page is for.
   const translateLeads = async (auto = false) => {
-    const ids = [...new Set([...document.querySelectorAll("[data-article-id]")].map(el => Number(el.dataset.articleId)))];
+    const ids = [
+      ...new Set([...document.querySelectorAll("[data-article-id]")].map((el) => Number(el.dataset.articleId))),
+    ];
     if (!ids.length) return;
     leadsButton.disabled = true;
     leadsButton.textContent = T("翻訳しています…");
     try {
       const payload = await post(base + "/api/translate-leads", { ids: ids.slice(0, 12), target: targetLang(), auto });
       for (const [id, lead] of Object.entries(payload.leads || {})) {
-        document.querySelectorAll(`[data-lead-for="${id}"]`).forEach(el => { el.textContent = lead.original; el.classList.add("full"); });
-        document.querySelectorAll(`[data-lead-tr-for="${id}"]`).forEach(el => {
+        document.querySelectorAll(`[data-lead-for="${id}"]`).forEach((el) => {
+          el.textContent = lead.original;
+          el.classList.add("full");
+        });
+        document.querySelectorAll(`[data-lead-tr-for="${id}"]`).forEach((el) => {
           el.textContent = lead.translation;
           el.lang = langTag(targetLang());
           el.hidden = !lead.translation;
@@ -117,9 +163,14 @@
   };
   if (leadsButton) {
     leadsButton.addEventListener("click", () => {
-      if (!leadsButton.dataset.done) { translateLeads(false); return; }
+      if (!leadsButton.dataset.done) {
+        translateLeads(false);
+        return;
+      }
       const show = leadsButton.getAttribute("aria-pressed") !== "true";
-      document.querySelectorAll("[data-lead-tr-for]").forEach(el => { el.hidden = !show || !el.textContent; });
+      document.querySelectorAll("[data-lead-tr-for]").forEach((el) => {
+        el.hidden = !show || !el.textContent;
+      });
       leadsButton.setAttribute("aria-pressed", String(show));
       leadsButton.textContent = show ? T("書き出しの訳を隠す") : T("書き出しの訳を表示");
     });
@@ -131,18 +182,27 @@
   //     (訳 / 書き出しを訳して比べる) stay as they are, so both can be shown at once.
   const alignButtons = [...document.querySelectorAll("[data-align]")];
   const aligned = {}; // target -> {id: {title, lead}}
-  const hideAligned = () => document.querySelectorAll(".cmp-tr").forEach(box => { box.hidden = true; box.replaceChildren(); });
+  const hideAligned = () =>
+    document.querySelectorAll(".cmp-tr").forEach((box) => {
+      box.hidden = true;
+      box.replaceChildren();
+    });
   async function alignTo(target, button) {
     if (button.getAttribute("aria-pressed") === "true") {
       button.setAttribute("aria-pressed", "false");
       hideAligned();
       return;
     }
-    alignButtons.forEach(other => other.setAttribute("aria-pressed", "false"));
+    alignButtons.forEach((other) => other.setAttribute("aria-pressed", "false"));
     button.setAttribute("aria-pressed", "true");
     hideAligned();
-    const ids = [...new Set([...document.querySelectorAll("[data-article-id]")]
-      .filter(el => el.dataset.langTarget !== target).map(el => Number(el.dataset.articleId)))];
+    const ids = [
+      ...new Set(
+        [...document.querySelectorAll("[data-article-id]")]
+          .filter((el) => el.dataset.langTarget !== target)
+          .map((el) => Number(el.dataset.articleId)),
+      ),
+    ];
     if (!aligned[target]) {
       button.disabled = true;
       try {
@@ -162,9 +222,12 @@
       }
     }
     if (button.getAttribute("aria-pressed") !== "true") return;
-    const label = T("{language}に翻訳（{outlets}と同じ言語）", { language: targetMenu[target]?.label || target, outlets: button.querySelector("small")?.textContent || "" });
+    const label = T("{language}に翻訳（{outlets}と同じ言語）", {
+      language: targetMenu[target]?.label || target,
+      outlets: button.querySelector("small")?.textContent || "",
+    });
     for (const [id, item] of Object.entries(aligned[target])) {
-      document.querySelectorAll(`[data-cmp-for="${id}"]`).forEach(box => {
+      document.querySelectorAll(`[data-cmp-for="${id}"]`).forEach((box) => {
         const head = document.createElement("span");
         head.className = "cmp-label";
         head.textContent = label;
@@ -188,23 +251,31 @@
       });
     }
   }
-  alignButtons.forEach(button => button.addEventListener("click", () => alignTo(button.dataset.align, button)));
+  alignButtons.forEach((button) => button.addEventListener("click", () => alignTo(button.dataset.align, button)));
   // "?align=en" (from an article's "…にそろえて比べる"): start in that language.
   const askedAlign = new URLSearchParams(location.search).get("align");
-  const askedButton = alignButtons.find(button => button.dataset.align === askedAlign);
+  const askedButton = alignButtons.find((button) => button.dataset.align === askedAlign);
   if (askedButton) alignTo(askedAlign, askedButton);
 
   // 4. "別のニュース": two taps (the first one asks), then the group is corrected and re-grouped.
   const key = document.querySelector('meta[name="story-key"]')?.content || "";
-  document.addEventListener("click", async event => {
+  document.addEventListener("click", async (event) => {
     const button = event.target.closest?.(".exclude-button");
     if (!button || !key) return;
     event.preventDefault();
     if (!button.classList.contains("confirm")) {
-      document.querySelectorAll(".exclude-button.confirm").forEach(other => { other.classList.remove("confirm"); other.textContent = T("別のニュース"); });
+      document.querySelectorAll(".exclude-button.confirm").forEach((other) => {
+        other.classList.remove("confirm");
+        other.textContent = T("別のニュース");
+      });
       button.classList.add("confirm");
       button.textContent = T("このグループから外す（もう一度押す）");
-      window.setTimeout(() => { if (button.isConnected && button.classList.contains("confirm") && !button.disabled) { button.classList.remove("confirm"); button.textContent = T("別のニュース"); } }, 4000);
+      window.setTimeout(() => {
+        if (button.isConnected && button.classList.contains("confirm") && !button.disabled) {
+          button.classList.remove("confirm");
+          button.textContent = T("別のニュース");
+        }
+      }, 4000);
       return;
     }
     button.disabled = true;
@@ -229,10 +300,20 @@
   const base = document.querySelector('meta[name="app-base"]')?.content || "";
   const csrf = document.querySelector('meta[name="csrf-token"]')?.content || "";
   const key = document.querySelector('meta[name="story-key"]')?.content || "";
-  const targetMenu = (() => { try { return JSON.parse(document.querySelector('meta[name="translation-targets"]')?.content || "{}"); } catch (_) { return {}; } })();
+  const targetMenu = (() => {
+    try {
+      return JSON.parse(document.querySelector('meta[name="translation-targets"]')?.content || "{}");
+    } catch (_) {
+      return {};
+    }
+  })();
   const targetLang = () => {
     let saved = null;
-    try { saved = localStorage.getItem("news-html-reader-translation-target"); } catch (_) { saved = null; }
+    try {
+      saved = localStorage.getItem("news-html-reader-translation-target");
+    } catch (_) {
+      saved = null;
+    }
     return targetMenu[saved]?.available ? saved : NR.target;
   };
   const el = (tag, className, text) => {
@@ -241,24 +322,36 @@
     if (text !== undefined) node.textContent = text;
     return node;
   };
-  const badge = (source, lang) => { const b = el("span", "badge", source || T("未分類")); b.dataset.lang = lang || ""; return b; };
-  const when = iso => {
-    const date = new Date(iso);
-    return Number.isNaN(date.getTime()) ? "" :
-      date.toLocaleString(NR.lang, { month: "numeric", day: "numeric", hour: "2-digit", minute: "2-digit" });
+  const badge = (source, lang) => {
+    const b = el("span", "badge", source || T("未分類"));
+    b.dataset.lang = lang || "";
+    return b;
   };
-  const escape = text => text.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  const when = (iso) => {
+    const date = new Date(iso);
+    return Number.isNaN(date.getTime())
+      ? ""
+      : date.toLocaleString(NR.lang, { month: "numeric", day: "numeric", hour: "2-digit", minute: "2-digit" });
+  };
+  const escape = (text) => text.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
   // The sentence with the figure marked: the English digits ("1,200"), without commas, or the
   // digits of the figure as shown ("少なくとも 53" -> 53).
   function sentenceWithFigure(text, fact, lang) {
     const p = el("p", "fact-sentence");
     if (lang) p.lang = lang;
-    const candidates = [fact.number, String(fact.number || "").replace(/,/g, ""), ...(String(fact.text).match(/[\d.,]*\d/g) || [])]
-      .filter(c => c && /\d/.test(c));
+    const candidates = [
+      fact.number,
+      String(fact.number || "").replace(/,/g, ""),
+      ...(String(fact.text).match(/[\d.,]*\d/g) || []),
+    ].filter((c) => c && /\d/.test(c));
     for (const candidate of candidates) {
       const found = new RegExp(`(?<![\\d.,])${escape(candidate)}(?![\\d])`).exec(text);
       if (found) {
-        p.append(text.slice(0, found.index), el("mark", "fact-num", found[0]), text.slice(found.index + found[0].length));
+        p.append(
+          text.slice(0, found.index),
+          el("mark", "fact-num", found[0]),
+          text.slice(found.index + found[0].length),
+        );
         return p;
       }
     }
@@ -267,8 +360,10 @@
   }
   async function post(url, body) {
     const response = await fetch(url, {
-      method: "POST", credentials: "same-origin",
-      headers: { "Content-Type": "application/json", "X-CSRF-Token": csrf }, body: JSON.stringify(body)
+      method: "POST",
+      credentials: "same-origin",
+      headers: { "Content-Type": "application/json", "X-CSRF-Token": csrf },
+      body: JSON.stringify(body),
     });
     const payload = await response.json().catch(() => ({}));
     if (!response.ok) throw new Error(payload.error || T("処理できませんでした。"));
@@ -279,21 +374,49 @@
     panel.replaceChildren();
     const tag = targetMenu[target]?.tag || target;
     if (!payload.categories?.length) {
-      panel.append(el("p", "hint", T("2つ以上の媒体が報じた同じ種類の数字（死者・負傷者・金額・割合など）は見つかりませんでした。")));
+      panel.append(
+        el(
+          "p",
+          "hint",
+          T("2つ以上の媒体が報じた同じ種類の数字（死者・負傷者・金額・割合など）は見つかりませんでした。"),
+        ),
+      );
       return;
     }
-    panel.append(el("p", "hint", T("{count} 本の見出しと書き出しから数字を拾いました（英語以外の記事は英訳して照合し、文は元の言語から訳しています）。", { count: payload.compared })));
+    panel.append(
+      el(
+        "p",
+        "hint",
+        T(
+          "{count} 本の見出しと書き出しから数字を拾いました（英語以外の記事は英訳して照合し、文は元の言語から訳しています）。",
+          { count: payload.compared },
+        ),
+      ),
+    );
     // A plain-text summary to paste elsewhere (notes, a message): one line per kind of figure.
-    const compared = payload.categories.filter(c => c.compared);
+    const compared = payload.categories.filter((c) => c.compared);
     if (compared.length && navigator.clipboard) {
       const copy = el("button", "text-button copy-facts", T("数字の比較をコピー"));
       copy.type = "button";
       copy.addEventListener("click", async () => {
         const title = document.querySelector("h1 [data-gloss-id]")?.textContent.trim() || "";
-        const lines = compared.map(c => T("【{kind}】", { kind: c.label }) + c.rows.map(row => {
-          const top = row.facts.reduce((best, f) => (f.value ?? -1) > (best?.value ?? -1) ? f : best, row.facts[0]);
-          return T("{outlet} {figure}（{when}）", { outlet: row.source, figure: top?.text || "", when: when(row.published) });
-        }).join(" → "));
+        const lines = compared.map(
+          (c) =>
+            T("【{kind}】", { kind: c.label }) +
+            c.rows
+              .map((row) => {
+                const top = row.facts.reduce(
+                  (best, f) => ((f.value ?? -1) > (best?.value ?? -1) ? f : best),
+                  row.facts[0],
+                );
+                return T("{outlet} {figure}（{when}）", {
+                  outlet: row.source,
+                  figure: top?.text || "",
+                  when: when(row.published),
+                });
+              })
+              .join(" → "),
+        );
         try {
           await navigator.clipboard.writeText([title, ...lines, location.href.split("#")[0]].join("\n"));
           copy.textContent = T("コピーしました");
@@ -313,20 +436,25 @@
         const trail = el("ol", "fact-trail");
         trail.setAttribute("aria-label", T("{kind}の数字（報じた順）", { kind: category.label }));
         for (const row of category.rows) {
-          const top = row.facts.reduce((best, f) => (f.value ?? -1) > (best?.value ?? -1) ? f : best, row.facts[0]);
+          const top = row.facts.reduce((best, f) => ((f.value ?? -1) > (best?.value ?? -1) ? f : best), row.facts[0]);
           const step = el("li");
-          step.append(badge(row.source, row.lang), el("strong", "", top?.text || ""), el("time", "", when(row.published)));
+          step.append(
+            badge(row.source, row.lang),
+            el("strong", "", top?.text || ""),
+            el("time", "", when(row.published)),
+          );
           trail.append(step);
         }
         box.append(trail);
       }
-      if (category.differs) box.append(el("p", "hint", T("報じた時刻の違い（その後の更新）による場合もあります。古い順に並べています。")));
+      if (category.differs)
+        box.append(el("p", "hint", T("報じた時刻の違い（その後の更新）による場合もあります。古い順に並べています。")));
       const list = el("ul", "fact-rows");
       for (const row of category.rows) {
         const item = el("li", "fact-row");
         const meta = el("div", "fact-meta");
         meta.append(badge(row.source, row.lang), el("time", "", when(row.published)));
-        const values = el("strong", "fact-values", row.facts.map(f => f.text).join(" / "));
+        const values = el("strong", "fact-values", row.facts.map((f) => f.text).join(" / "));
         meta.append(values);
         const link = el("a", "fact-link", T("記事"));
         link.href = `${base}/a/${row.id}`;
@@ -377,7 +505,9 @@
       const [before, after] = T("{outlet} だけが使う言葉").split("{outlet}");
       head.append(before, badge(entry.source, entry.lang), after ?? "");
       group.append(head);
-      group.append(entry.words.length ? chips(entry.words, "only") : el("p", "hint", T("（ほかの媒体と同じ言葉だけ）")));
+      group.append(
+        entry.words.length ? chips(entry.words, "only") : el("p", "hint", T("（ほかの媒体と同じ言葉だけ）")),
+      );
       panel.append(group);
     }
   }
@@ -386,13 +516,24 @@
     panel.replaceChildren();
     const tag = targetMenu[target]?.tag || target;
     if (!payload.groups?.length) {
-      panel.append(el("p", "hint", T("かぎかっこで引用された発言は見つかりませんでした（見出しと最初の段落から探しています）。")));
+      panel.append(
+        el("p", "hint", T("かぎかっこで引用された発言は見つかりませんでした（見出しと最初の段落から探しています）。")),
+      );
       return;
     }
-    panel.append(el("p", "hint", T("同じ発言を、各媒体がどう伝え（どう訳し）たか。英語以外の記事は英訳して照合し、文は元の言語から訳しています。")));
+    panel.append(
+      el(
+        "p",
+        "hint",
+        T(
+          "同じ発言を、各媒体がどう伝え（どう訳し）たか。英語以外の記事は英訳して照合し、文は元の言語から訳しています。",
+        ),
+      ),
+    );
     for (const group of payload.groups) {
       const box = el("section", "quote-group" + (group.outlets > 1 ? " shared" : ""));
-      if (group.outlets > 1) box.append(el("span", "quote-shared", T("{count} 媒体が伝えた発言", { count: group.outlets })));
+      if (group.outlets > 1)
+        box.append(el("span", "quote-shared", T("{count} 媒体が伝えた発言", { count: group.outlets })));
       for (const quote of group.quotes) {
         const item = el("div", "quote-item");
         const meta = el("div", "fact-meta");
@@ -444,14 +585,26 @@
       }
     });
   }
-  wire("compare-facts", "facts-panel", base + "/api/story-facts", renderFacts,
-       { show: T("数字を比べる"), hide: T("数字を隠す"), loading: T("記事の数字を集めています…"), failed: T("数字を比べられませんでした") });
-  wire("compare-words", "words-panel", base + "/api/story-words", renderWords,
-       { show: T("言葉の違い"), hide: T("言葉の違いを隠す"), loading: T("見出しの言葉を比べています…"), failed: T("言葉を比べられませんでした") });
-  wire("compare-quotes", "quotes-panel", base + "/api/story-quotes", renderQuotes,
-       { show: T("発言を比べる"), hide: T("発言を隠す"), loading: T("引用された発言を探しています…"), failed: T("発言を比べられませんでした") });
+  wire("compare-facts", "facts-panel", base + "/api/story-facts", renderFacts, {
+    show: T("数字を比べる"),
+    hide: T("数字を隠す"),
+    loading: T("記事の数字を集めています…"),
+    failed: T("数字を比べられませんでした"),
+  });
+  wire("compare-words", "words-panel", base + "/api/story-words", renderWords, {
+    show: T("言葉の違い"),
+    hide: T("言葉の違いを隠す"),
+    loading: T("見出しの言葉を比べています…"),
+    failed: T("言葉を比べられませんでした"),
+  });
+  wire("compare-quotes", "quotes-panel", base + "/api/story-quotes", renderQuotes, {
+    show: T("発言を比べる"),
+    hide: T("発言を隠す"),
+    loading: T("引用された発言を探しています…"),
+    failed: T("発言を比べられませんでした"),
+  });
   // Keys on a group page: F 数字 / W 言葉 / Q 発言 / T 時系列と媒体ごとの切り替え.
-  document.addEventListener("keydown", event => {
+  document.addEventListener("keydown", (event) => {
     if (event.ctrlKey || event.metaKey || event.altKey || event.isComposing) return;
     if (event.target.closest?.("input, textarea, select, [contenteditable]")) return;
     const target = { f: "compare-facts", w: "compare-words", q: "compare-quotes" }[event.key.toLowerCase()];
@@ -462,7 +615,10 @@
     }
     if (event.key.toLowerCase() === "t") {
       const other = document.querySelector('.seg[data-view][aria-pressed="false"]');
-      if (other) { event.preventDefault(); other.click(); }
+      if (other) {
+        event.preventDefault();
+        other.click();
+      }
     }
   });
   // Arriving from an article's "各社の数字を比べる →" (#facts) or a link to #words / #quotes: open that panel.

@@ -1,4 +1,5 @@
 """Test build (D-53): one ZIP with the same code, a preset, sample articles and a relay token."""
+
 import json
 import shutil
 import sys
@@ -25,17 +26,27 @@ class ChooseArticlesTests(unittest.TestCase):
         self.db = self.tmp / "library.sqlite3"
         with closing(index.connect(self.db)) as db:
             rows = [  # id, source, published, paragraphs, story
-                (1, "BBC", "2026-10-19T01", 9, "s1"), (2, "CNA", "2026-10-19T02", 9, "s1"),
-                (3, "Yonhap", "2026-10-19T03", 9, "s1"), (4, "BBC", "2026-10-19T04", 9, "s1"),
-                (5, "BBC", "2026-10-19T09", 9, "s2"), (6, "CNA", "2026-10-19T09", 9, "s2"),
-                (7, "BBC", "2026-10-19T08", 9, None), (8, "Yonhap", "2026-10-19T07", 1, None),
-                (9, "Yonhap", "2026-10-19T06", 9, None), (10, "CNA", "2026-10-19T10", 9, None),
+                (1, "BBC", "2026-10-19T01", 9, "s1"),
+                (2, "CNA", "2026-10-19T02", 9, "s1"),
+                (3, "Yonhap", "2026-10-19T03", 9, "s1"),
+                (4, "BBC", "2026-10-19T04", 9, "s1"),
+                (5, "BBC", "2026-10-19T09", 9, "s2"),
+                (6, "CNA", "2026-10-19T09", 9, "s2"),
+                (7, "BBC", "2026-10-19T08", 9, None),
+                (8, "Yonhap", "2026-10-19T07", 1, None),
+                (9, "Yonhap", "2026-10-19T06", 9, None),
+                (10, "CNA", "2026-10-19T10", 9, None),
             ]
             for aid, source, published, paragraphs, story in rows:
-                db.execute("INSERT INTO articles(id, source, filename, title, published, paragraph_count, size, mtime)"
-                           " VALUES(?,?,?,?,?,?,1,1)", (aid, source, f"{aid}.html", f"t{aid}", published, paragraphs))
+                db.execute(
+                    "INSERT INTO articles(id, source, filename, title, published, paragraph_count, size, mtime)"
+                    " VALUES(?,?,?,?,?,?,1,1)",
+                    (aid, source, f"{aid}.html", f"t{aid}", published, paragraphs),
+                )
                 if story:
-                    db.execute("INSERT INTO story_members(article_id, story_key, score) VALUES(?,?,?)", (aid, story, 1.0 / aid))
+                    db.execute(
+                        "INSERT INTO story_members(article_id, story_key, score) VALUES(?,?,?)", (aid, story, 1.0 / aid)
+                    )
 
     def tearDown(self):
         shutil.rmtree(self.tmp, ignore_errors=True)
@@ -91,17 +102,25 @@ class BuildTests(unittest.TestCase):
         shutil.rmtree(self.tmp, ignore_errors=True)
 
     def test_zip_has_the_same_code_as_the_portable_zip_plus_the_preset(self):
-        archive = make_alpha_zip.build(self.tmp, [(self.article, "BBC/a.html")], "http://100.64.0.1:5000",
-                                       "nbr_token", 5, "20261019-2100")
+        archive = make_alpha_zip.build(
+            self.tmp, [(self.article, "BBC/a.html")], "http://100.64.0.1:5000", "nbr_token", 5, "20261019-2100"
+        )
         with zipfile.ZipFile(archive) as z:
             names = set(z.namelist())
             preset_settings = json.loads(z.read("NewsBridge-alpha/preset/settings.json"))
             self.assertEqual(z.read("NewsBridge-alpha/preset/relay_token"), b"nbr_token")
             self.assertEqual(z.read("NewsBridge-alpha/launcher.py"), (ROOT / "launcher.py").read_bytes())
-        code = {f"NewsBridge-alpha/{p.relative_to(ROOT).as_posix()}" for p in ROOT.rglob("*")
-                if p.is_file() and make_portable_zip.should_include(p, p.relative_to(ROOT))}
-        extra = {"NewsBridge-alpha/articles/BBC/a.html", "NewsBridge-alpha/preset/settings.json",
-                 "NewsBridge-alpha/preset/relay_token", "NewsBridge-alpha/はじめにお読みください.txt"}
+        code = {
+            f"NewsBridge-alpha/{p.relative_to(ROOT).as_posix()}"
+            for p in ROOT.rglob("*")
+            if p.is_file() and make_portable_zip.should_include(p, p.relative_to(ROOT))
+        }
+        extra = {
+            "NewsBridge-alpha/articles/BBC/a.html",
+            "NewsBridge-alpha/preset/settings.json",
+            "NewsBridge-alpha/preset/relay_token",
+            "NewsBridge-alpha/はじめにお読みください.txt",
+        }
         self.assertEqual(names, code | extra)
         self.assertFalse(any("/instance/" in n or "/tests/" in n or n.endswith((".sqlite3", ".pyc")) for n in names))
         self.assertEqual(preset_settings["translation_source"], "relay")
@@ -112,8 +131,9 @@ class BuildTests(unittest.TestCase):
         self.assertTrue(set(preset_settings) - {"preset_id"} <= launcher.PRESET_KEYS)
 
     def test_without_a_token_the_zip_carries_none_and_says_where_to_enter_it(self):
-        archive = make_alpha_zip.build(self.tmp, [(self.article, "BBC/a.html")], "http://100.64.0.1:5000",
-                                       "", 5, "20261023-2200")
+        archive = make_alpha_zip.build(
+            self.tmp, [(self.article, "BBC/a.html")], "http://100.64.0.1:5000", "", 5, "20261023-2200"
+        )
         with zipfile.ZipFile(archive) as z:
             names = set(z.namelist())
             readme = z.read("NewsBridge-alpha/はじめにお読みください.txt").decode("utf-8")
@@ -124,15 +144,24 @@ class BuildTests(unittest.TestCase):
 
     def test_the_relay_url_prefers_the_tailscale_address(self):
         (self.tmp / "instance").mkdir()
-        (self.tmp / "instance" / "status.json").write_text(json.dumps({"web": {
-            "url": "http://192.168.1.5:5000/", "also": ["http://100.70.63.91:5000/"]}}), encoding="utf-8")
+        (self.tmp / "instance" / "status.json").write_text(
+            json.dumps({"web": {"url": "http://192.168.1.5:5000/", "also": ["http://100.70.63.91:5000/"]}}),
+            encoding="utf-8",
+        )
         with mock.patch.object(make_alpha_zip, "PROJECT_ROOT", self.tmp):
             self.assertEqual(make_alpha_zip.default_relay_url(), "http://100.70.63.91:5000")
 
     def test_the_glossary_travels_with_the_test_build(self):
         glossary = [{"source": "다카이치", "target": "高市", "lang": "ja"}]
-        archive = make_alpha_zip.build(self.tmp, [(self.article, "BBC/a.html")], "http://100.64.0.1:5000",
-                                       "nbr_token", 5, "20261020-0900", glossary=glossary)
+        archive = make_alpha_zip.build(
+            self.tmp,
+            [(self.article, "BBC/a.html")],
+            "http://100.64.0.1:5000",
+            "nbr_token",
+            5,
+            "20261020-0900",
+            glossary=glossary,
+        )
         with zipfile.ZipFile(archive) as z:
             preset_settings = json.loads(z.read("NewsBridge-alpha/preset/settings.json"))
         self.assertEqual(preset_settings["glossary"], glossary)
@@ -145,9 +174,11 @@ class BuildTests(unittest.TestCase):
 class PresetTests(unittest.TestCase):
     def setUp(self):
         self.tmp = Path(tempfile.mkdtemp())
-        self.patches = [mock.patch.object(launcher, "PRESET_SETTINGS_PATH", self.tmp / "preset" / "settings.json"),
-                        mock.patch.object(launcher, "PRESET_RECORD_PATH", self.tmp / "instance" / "preset-applied.json"),
-                        mock.patch.object(launcher, "SETTINGS_PATH", self.tmp / "instance" / "settings.json")]
+        self.patches = [
+            mock.patch.object(launcher, "PRESET_SETTINGS_PATH", self.tmp / "preset" / "settings.json"),
+            mock.patch.object(launcher, "PRESET_RECORD_PATH", self.tmp / "instance" / "preset-applied.json"),
+            mock.patch.object(launcher, "SETTINGS_PATH", self.tmp / "instance" / "settings.json"),
+        ]
         for patch in self.patches:
             patch.start()
         (self.tmp / "preset").mkdir()
@@ -166,8 +197,15 @@ class PresetTests(unittest.TestCase):
         self.assertEqual(launcher.read_settings(), {})
 
     def test_preset_is_applied_once_and_later_changes_stay(self):
-        self.write_preset(preset_id="p1", translation_source="relay", relay_url="http://100.64.0.1:5000",
-                          network_bind_host="127.0.0.1", library_limit=5, provider="evil", azure_region="x")
+        self.write_preset(
+            preset_id="p1",
+            translation_source="relay",
+            relay_url="http://100.64.0.1:5000",
+            network_bind_host="127.0.0.1",
+            library_limit=5,
+            provider="evil",
+            azure_region="x",
+        )
         self.assertTrue(launcher.apply_preset())
         saved = launcher.read_settings()
         self.assertEqual((saved["translation_source"], saved["library_limit"]), ("relay", 5))
@@ -182,15 +220,17 @@ class PresetTests(unittest.TestCase):
             launcher.apply_preset()
 
     def run_main(self):
-        with mock.patch.dict(launcher.os.environ, {"LOCALAPPDATA": str(self.tmp / "local")}), \
-                mock.patch.object(launcher, "select_connection", return_value=("127.0.0.1", 5000, {"127.0.0.1"})), \
-                mock.patch.object(launcher, "find_runtime_python", return_value=Path("python")), \
-                mock.patch.object(launcher, "update_dependencies"), \
-                mock.patch.object(launcher, "persist_collector_config"), \
-                mock.patch.object(launcher, "ensure_logon_task") as logon, \
-                mock.patch.object(launcher, "ensure_hourly_collector_task") as hourly, \
-                mock.patch.object(launcher, "launch_app", return_value=0), \
-                mock.patch("builtins.input", side_effect=AssertionError("asked")):
+        with (
+            mock.patch.dict(launcher.os.environ, {"LOCALAPPDATA": str(self.tmp / "local")}),
+            mock.patch.object(launcher, "select_connection", return_value=("127.0.0.1", 5000, {"127.0.0.1"})),
+            mock.patch.object(launcher, "find_runtime_python", return_value=Path("python")),
+            mock.patch.object(launcher, "update_dependencies"),
+            mock.patch.object(launcher, "persist_collector_config"),
+            mock.patch.object(launcher, "ensure_logon_task") as logon,
+            mock.patch.object(launcher, "ensure_hourly_collector_task") as hourly,
+            mock.patch.object(launcher, "launch_app", return_value=0),
+            mock.patch("builtins.input", side_effect=AssertionError("asked")),
+        ):
             self.assertEqual(launcher.main([]), 0)
         return hourly, logon
 
@@ -239,6 +279,7 @@ class TokenImportTests(unittest.TestCase):
 
     def test_a_token_left_in_preset_is_still_used(self):
         from newsreader.services import relay
+
         self.token.write_text("nbr_left", encoding="utf-8")
         with mock.patch.object(relay, "get_secret", side_effect=settings.SecretStoreError("x")):
             self.assertEqual(relay._token(), "nbr_left")

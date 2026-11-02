@@ -6,6 +6,7 @@ Invariants (CLAUDE.md §4), enforced here centrally so no individual view can fo
 - responses carry a Content-Security-Policy that allows only this app's own scripts — inline
   scripts are allowed by hash, never wholesale — plus the usual anti-framing / sniffing headers.
 """
+
 from __future__ import annotations
 
 import base64
@@ -49,8 +50,9 @@ def configured_port() -> int:
 
 def trusted_hosts(bind_host: str) -> frozenset[str]:
     hosts = {"localhost", "127.0.0.1", "::1", bind_host.lower()}
-    hosts.update(item.strip().lower().rstrip(".") for item in os.environ.get("NEWS_ALLOWED_HOSTS", "").split(",")
-                 if item.strip())
+    hosts.update(
+        item.strip().lower().rstrip(".") for item in os.environ.get("NEWS_ALLOWED_HOSTS", "").split(",") if item.strip()
+    )
     return frozenset(hosts)
 
 
@@ -58,7 +60,7 @@ def host_without_port(raw: str) -> str:
     """``example:5000`` -> ``example``; ``[::1]:5000`` and ``[::1]`` -> ``::1``."""
     raw = raw.strip().lower()
     if raw.startswith("["):
-        return raw[1:raw.find("]")] if "]" in raw else raw
+        return raw[1 : raw.find("]")] if "]" in raw else raw
     if raw.count(":") == 1:
         raw = raw.split(":", 1)[0]
     return raw.rstrip(".")
@@ -125,18 +127,20 @@ def _script_hashes() -> str:
 
 
 def content_security_policy() -> str:
-    return "; ".join([
-        "default-src 'self'",
-        f"script-src 'self' {_script_hashes()}".strip(),
-        "style-src 'self'",
-        "img-src 'self' data:",  # article images are proxied through /img, never hot-linked
-        "connect-src 'self'",
-        "font-src 'self'",
-        "object-src 'none'",
-        "base-uri 'none'",
-        "frame-ancestors 'none'",
-        "form-action 'self'",
-    ])
+    return "; ".join(
+        [
+            "default-src 'self'",
+            f"script-src 'self' {_script_hashes()}".strip(),
+            "style-src 'self'",
+            "img-src 'self' data:",  # article images are proxied through /img, never hot-linked
+            "connect-src 'self'",
+            "font-src 'self'",
+            "object-src 'none'",
+            "base-uri 'none'",
+            "frame-ancestors 'none'",
+            "form-action 'self'",
+        ]
+    )
 
 
 class _SessionInterface(SecureCookieSessionInterface):

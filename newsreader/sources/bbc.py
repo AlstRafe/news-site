@@ -1,4 +1,5 @@
 """BBC News: regular articles and video pages (video pages give their description text only)."""
+
 from __future__ import annotations
 
 from urllib.parse import urlsplit

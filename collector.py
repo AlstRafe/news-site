@@ -5,6 +5,7 @@ Kept at the project root, and kept thin: the Windows scheduled task
 ``.venv\\Scripts\\pythonw.exe collector.py --once`` and ``launcher.py`` registers
 that exact command line. All behaviour lives in ``newsreader.collect.runner``.
 """
+
 from __future__ import annotations
 
 from newsreader.collect.runner import main

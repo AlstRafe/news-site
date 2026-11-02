@@ -7,6 +7,7 @@ background nothing is translated: counts of people are read in English, Korean a
 written (D-65). ``english_of`` (with an injected, cached translator) serves the group page, which
 also compares money, shares and quotes.
 """
+
 from __future__ import annotations
 
 import json
@@ -44,7 +45,9 @@ def newest_members(story: dict) -> list[dict]:
     return sorted(story["members"], key=lambda m: m["published"] or "", reverse=True)[:MAX_MEMBERS]
 
 
-def english_of(db_path: Path, members: list[dict], translate_en: TranslateEn) -> tuple[dict[int, str], dict[int, tuple[str, str]]]:
+def english_of(
+    db_path: Path, members: list[dict], translate_en: TranslateEn
+) -> tuple[dict[int, str], dict[int, tuple[str, str]]]:
     """({id: English headline + opening}, {id: (own opening, its English)} for non-English ones).
     The body comes first so that a figure in both keeps the fuller sentence."""
     english: dict[int, str] = {}
@@ -73,7 +76,9 @@ def summary(categories: list[dict]) -> list[dict]:
         for row in category["rows"]:
             top = max(row["facts"], key=lambda f: -1 if f["value"] is None else f["value"])
             trail.append({"id": row["id"], "source": row["source"], "published": row["published"], "text": top["text"]})
-        out.append({"kind": category["kind"], "label": category["label"], "differs": category["differs"], "trail": trail})
+        out.append(
+            {"kind": category["kind"], "label": category["label"], "differs": category["differs"], "trail": trail}
+        )
     return out
 
 
@@ -94,17 +99,34 @@ def store(db_path: Path, key: str, members: list[dict], categories: list[dict]) 
     newest = max((m["published"] or "" for m in members), default="")
     cohesive = all(float(m.get("score") or 0) >= COHESIVE_SCORE for m in members)
     with closing(index.connect(db_path)) as db:
-        index._write(db, [("INSERT OR REPLACE INTO story_facts(story_key, members, newest, differs, cohesive, summary, "
-                           "computed) VALUES(?,?,?,?,?,?,?)",
-                           (key, _signature(members), newest, int(any(c["differs"] for c in found)), int(cohesive),
-                            json.dumps(found, ensure_ascii=False), datetime.now(UTC).strftime("%Y-%m-%dT%H:%M:%SZ")))])
+        index._write(
+            db,
+            [
+                (
+                    "INSERT OR REPLACE INTO story_facts(story_key, members, newest, differs, cohesive, summary, "
+                    "computed) VALUES(?,?,?,?,?,?,?)",
+                    (
+                        key,
+                        _signature(members),
+                        newest,
+                        int(any(c["differs"] for c in found)),
+                        int(cohesive),
+                        json.dumps(found, ensure_ascii=False),
+                        datetime.now(UTC).strftime("%Y-%m-%dT%H:%M:%SZ"),
+                    ),
+                )
+            ],
+        )
 
 
 def native_texts(db_path: Path, members: list[dict]) -> dict[int, str]:
     """{id: own headline + opening} for Korean and Chinese articles: their counts of people are
     read in the original (compare.native_facts), without translation."""
-    return {m["id"]: f"{opening(index.get_content(db_path, m['id']))}\n{m['title']}"
-            for m in members if m.get("lang") in ("ko", "zh")}
+    return {
+        m["id"]: f"{opening(index.get_content(db_path, m['id']))}\n{m['title']}"
+        for m in members
+        if m.get("lang") in ("ko", "zh")
+    }
 
 
 def refresh(db_path: Path, translate_en: TranslateEn | None = None, *, now: datetime | None = None) -> dict:
@@ -129,7 +151,9 @@ def refresh(db_path: Path, translate_en: TranslateEn | None = None, *, now: date
             if member["id"] in native:
                 texts.append(dict(member, native=native[member["id"]]))
             elif member.get("lang") == "en":
-                texts.append(dict(member, english=f"{opening(index.get_content(db_path, member['id']))}\n{member['title']}"))
+                texts.append(
+                    dict(member, english=f"{opening(index.get_content(db_path, member['id']))}\n{member['title']}")
+                )
         categories = compare.compare(texts)
         store(db_path, group["key"], members, categories)
         result["compared"] += 1
@@ -143,13 +167,21 @@ def disputed(db_path: Path, keys: list[str]) -> dict[str, list[dict]]:
     if not keys:
         return {}
     with closing(index.connect(db_path)) as db:
-        rows = db.execute(f"SELECT story_key, members, summary FROM story_facts WHERE differs = 1 AND cohesive = 1 "
-                          f"AND story_key IN ({','.join('?' * len(keys))})", keys).fetchall()
+        rows = db.execute(
+            f"SELECT story_key, members, summary FROM story_facts WHERE differs = 1 AND cohesive = 1 "
+            f"AND story_key IN ({','.join('?' * len(keys))})",
+            keys,
+        ).fetchall()
         current = {}
         for key in {row[0] for row in rows}:
-            ids = sorted(r[0] for r in db.execute("SELECT m.article_id FROM story_members m JOIN articles a ON a.id = m.article_id "
-                                                   "WHERE m.story_key = ? AND a.error = '' ORDER BY a.published DESC LIMIT ?",
-                                                   (key, MAX_MEMBERS)))
+            ids = sorted(
+                r[0]
+                for r in db.execute(
+                    "SELECT m.article_id FROM story_members m JOIN articles a ON a.id = m.article_id "
+                    "WHERE m.story_key = ? AND a.error = '' ORDER BY a.published DESC LIMIT ?",
+                    (key, MAX_MEMBERS),
+                )
+            )
             current[key] = _ids_signature(ids)
     out = {}
     for key, members, raw in rows:
@@ -175,8 +207,11 @@ def differing(db_path: Path, *, days: int = 3, limit: int = 4, now: datetime | N
     now = now or datetime.now(UTC)
     since = (now - timedelta(days=days)).strftime("%Y-%m-%dT%H:%M:%SZ")
     with closing(index.connect(db_path)) as db:
-        rows = db.execute("SELECT story_key, members, summary FROM story_facts WHERE differs = 1 AND cohesive = 1 AND newest >= ? "
-                          "ORDER BY newest DESC LIMIT ?", (since, limit * 3)).fetchall()
+        rows = db.execute(
+            "SELECT story_key, members, summary FROM story_facts WHERE differs = 1 AND cohesive = 1 AND newest >= ? "
+            "ORDER BY newest DESC LIMIT ?",
+            (since, limit * 3),
+        ).fetchall()
     out = []
     for key, members, raw in rows:
         story = stories.get_story(db_path, key)
@@ -186,8 +221,15 @@ def differing(db_path: Path, *, days: int = 3, limit: int = 4, now: datetime | N
             kinds = [k for k in json.loads(raw) if k.get("differs")]
         except ValueError:
             continue
-        out.append({"key": key, "title": story["lead_title"], "lead_id": story["lead_id"],
-                    "lead_source": story["lead_source"], "kinds": kinds})
+        out.append(
+            {
+                "key": key,
+                "title": story["lead_title"],
+                "lead_id": story["lead_id"],
+                "lead_source": story["lead_source"],
+                "kinds": kinds,
+            }
+        )
         if len(out) >= limit:
             break
     return out

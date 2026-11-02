@@ -1,5 +1,6 @@
 """Phase 4: web layer — no parsing or network on page render, HTTP caching, security headers,
 central CSRF, on-demand images. Uses fixtures only; nothing touches the real instance/."""
+
 import base64
 import gzip
 import hashlib
@@ -34,7 +35,11 @@ class WebTestCase(unittest.TestCase):
     def setUp(self):
         self.tmp = Path(tempfile.mkdtemp())
         self.root = self.tmp / "articles"
-        for site, name, data in [("BBC", "a.html", NORMAL), ("NAVER NEWS", "n.html", NAVER), ("CNA", "c.html", CNA_WITH_IMAGE)]:
+        for site, name, data in [
+            ("BBC", "a.html", NORMAL),
+            ("NAVER NEWS", "n.html", NAVER),
+            ("CNA", "c.html", CNA_WITH_IMAGE),
+        ]:
             (self.root / site).mkdir(parents=True, exist_ok=True)
             (self.root / site / name).write_bytes(data)
         self.db = self.tmp / "library.sqlite3"
@@ -70,17 +75,21 @@ class NoParsingNoNetworkTests(WebTestCase):
                 raise AssertionError(f"list page read {path}")
             return real_read_bytes(path)
 
-        with mock.patch("builtins.open", guarded_open), \
-                mock.patch.object(Path, "read_bytes", guarded_read_bytes), \
-                mock.patch("newsreader.sources.extract_article", side_effect=AssertionError("parsed")):
+        with (
+            mock.patch("builtins.open", guarded_open),
+            mock.patch.object(Path, "read_bytes", guarded_read_bytes),
+            mock.patch("newsreader.sources.extract_article", side_effect=AssertionError("parsed")),
+        ):
             page = self.client.get("/", headers=H)
         self.assertEqual(page.status_code, 200)
         self.assertIn("CNA headline", page.get_data(as_text=True))
 
     def test_article_page_neither_parses_nor_uses_the_network(self):
-        with mock.patch("newsreader.web.pages.extract_article", side_effect=AssertionError("re-parsed")), \
-                mock.patch("urllib.request.urlopen", side_effect=AssertionError("network")), \
-                mock.patch.object(image_service, "_download", side_effect=AssertionError("image download")):
+        with (
+            mock.patch("newsreader.web.pages.extract_article", side_effect=AssertionError("re-parsed")),
+            mock.patch("urllib.request.urlopen", side_effect=AssertionError("network")),
+            mock.patch.object(image_service, "_download", side_effect=AssertionError("image download")),
+        ):
             page = self.client.get(f"/a/{self.cna}", headers=H)
         self.assertEqual(page.status_code, 200)
         html = page.get_data(as_text=True)
@@ -108,8 +117,9 @@ class HttpCachingTests(WebTestCase):
     def test_list_revalidates_and_api_is_never_cached(self):
         self.assertEqual(self.client.get("/", headers=H).headers["Cache-Control"], "no-cache")
         token = self.csrf()
-        api = self.client.post("/api/translate-article", json={"id": 999, "target": "ja"},
-                               headers={**H, "X-CSRF-Token": token})
+        api = self.client.post(
+            "/api/translate-article", json={"id": 999, "target": "ja"}, headers={**H, "X-CSRF-Token": token}
+        )
         self.assertEqual(api.headers["Cache-Control"], "no-store")
 
     def test_html_is_gzipped_when_accepted(self):
@@ -130,8 +140,11 @@ class HttpCachingTests(WebTestCase):
         self.assertEqual(hashlib.sha256(raw).hexdigest()[:12], href.group(2))
         again = self.client.get(href.group(1), headers={**H, "If-None-Match": css.headers["ETag"]})
         self.assertEqual(again.status_code, 304)
-        self.assertEqual(self.client.get("/static/style.css", headers=H).headers["Cache-Control"], "no-cache",
-                         "an unversioned URL must not be cached forever")
+        self.assertEqual(
+            self.client.get("/static/style.css", headers=H).headers["Cache-Control"],
+            "no-cache",
+            "an unversioned URL must not be cached forever",
+        )
 
     def test_static_rejects_traversal_and_unknown_files(self):
         for path in ("/static/../app.py", "/static/..%2fapp.py", "/static/nope.css", "/static/"):
@@ -149,8 +162,11 @@ class SecurityTests(WebTestCase):
 
     def test_cross_site_post_is_refused_even_with_a_token(self):
         token = self.csrf()
-        response = self.client.post("/api/translate", json={"text": "x", "target": "ja"},
-                                    headers={**H, "X-CSRF-Token": token, "Sec-Fetch-Site": "cross-site"})
+        response = self.client.post(
+            "/api/translate",
+            json={"text": "x", "target": "ja"},
+            headers={**H, "X-CSRF-Token": token, "Sec-Fetch-Site": "cross-site"},
+        )
         self.assertEqual(response.status_code, 403)
 
     def test_host_header_rules(self):
@@ -167,8 +183,22 @@ class SecurityTests(WebTestCase):
         import launcher
         from newsreader.netpolicy import is_allowed_bind_address
         from newsreader.services.settings import validate_bind_host
-        samples = ["0.0.0.0", "0.1.2.3", "127.0.0.1", "10.0.0.5", "172.16.3.4", "192.168.1.5", "100.64.0.1",
-                   "100.127.255.254", "169.254.10.10", "8.8.8.8", "224.0.0.1", "255.255.255.255", "100.128.0.1"]
+
+        samples = [
+            "0.0.0.0",
+            "0.1.2.3",
+            "127.0.0.1",
+            "10.0.0.5",
+            "172.16.3.4",
+            "192.168.1.5",
+            "100.64.0.1",
+            "100.127.255.254",
+            "169.254.10.10",
+            "8.8.8.8",
+            "224.0.0.1",
+            "255.255.255.255",
+            "100.128.0.1",
+        ]
         for host in samples:
             app_ok = is_allowed_bind_address(ipaddress.ip_address(host))
             try:
@@ -277,8 +307,10 @@ class ImageTests(WebTestCase):
         url = self.image_url()
         results = []
         with mock.patch.object(image_service._opener, "open", side_effect=slow_open):
-            threads = [threading.Thread(target=lambda: results.append(self.app.test_client().get(url, headers=H).status_code))
-                       for _ in range(6)]
+            threads = [
+                threading.Thread(target=lambda: results.append(self.app.test_client().get(url, headers=H).status_code))
+                for _ in range(6)
+            ]
             for t in threads:
                 t.start()
             time.sleep(0.2)
@@ -294,7 +326,12 @@ class ImageTests(WebTestCase):
             ("redirect off-host", lambda r, timeout: _FakeResponse(JPEG, "https://evil.example/x.jpg")),
             ("not an image type", lambda r, timeout: _FakeResponse(JPEG, r.full_url, "text/html")),
             ("magic mismatch", lambda r, timeout: _FakeResponse(b"<html>" * 100, r.full_url)),
-            ("too large", lambda r, timeout: _FakeResponse(b"\xff\xd8\xff" + b"0" * (image_service.MAX_IMAGE_BYTES + 1), r.full_url)),
+            (
+                "too large",
+                lambda r, timeout: _FakeResponse(
+                    b"\xff\xd8\xff" + b"0" * (image_service.MAX_IMAGE_BYTES + 1), r.full_url
+                ),
+            ),
         ]
         for label, behaviour in cases:
             image_service._failures.clear()
@@ -317,7 +354,11 @@ class ImageTests(WebTestCase):
         self.assertEqual(opener.call_count, 1)
 
     def test_only_allowed_https_hosts_are_ever_fetched(self):
-        for source in ("http://imgcdn.cna.com.tw/a.jpg", "https://evil.example/a.jpg", "https://imgcdn.cna.com.tw.evil.example/a.jpg"):
+        for source in (
+            "http://imgcdn.cna.com.tw/a.jpg",
+            "https://evil.example/a.jpg",
+            "https://imgcdn.cna.com.tw.evil.example/a.jpg",
+        ):
             with self.assertRaises(image_service.ImageUnavailable):
                 image_service.cached_or_fetch(source, self.tmp / "media")
 
@@ -336,9 +377,11 @@ class ImageTests(WebTestCase):
 class AppFactoryTests(unittest.TestCase):
     def test_importing_the_entry_point_has_no_side_effects(self):
         root = Path(__file__).resolve().parents[1]
-        code = ("import threading, app; "
-                "assert callable(app.main); "
-                "assert threading.active_count() == 1, threading.enumerate()")
+        code = (
+            "import threading, app; "
+            "assert callable(app.main); "
+            "assert threading.active_count() == 1, threading.enumerate()"
+        )
         with tempfile.TemporaryDirectory():
             env = {**os.environ, "PYTHONDONTWRITEBYTECODE": "1"}
             before = set((root / "instance").glob("*")) if (root / "instance").exists() else set()
@@ -359,8 +402,12 @@ class AppFactoryTests(unittest.TestCase):
                 time.sleep(0.02)
             self.assertEqual(index.list_articles(tmp / "db.sqlite3")["total"], 1)
             worker.stop()
-            self.assertNotIn("library_sync", create_app(tmp / "articles", tmp / "db.sqlite3", start_background=False,
-                                                         secret_key=b"k" * 32).extensions)
+            self.assertNotIn(
+                "library_sync",
+                create_app(
+                    tmp / "articles", tmp / "db.sqlite3", start_background=False, secret_key=b"k" * 32
+                ).extensions,
+            )
         finally:
             shutil.rmtree(tmp, ignore_errors=True)
 
@@ -372,12 +419,17 @@ class AppFactoryTests(unittest.TestCase):
 
     def test_run_uses_waitress_and_reports_bad_settings(self):
         from newsreader.web import run
+
         with mock.patch.dict(os.environ, {"NEWS_BIND_HOST": "8.8.8.8", "NEWS_DEV": ""}):
             self.assertEqual(run.main(), 2)
-        with mock.patch.dict(os.environ, {"NEWS_BIND_HOST": "127.0.0.1", "NEWS_PORT": "5099", "NEWS_DEV": "",
-                                          "WERKZEUG_RUN_MAIN": ""}), \
-                mock.patch.object(run, "serve_until_redeployed", return_value=0) as serve, \
-                mock.patch("newsreader.web.create_app"):
+        with (
+            mock.patch.dict(
+                os.environ,
+                {"NEWS_BIND_HOST": "127.0.0.1", "NEWS_PORT": "5099", "NEWS_DEV": "", "WERKZEUG_RUN_MAIN": ""},
+            ),
+            mock.patch.object(run, "serve_until_redeployed", return_value=0) as serve,
+            mock.patch("newsreader.web.create_app"),
+        ):
             self.assertEqual(run.main(), 0)
         serve.assert_called_once()
         self.assertEqual(serve.call_args.args[1:3], ("127.0.0.1", 5099))
@@ -389,11 +441,13 @@ class AppFactoryTests(unittest.TestCase):
 
         from newsreader import paths
         from newsreader.web import run
+
         tmp = Path(tempfile.mkdtemp())
         version = tmp / "VERSION"
         version.write_text("v1", encoding="utf-8")
         gate = threading.Event()
         from flask import Flask
+
         app = Flask("slow")
 
         @app.get("/slow")
@@ -406,12 +460,18 @@ class AppFactoryTests(unittest.TestCase):
             port = probe.getsockname()[1]
         result, body = {}, {}
         with mock.patch.object(paths, "VERSION_PATH", version):
-            server = threading.Thread(target=lambda: result.setdefault(
-                "code", run.serve_until_redeployed(app, "127.0.0.1", port, poll_seconds=0.1)))
+            server = threading.Thread(
+                target=lambda: result.setdefault(
+                    "code", run.serve_until_redeployed(app, "127.0.0.1", port, poll_seconds=0.1)
+                )
+            )
             server.start()
             time.sleep(0.3)
-            client = threading.Thread(target=lambda: body.setdefault(
-                "text", urllib.request.urlopen(f"http://127.0.0.1:{port}/slow", timeout=10).read()))
+            client = threading.Thread(
+                target=lambda: body.setdefault(
+                    "text", urllib.request.urlopen(f"http://127.0.0.1:{port}/slow", timeout=10).read()
+                )
+            )
             client.start()
             time.sleep(0.3)
             version.write_text("v2", encoding="utf-8")  # a deployment finished
@@ -423,17 +483,18 @@ class AppFactoryTests(unittest.TestCase):
         self.assertEqual(body.get("text"), b"done", "the request in flight was answered")
         self.assertEqual(result.get("code"), run.RESTART_EXIT_CODE)
 
-
     def test_server_also_answers_on_tailscale_address_and_restarts_cleanly(self):
         import socket
         import urllib.request
 
         from newsreader import paths
         from newsreader.web import run
+
         tmp = Path(tempfile.mkdtemp())
         version = tmp / "VERSION"
         version.write_text("v1", encoding="utf-8")
         from flask import Flask
+
         app = Flask("two")
         app.get("/")(lambda: "ok")
         with socket.socket() as probe:
@@ -442,8 +503,11 @@ class AppFactoryTests(unittest.TestCase):
         result = {}
         with mock.patch.object(paths, "VERSION_PATH", version):
             # 192.0.2.1 is not on this machine: that extra address is dropped, the main one still serves.
-            server = threading.Thread(target=lambda: result.setdefault("code", run.serve_until_redeployed(
-                app, "127.0.0.1", port, poll_seconds=0.1, also=("192.0.2.1",))))
+            server = threading.Thread(
+                target=lambda: result.setdefault(
+                    "code", run.serve_until_redeployed(app, "127.0.0.1", port, poll_seconds=0.1, also=("192.0.2.1",))
+                )
+            )
             server.start()
             time.sleep(0.3)
             self.assertEqual(urllib.request.urlopen(f"http://127.0.0.1:{port}/", timeout=5).read(), b"ok")
@@ -451,8 +515,11 @@ class AppFactoryTests(unittest.TestCase):
             server.join(10)
             self.assertEqual(result.get("code"), run.RESTART_EXIT_CODE)
             result.clear()
-            server = threading.Thread(target=lambda: result.setdefault("code", run.serve_until_redeployed(
-                app, "127.0.0.1", port, poll_seconds=0.1, also=("127.0.0.2",))))
+            server = threading.Thread(
+                target=lambda: result.setdefault(
+                    "code", run.serve_until_redeployed(app, "127.0.0.1", port, poll_seconds=0.1, also=("127.0.0.2",))
+                )
+            )
             server.start()
             time.sleep(0.3)
             for host in ("127.0.0.1", "127.0.0.2"):
@@ -465,13 +532,18 @@ class AppFactoryTests(unittest.TestCase):
 
     def test_other_addresses_are_added_only_when_open_to_the_network(self):
         from newsreader.web import run
-        with mock.patch("newsreader.netpolicy.tailscale_address", return_value="100.70.63.91"), \
-                mock.patch("newsreader.netpolicy.lan_address", return_value="192.168.3.12"):
+
+        with (
+            mock.patch("newsreader.netpolicy.tailscale_address", return_value="100.70.63.91"),
+            mock.patch("newsreader.netpolicy.lan_address", return_value="192.168.3.12"),
+        ):
             self.assertEqual(run._network_too("127.0.0.1"), ())
             self.assertEqual(run._network_too("192.168.3.12"), ("100.70.63.91", "127.0.0.1"))
             self.assertEqual(run._network_too("100.70.63.91"), ("192.168.3.12", "127.0.0.1"))
-        with mock.patch("newsreader.netpolicy.tailscale_address", return_value=None), \
-                mock.patch("newsreader.netpolicy.lan_address", return_value="192.168.3.12"):
+        with (
+            mock.patch("newsreader.netpolicy.tailscale_address", return_value=None),
+            mock.patch("newsreader.netpolicy.lan_address", return_value="192.168.3.12"),
+        ):
             self.assertEqual(run._network_too("192.168.3.12"), ("127.0.0.1",))
 
     def test_an_address_that_comes_up_later_restarts_the_server(self):
@@ -479,10 +551,12 @@ class AppFactoryTests(unittest.TestCase):
 
         from newsreader import paths
         from newsreader.web import run
+
         tmp = Path(tempfile.mkdtemp())
         version = tmp / "VERSION"
         version.write_text("v1", encoding="utf-8")
         from flask import Flask
+
         app = Flask("late")
         app.get("/")(lambda: "ok")
         with socket.socket() as probe:
@@ -491,8 +565,12 @@ class AppFactoryTests(unittest.TestCase):
         seen = {"now": ()}
         result = {}
         with mock.patch.object(paths, "VERSION_PATH", version), mock.patch.object(run, "NETWORK_POLL_ROUNDS", 1):
-            server = threading.Thread(target=lambda: result.setdefault("code", run.serve_until_redeployed(
-                app, "127.0.0.1", port, poll_seconds=0.1, network=lambda: seen["now"])))
+            server = threading.Thread(
+                target=lambda: result.setdefault(
+                    "code",
+                    run.serve_until_redeployed(app, "127.0.0.1", port, poll_seconds=0.1, network=lambda: seen["now"]),
+                )
+            )
             server.start()
             time.sleep(0.4)
             self.assertTrue(server.is_alive(), "nothing new: keeps serving")

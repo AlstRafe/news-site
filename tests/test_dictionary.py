@@ -1,4 +1,5 @@
 """Word card: meanings by part of speech from the Azure Translator dictionary (English words only)."""
+
 import json
 import shutil
 import sys
@@ -18,16 +19,48 @@ from newsreader.web import api, create_app
 
 H = {"Host": "localhost"}
 
-FLY = [{"normalizedSource": "fly", "displaySource": "fly", "translations": [
-    {"normalizedTarget": "ハエ", "displayTarget": "ハエ", "posTag": "NOUN", "confidence": 0.21, "prefixWord": "",
-     "backTranslations": []},
-    {"normalizedTarget": "飛ぶ", "displayTarget": "飛ぶ", "posTag": "VERB", "confidence": 0.41, "prefixWord": "",
-     "backTranslations": [{"normalizedText": "fly", "displayText": "fly", "numExamples": 15, "frequencyCount": 4637}]},
-    {"normalizedTarget": "飛行する", "displayTarget": "飛行する", "posTag": "VERB", "confidence": 0.12, "prefixWord": ""},
-    {"normalizedTarget": "飛ぶ", "displayTarget": "飛ぶ", "posTag": "VERB", "confidence": 0.05, "prefixWord": ""},
-    {"displayTarget": "", "posTag": "NOUN", "confidence": 0.5},
-    {"displayTarget": "フライ", "posTag": "XYZ", "confidence": 0.01},
-]}]
+FLY = [
+    {
+        "normalizedSource": "fly",
+        "displaySource": "fly",
+        "translations": [
+            {
+                "normalizedTarget": "ハエ",
+                "displayTarget": "ハエ",
+                "posTag": "NOUN",
+                "confidence": 0.21,
+                "prefixWord": "",
+                "backTranslations": [],
+            },
+            {
+                "normalizedTarget": "飛ぶ",
+                "displayTarget": "飛ぶ",
+                "posTag": "VERB",
+                "confidence": 0.41,
+                "prefixWord": "",
+                "backTranslations": [
+                    {"normalizedText": "fly", "displayText": "fly", "numExamples": 15, "frequencyCount": 4637}
+                ],
+            },
+            {
+                "normalizedTarget": "飛行する",
+                "displayTarget": "飛行する",
+                "posTag": "VERB",
+                "confidence": 0.12,
+                "prefixWord": "",
+            },
+            {
+                "normalizedTarget": "飛ぶ",
+                "displayTarget": "飛ぶ",
+                "posTag": "VERB",
+                "confidence": 0.05,
+                "prefixWord": "",
+            },
+            {"displayTarget": "", "posTag": "NOUN", "confidence": 0.5},
+            {"displayTarget": "フライ", "posTag": "XYZ", "confidence": 0.01},
+        ],
+    }
+]
 
 
 class DictionaryTestCase(unittest.TestCase):
@@ -40,9 +73,11 @@ class DictionaryTestCase(unittest.TestCase):
             return self.reply, {"x-metered-usage": "3"}
 
         self.reply = FLY
-        self.patches = [mock.patch.object(ts, "_post_json", fake_post),
-                        mock.patch.object(ts, "active_provider", lambda: "azure"),
-                        mock.patch.object(cache, "CACHE_PATH", self.tmp / "cache.sqlite3")]
+        self.patches = [
+            mock.patch.object(ts, "_post_json", fake_post),
+            mock.patch.object(ts, "active_provider", lambda: "azure"),
+            mock.patch.object(cache, "CACHE_PATH", self.tmp / "cache.sqlite3"),
+        ]
         for patch in self.patches:
             patch.start()
         settings.set_secret("azure_api_key", "test-key-not-real")
@@ -57,8 +92,14 @@ class DictionaryTestCase(unittest.TestCase):
 class LookupTests(DictionaryTestCase):
     def test_groups_by_part_of_speech_most_likely_first_and_caches(self):
         senses = ts.dictionary_lookup("Fly", "ja")
-        self.assertEqual(senses, [{"pos": "動詞", "terms": ["飛ぶ", "飛行する"]},
-                                  {"pos": "名詞", "terms": ["ハエ"]}, {"pos": "その他", "terms": ["フライ"]}])
+        self.assertEqual(
+            senses,
+            [
+                {"pos": "動詞", "terms": ["飛ぶ", "飛行する"]},
+                {"pos": "名詞", "terms": ["ハエ"]},
+                {"pos": "その他", "terms": ["フライ"]},
+            ],
+        )
         url, headers, body, provider = self.requests[0]
         self.assertTrue(url.startswith("https://api.cognitive.microsofttranslator.com/dictionary/lookup?"))
         self.assertIn("from=en", url)
@@ -88,10 +129,18 @@ class LookupTests(DictionaryTestCase):
         self.assertTrue(ts.dictionary_lookup("fly", "ja"))
 
     def test_only_english_words_with_azure(self):
-        for text, target, expected in [("fly", "ja", True), ("carry out", "ko", True), ("Prime Minister's", "ja", True),
-                                       ("fly", "en", False), ("a b c d", "ja", False), ("안녕", "ja", False),
-                                       ("飛ぶ", "ja", False), ("COVID-19", "ja", False), ("x" * 41, "ja", False),
-                                       ("This is a sentence.", "ja", False)]:
+        for text, target, expected in [
+            ("fly", "ja", True),
+            ("carry out", "ko", True),
+            ("Prime Minister's", "ja", True),
+            ("fly", "en", False),
+            ("a b c d", "ja", False),
+            ("안녕", "ja", False),
+            ("飛ぶ", "ja", False),
+            ("COVID-19", "ja", False),
+            ("x" * 41, "ja", False),
+            ("This is a sentence.", "ja", False),
+        ]:
             self.assertEqual(ts.dictionary_available(text, target), expected, text)
 
 
@@ -113,18 +162,26 @@ class ApiTests(DictionaryTestCase):
         return self.client.post(url, headers={**H, **({"X-CSRF-Token": self.token} if token else {})}, json=body)
 
     def test_translation_says_whether_to_ask_the_dictionary(self):
-        with mock.patch.object(ts, "_translate_batch", lambda provider, texts, target: [f"[{target}] {t}" for t in texts]), \
-                mock.patch.object(api, "british_ipa", lambda text: None):
+        with (
+            mock.patch.object(
+                ts, "_translate_batch", lambda provider, texts, target: [f"[{target}] {t}" for t in texts]
+            ),
+            mock.patch.object(api, "british_ipa", lambda text: None),
+        ):
             self.assertTrue(self.post("/api/translate", {"text": "fly", "target": "ja"}).get_json()["dictionary"])
-            self.assertFalse(self.post("/api/translate", {"text": "fly away now please", "target": "ja"}).get_json()["dictionary"])
+            self.assertFalse(
+                self.post("/api/translate", {"text": "fly away now please", "target": "ja"}).get_json()["dictionary"]
+            )
         self.assertEqual(self.requests, [])  # the translation itself never calls the dictionary
 
     def test_dictionary_endpoint(self):
         reply = self.post("/api/dictionary", {"text": "fly", "target": "ja"})
         self.assertEqual(reply.status_code, 200)
         self.assertEqual(reply.get_json()["senses"][0], {"pos": "動詞", "terms": ["飛ぶ", "飛行する"]})
-        self.assertEqual(self.post("/api/dictionary", {"text": "長い文章です", "target": "ja"}).get_json(),
-                         {"senses": [], "available": False})
+        self.assertEqual(
+            self.post("/api/dictionary", {"text": "長い文章です", "target": "ja"}).get_json(),
+            {"senses": [], "available": False},
+        )
         self.assertEqual(self.post("/api/dictionary", {"text": "fly", "target": "xx"}).status_code, 400)
         self.assertEqual(self.post("/api/dictionary", {"text": 3, "target": "ja"}).status_code, 400)
         self.assertEqual(self.post("/api/dictionary", {"text": "fly", "target": "ja"}, token=False).status_code, 400)

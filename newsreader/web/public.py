@@ -7,6 +7,7 @@ or 読み比べ groups, their visits leave no 既読 marks, and every translatio
 automatic, so it stops at the monthly allowance (translation.AUTO_MONTHLY_CHARS). The owner keeps
 using the site at its own addresses with everything.
 """
+
 from __future__ import annotations
 
 from flask import abort, g, has_request_context, jsonify, request
@@ -15,11 +16,21 @@ from newsreader.services import translation
 
 FUNNEL_SUFFIX = ".ts.net"
 #: What a visitor may send: translations and the read-only comparisons of a 読み比べ group.
-VISITOR_POSTS = frozenset({
-    "translate_selection", "dictionary_senses", "translate_whole_article", "translate_article_paragraphs",
-    "translate_image_captions", "translate_list_titles", "compare_translate", "translate_story_leads",
-    "story_facts", "story_quotes", "story_words",
-})
+VISITOR_POSTS = frozenset(
+    {
+        "translate_selection",
+        "dictionary_senses",
+        "translate_whole_article",
+        "translate_article_paragraphs",
+        "translate_image_captions",
+        "translate_list_titles",
+        "compare_translate",
+        "translate_story_leads",
+        "story_facts",
+        "story_quotes",
+        "story_words",
+    }
+)
 #: The owner's pages.
 OWNER_PAGES = frozenset({"translation_settings", "status_page", "saved_page", "words_page"})
 _SAFE_METHODS = frozenset({"GET", "HEAD", "OPTIONS"})

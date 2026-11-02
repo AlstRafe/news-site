@@ -76,8 +76,15 @@ class LibraryAppTests(unittest.TestCase):
         hdr = {"Host": "localhost", "X-CSRF-Token": "tok"}
         for body in ({"id": "1", "target": "ja"}, {"id": True, "target": "ja"}, {"id": 1, "target": "xx"}):
             self.assertEqual(self.client.post("/api/translate-article", json=body, headers=hdr).status_code, 400, body)
-        self.assertEqual(self.client.post("/api/translate-article", json={"id": 999, "target": "ja"}, headers=hdr).status_code, 404)
-        self.assertEqual(self.client.post("/api/translate-article", json={"id": 1, "target": "ja"}, headers={"Host": "localhost"}).status_code, 400)  # missing CSRF token
+        self.assertEqual(
+            self.client.post("/api/translate-article", json={"id": 999, "target": "ja"}, headers=hdr).status_code, 404
+        )
+        self.assertEqual(
+            self.client.post(
+                "/api/translate-article", json={"id": 1, "target": "ja"}, headers={"Host": "localhost"}
+            ).status_code,
+            400,
+        )  # missing CSRF token
 
     def test_foreign_host_blocked(self):
         self.assertEqual(self.client.get("/", headers={"Host": "evil.example"}).status_code, 403)

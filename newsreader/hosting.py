@@ -10,6 +10,7 @@ Hosted, News Site does not start a server of its own: its start at logon is turn
 ``instance/hosted.json`` tells launcher.py where the site is served instead. Run on its own
 (another PC, a test build), app.py serves it as before (newsreader.portal).
 """
+
 from __future__ import annotations
 
 import json
@@ -50,9 +51,15 @@ def site(mount: str = "/news", host: dict | None = None) -> dict:
     addresses = [str(item) for item in host.get("addresses", [])] or ["127.0.0.1"]
     _record_web_status(app, addresses[0], int(host.get("port", 5000)), tuple(addresses[1:]))
     _hand_over_the_start(host, mount)
-    return {"app": app, "name": branding.APP_NAME, "subtitle": branding.APP_TAGLINE,
-            "preview": lambda lang=i18n.DEFAULT: news_now(app, lang), "disallow": DISALLOW, "legacy": LEGACY_DIRECT,
-            "version": paths.deployed_version}
+    return {
+        "app": app,
+        "name": branding.APP_NAME,
+        "subtitle": branding.APP_TAGLINE,
+        "preview": lambda lang=i18n.DEFAULT: news_now(app, lang),
+        "disallow": DISALLOW,
+        "legacy": LEGACY_DIRECT,
+        "version": paths.deployed_version,
+    }
 
 
 def hosted() -> dict:
@@ -67,11 +74,17 @@ def hosted() -> dict:
 def _hand_over_the_start(host: dict, mount: str) -> None:
     """The host is the server started at logon now: News Site's own start would race it for the port."""
     from newsreader.services.settings import save_start_at_logon
+
     urls = [str(item) for item in host.get("urls", [])] or ["http://127.0.0.1:5000/"]
     try:
         HOSTED_PATH.parent.mkdir(parents=True, exist_ok=True)
-        HOSTED_PATH.write_text(json.dumps({"by": "Home Page", "url": urls[0].rstrip("/") + mount + "/",
-                                           "port": int(host.get("port", 5000))}, ensure_ascii=False), encoding="utf-8")
+        HOSTED_PATH.write_text(
+            json.dumps(
+                {"by": "Home Page", "url": urls[0].rstrip("/") + mount + "/", "port": int(host.get("port", 5000))},
+                ensure_ascii=False,
+            ),
+            encoding="utf-8",
+        )
         save_start_at_logon(False)
     except OSError:
         pass
@@ -85,6 +98,7 @@ def _remove_logon_task() -> None:
     import importlib.util
     import sys
     from pathlib import Path
+
     try:
         spec = importlib.util.spec_from_file_location("newsreader_launcher", paths.PROJECT_ROOT / "launcher.py")
         launcher = importlib.util.module_from_spec(spec)
@@ -106,6 +120,7 @@ def news_now(news_app, lang: str = i18n.DEFAULT) -> dict:
     from newsreader.services.settings import collects_hourly
     from newsreader.web.pages import front_stories
     from newsreader.web.status_view import status_data
+
     db = news_app.config["LIBRARY_DB"]
     target = i18n.TARGETS.get(lang, "ja")
     with news_app.test_request_context("/"):  # front_stories builds picture URLs
@@ -116,12 +131,17 @@ def news_now(news_app, lang: str = i18n.DEFAULT) -> dict:
         if stories:
             rows = [(s["lead_title"], f"/stories/{quote(s['key'])}", s.get("lead_source") or "") for s in stories]
         else:
-            rows = [(a["title"], f"/a/{a['id']}", a.get("source") or "")
-                    for a in index.list_articles(db, page=1, per_page=PREVIEW * 3)["items"]]
+            rows = [
+                (a["title"], f"/a/{a['id']}", a.get("source") or "")
+                for a in index.list_articles(db, page=1, per_page=PREVIEW * 3)["items"]
+            ]
         kept = translation.cached_titles([title for title, _, _ in rows], target)
         badge = status.badge(status_data(), collects=collects_hourly())
         title = i18n.text("各社が伝えた話題" if stories else "新着記事")
     readable = lambda row, said: bool(said) or LANG_TARGETS.get(branding.source_language(row[2]), "") == target  # noqa: E731
     shown = sorted(zip(rows, kept), key=lambda pair: not readable(*pair))[:PREVIEW]  # stable: newest first within each
-    return {"title": title, "note": badge["label"] if badge.get("tone") != "idle" else "",
-            "items": [(said or headline, path) for (headline, path, _), said in shown]}
+    return {
+        "title": title,
+        "note": badge["label"] if badge.get("tone") != "idle" else "",
+        "items": [(said or headline, path) for (headline, path, _), said in shown],
+    }

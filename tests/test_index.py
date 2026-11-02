@@ -3,6 +3,7 @@
 Real-data checks run only when NEWS_REALDATA points at an ``articles`` folder; the
 folder is copied to a temporary directory first, so nothing in it is modified.
 """
+
 import os
 import shutil
 import sqlite3
@@ -23,7 +24,12 @@ from test_extractor import CNA, NAVER, NORMAL, VIDEO
 from newsreader.library import index
 from newsreader.sources import extract_article
 
-FIXTURES = {("BBC", "a.html"): NORMAL, ("BBC", "v.html"): VIDEO, ("NAVER NEWS", "n.html"): NAVER, ("CNA", "c.html"): CNA}
+FIXTURES = {
+    ("BBC", "a.html"): NORMAL,
+    ("BBC", "v.html"): VIDEO,
+    ("NAVER NEWS", "n.html"): NAVER,
+    ("CNA", "c.html"): CNA,
+}
 
 
 class IndexTestCase(unittest.TestCase):
@@ -41,14 +47,15 @@ class IndexTestCase(unittest.TestCase):
 
     def ids(self):
         with closing(index.connect(self.db)) as db:
-            return {(r["source"], r["filename"]): r["id"] for r in db.execute("SELECT id, source, filename FROM articles")}
+            return {
+                (r["source"], r["filename"]): r["id"] for r in db.execute("SELECT id, source, filename FROM articles")
+            }
 
     def bump(self, path: Path, data: bytes | None = None, seconds: int = 5):
         if data is not None:
             path.write_bytes(data)
         stamp = path.stat().st_mtime + seconds
         os.utime(path, (stamp, stamp))
-
 
 
 class IdleCostTests(IndexTestCase):
@@ -167,7 +174,7 @@ class IncrementalSyncTests(IndexTestCase):
 
     def test_every_file_vanishing_keeps_the_index_and_says_why(self):
         index.sync(self.root, self.db, force=True)
-        for (site, name) in FIXTURES:
+        for site, name in FIXTURES:
             (self.root / site / name).unlink()
         result = index.sync(self.root, self.db, force=True)
         self.assertEqual(result["removed"], 0)
@@ -189,8 +196,20 @@ class IncrementalSyncTests(IndexTestCase):
         def unstable(path, *args, **kwargs):
             result = original_stat(path, *args, **kwargs)
             if path == target:
-                return os.stat_result((result.st_mode, result.st_ino, result.st_dev, result.st_nlink, result.st_uid,
-                                       result.st_gid, result.st_size + 1, result.st_atime, result.st_mtime, result.st_ctime))
+                return os.stat_result(
+                    (
+                        result.st_mode,
+                        result.st_ino,
+                        result.st_dev,
+                        result.st_nlink,
+                        result.st_uid,
+                        result.st_gid,
+                        result.st_size + 1,
+                        result.st_atime,
+                        result.st_mtime,
+                        result.st_ctime,
+                    )
+                )
             return result
 
         with mock.patch.object(Path, "stat", unstable):
@@ -311,7 +330,9 @@ class ConcurrencyTests(IndexTestCase):
             except Exception as exc:  # pragma: no cover
                 errors.append(exc)
 
-        threads = [threading.Thread(target=syncer) for _ in range(2)] + [threading.Thread(target=reader) for _ in range(3)]
+        threads = [threading.Thread(target=syncer) for _ in range(2)] + [
+            threading.Thread(target=reader) for _ in range(3)
+        ]
         for t in threads:
             t.start()
         for t in threads:
@@ -324,6 +345,7 @@ class ConcurrencyTests(IndexTestCase):
 
         def root():
             from newsreader.library.files import validate_directory
+
             return validate_directory(missing)
 
         worker = index.start_background_sync(root, self.db, interval=30)
@@ -390,8 +412,10 @@ class RealDataTests(unittest.TestCase):
         # Generous ceilings (CI machines vary); the measured values are printed for the record.
         self.assertLess(unchanged, 0.5)
         self.assertLess(reads, 1.0)
-        print(f"\n[perf] first sync {self.first_seconds:.2f}s, unchanged sync {unchanged * 1000:.1f}ms, "
-              f"200 bodies {reads * 1000:.1f}ms, index {index.index_stats(self.db)['bytes'] / 1024:.0f}KB")
+        print(
+            f"\n[perf] first sync {self.first_seconds:.2f}s, unchanged sync {unchanged * 1000:.1f}ms, "
+            f"200 bodies {reads * 1000:.1f}ms, index {index.index_stats(self.db)['bytes'] / 1024:.0f}KB"
+        )
 
 
 if __name__ == "__main__":

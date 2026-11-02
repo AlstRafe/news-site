@@ -1,4 +1,5 @@
 """訳語の指定 (D-63): fixed translations of names, sent as Azure dynamic-dictionary markup."""
+
 import shutil
 import sys
 import tempfile
@@ -19,8 +20,10 @@ class GlossaryTests(unittest.TestCase):
     def setUp(self):
         self.tmp = Path(tempfile.mkdtemp())
         (self.tmp / "articles").mkdir()
-        self.patches = [mock.patch.object(settings, "SETTINGS_PATH", self.tmp / "settings.json"),
-                        mock.patch.object(cache, "CACHE_PATH", self.tmp / "cache.sqlite3")]
+        self.patches = [
+            mock.patch.object(settings, "SETTINGS_PATH", self.tmp / "settings.json"),
+            mock.patch.object(cache, "CACHE_PATH", self.tmp / "cache.sqlite3"),
+        ]
         for patch in self.patches:
             patch.start()
 
@@ -34,9 +37,18 @@ class GlossaryTests(unittest.TestCase):
         settings.save_glossary_entry(" 다카이치 ", "高市", "ja")
         settings.save_glossary_entry("다카이치", "高市早苗", "ja")  # same name and target: replaced
         settings.save_glossary_entry("다카이치", "Takaichi", "en")
-        self.assertEqual([(e["source"], e["target"], e["lang"]) for e in settings.glossary()],
-                         [("다카이치", "Takaichi", "en"), ("다카이치", "高市早苗", "ja")])
-        for bad in (("", "x", "ja"), ("a", "", "ja"), ("a", "b", "fr"), ("a<b", "c", "ja"), ('a"', "c", "ja"), ("x" * 41, "y", "ja")):
+        self.assertEqual(
+            [(e["source"], e["target"], e["lang"]) for e in settings.glossary()],
+            [("다카이치", "Takaichi", "en"), ("다카이치", "高市早苗", "ja")],
+        )
+        for bad in (
+            ("", "x", "ja"),
+            ("a", "", "ja"),
+            ("a", "b", "fr"),
+            ("a<b", "c", "ja"),
+            ('a"', "c", "ja"),
+            ("x" * 41, "y", "ja"),
+        ):
             with self.assertRaises(ValueError):
                 settings.save_glossary_entry(*bad)
         settings.remove_glossary_entry(0)
@@ -44,9 +56,11 @@ class GlossaryTests(unittest.TestCase):
 
     def test_markup_longest_name_first(self):
         entries = [("賴清德總統", "頼清徳総統"), ("賴清德", "頼清徳")]
-        self.assertEqual(ts.apply_glossary("賴清德總統與賴清德", entries),
-                         '<mstrans:dictionary translation="頼清徳総統">賴清德總統</mstrans:dictionary>與'
-                         '<mstrans:dictionary translation="頼清徳">賴清德</mstrans:dictionary>')
+        self.assertEqual(
+            ts.apply_glossary("賴清德總統與賴清德", entries),
+            '<mstrans:dictionary translation="頼清徳総統">賴清德總統</mstrans:dictionary>與'
+            '<mstrans:dictionary translation="頼清徳">賴清德</mstrans:dictionary>',
+        )
         self.assertEqual(ts.apply_glossary("no names", []), "no names")
 
     def test_azure_receives_markup_and_cached_translations_are_redone(self):
@@ -55,12 +69,16 @@ class GlossaryTests(unittest.TestCase):
 
         def post(url, headers, data, provider):
             import json
+
             texts = [item["Text"] for item in json.loads(data)]
             sent.append(texts)
             return [{"translations": [{"text": f"T({t})"}]} for t in texts], {}
 
-        with mock.patch.object(ts, "active_provider", lambda: "azure"), mock.patch.object(ts, "_translate_batch", REAL_BATCH), \
-                mock.patch.object(ts, "_post_json", post):
+        with (
+            mock.patch.object(ts, "active_provider", lambda: "azure"),
+            mock.patch.object(ts, "_translate_batch", REAL_BATCH),
+            mock.patch.object(ts, "_post_json", post),
+        ):
             ts.translate_titles(["다카이치 총리"], "ja")
             ts.translate_titles(["다카이치 총리"], "ja")  # cached
             self.assertEqual(len(sent), 1)
@@ -82,26 +100,43 @@ class GlossaryTests(unittest.TestCase):
             relay._translate_batch(["다카이치"], "ja")
         self.assertEqual(post.call_args.args[1]["glossary"], [["다카이치", "高市"]])
         token = relay.issue_token("t")
-        client = create_app(self.tmp / "articles", self.tmp / "lib.sqlite3", start_background=False,
-                            secret_key=b"g" * 32).test_client()
+        client = create_app(
+            self.tmp / "articles", self.tmp / "lib.sqlite3", start_background=False, secret_key=b"g" * 32
+        ).test_client()
         with mock.patch.object(ts, "_translate_batch", fake), mock.patch.object(ts, "active_provider", lambda: "azure"):
             auth = {**H, "Authorization": f"Bearer {token}"}
-            client.post("/relay/v1/translate", json={"texts": ["a"], "target": "ja", "glossary": [["Lee", "李"]]}, headers=auth)
+            client.post(
+                "/relay/v1/translate", json={"texts": ["a"], "target": "ja", "glossary": [["Lee", "李"]]}, headers=auth
+            )
             client.post("/relay/v1/translate", json={"texts": ["b"], "target": "ja"}, headers=auth)
-            bad = client.post("/relay/v1/translate", json={"texts": ["c"], "target": "ja", "glossary": [["<x>", "y"]]}, headers=auth)
+            bad = client.post(
+                "/relay/v1/translate", json={"texts": ["c"], "target": "ja", "glossary": [["<x>", "y"]]}, headers=auth
+            )
         self.assertEqual(seen, [[("Lee", "李")], []])  # never the 本体's own 다카이치 entry
         self.assertEqual(bad.status_code, 400)
 
     def test_settings_page_adds_prefills_and_removes(self):
-        client = create_app(self.tmp / "articles", self.tmp / "lib.sqlite3", start_background=False,
-                            secret_key=b"g" * 32).test_client()
-        page = client.get("/translation-settings?gsrc=다카이치&gdst=タカイチ&glang=ja", headers=H).get_data(as_text=True)
+        client = create_app(
+            self.tmp / "articles", self.tmp / "lib.sqlite3", start_background=False, secret_key=b"g" * 32
+        ).test_client()
+        page = client.get("/translation-settings?gsrc=다카이치&gdst=タカイチ&glang=ja", headers=H).get_data(
+            as_text=True
+        )
         self.assertIn('value="다카이치"', page)
         self.assertIn('value="タカイチ"', page)
         with client.session_transaction() as session:
             csrf = session["csrf"]
-        client.post("/translation-settings", headers=H, data={"csrf": csrf, "action": "add_glossary",
-                                                               "glossary_source": "다카이치", "glossary_target": "高市", "glossary_lang": "ja"})
+        client.post(
+            "/translation-settings",
+            headers=H,
+            data={
+                "csrf": csrf,
+                "action": "add_glossary",
+                "glossary_source": "다카이치",
+                "glossary_target": "高市",
+                "glossary_lang": "ja",
+            },
+        )
         self.assertEqual(settings.glossary()[0]["target"], "高市")
         page = client.get("/translation-settings", headers=H).get_data(as_text=True)
         self.assertIn('value="remove_glossary:0"', page)

@@ -1,4 +1,5 @@
 """A library limit (test builds, D-53): the collector stops adding articles once the library holds that many."""
+
 import json
 import shutil
 import sys
@@ -25,11 +26,16 @@ class LibraryLimitTests(unittest.TestCase):
             self.fetched.append(link)
             return link
 
-        self.patches = [mock.patch.object(autofetch, "SOURCES", SOURCES),
-                        mock.patch.object(autofetch, "_article_links",
-                                          lambda source, feed="": [f"https://x/{source['name']}{i}" for i in range(5)]),
-                        mock.patch.object(autofetch, "_fetch_article", fetch),
-                        mock.patch.object(autofetch, "_existing_article_urls", lambda directory, keep=(): set())]
+        self.patches = [
+            mock.patch.object(autofetch, "SOURCES", SOURCES),
+            mock.patch.object(
+                autofetch,
+                "_article_links",
+                lambda source, feed="": [f"https://x/{source['name']}{i}" for i in range(5)],
+            ),
+            mock.patch.object(autofetch, "_fetch_article", fetch),
+            mock.patch.object(autofetch, "_existing_article_urls", lambda directory, keep=(): set()),
+        ]
         for patch in self.patches:
             patch.start()
 
@@ -40,7 +46,9 @@ class LibraryLimitTests(unittest.TestCase):
 
     def test_without_a_limit_each_source_adds_its_usual_few(self):
         totals = autofetch.fetch_cycle(self.root)
-        self.assertEqual(totals, {"A": autofetch.MAX_NEW_PER_SOURCE_PER_CYCLE, "B": autofetch.MAX_NEW_PER_SOURCE_PER_CYCLE})
+        self.assertEqual(
+            totals, {"A": autofetch.MAX_NEW_PER_SOURCE_PER_CYCLE, "B": autofetch.MAX_NEW_PER_SOURCE_PER_CYCLE}
+        )
 
     def test_collection_stops_at_the_limit_and_says_why(self):
         (self.root / "Old").mkdir()
@@ -54,6 +62,7 @@ class LibraryLimitTests(unittest.TestCase):
 
     def test_header_badge_explains_the_limit(self):
         from newsreader.library import status
+
         report = {}
         (self.root / "A").mkdir()
         for i in range(3):

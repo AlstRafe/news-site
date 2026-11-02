@@ -8,6 +8,7 @@ Windows scheduled task keep working unchanged.
 ``create_app()`` builds the web application (see ``newsreader.web``). It is imported
 lazily so that the collector, which never serves HTTP, does not pay for importing Flask.
 """
+
 from __future__ import annotations
 
 __all__ = ["create_app", "paths"]

@@ -27,23 +27,39 @@
   const narrow = window.matchMedia("(max-width: 650px)");
   const PIN_KEY = "news-html-reader-translation-pinned";
   // Translation targets come from the server (base.html), one list for every page.
-  const targetMenu = (() => { try { return JSON.parse(document.querySelector('meta[name="translation-targets"]')?.content || "{}"); } catch (_) { return {}; } })();
+  const targetMenu = (() => {
+    try {
+      return JSON.parse(document.querySelector('meta[name="translation-targets"]')?.content || "{}");
+    } catch (_) {
+      return {};
+    }
+  })();
   const targetNames = Object.fromEntries(Object.entries(targetMenu).map(([code, t]) => [code, t.label]));
 
   let saved = null;
-  try { saved = localStorage.getItem("news-html-reader-translation-target"); } catch (_) { /* local storage can be disabled */ }
+  try {
+    saved = localStorage.getItem("news-html-reader-translation-target");
+  } catch (_) {
+    /* local storage can be disabled */
+  }
   // 翻訳先 follows the page's language until the reader picks one
   const wanted = saved && targetNames[saved] ? saved : NR.target;
-  if (targetNames[wanted] && !targetSelect.querySelector(`option[value="${wanted}"]`)?.disabled) targetSelect.value = wanted;
+  if (targetNames[wanted] && !targetSelect.querySelector(`option[value="${wanted}"]`)?.disabled)
+    targetSelect.value = wanted;
   targetSelect.addEventListener("change", () => {
-    try { localStorage.setItem("news-html-reader-translation-target", targetSelect.value); } catch (_) { /* optional */ }
+    try {
+      localStorage.setItem("news-html-reader-translation-target", targetSelect.value);
+    } catch (_) {
+      /* optional */
+    }
   });
 
   async function postJson(url, data) {
     const response = await fetch(url, {
-      method: "POST", credentials: "same-origin",
+      method: "POST",
+      credentials: "same-origin",
       headers: { "Content-Type": "application/json", "X-CSRF-Token": csrf },
-      body: JSON.stringify(data)
+      body: JSON.stringify(data),
     });
     const payload = await response.json().catch(() => ({}));
     return { ok: response.ok, payload };
@@ -51,7 +67,9 @@
 
   function makeParagraphs(target, text) {
     target.replaceChildren();
-    for (const part of String(text || "").split(/\n{1,}/).filter(Boolean)) {
+    for (const part of String(text || "")
+      .split(/\n{1,}/)
+      .filter(Boolean)) {
       const p = document.createElement("p");
       p.textContent = part;
       target.appendChild(p);
@@ -61,7 +79,13 @@
   async function copyText(text, button) {
     const originalLabel = button.textContent;
     const value = String(text || "").trim();
-    if (!value) { button.textContent = T("コピーする内容なし"); window.setTimeout(() => { button.textContent = originalLabel; }, 1400); return; }
+    if (!value) {
+      button.textContent = T("コピーする内容なし");
+      window.setTimeout(() => {
+        button.textContent = originalLabel;
+      }, 1400);
+      return;
+    }
     try {
       if (navigator.clipboard?.writeText && window.isSecureContext) {
         await navigator.clipboard.writeText(value);
@@ -81,18 +105,23 @@
     } catch (_) {
       button.textContent = T("コピーできません");
     }
-    window.setTimeout(() => { button.textContent = originalLabel; }, 1400);
+    window.setTimeout(() => {
+      button.textContent = originalLabel;
+    }, 1400);
   }
 
   function translationText(element) {
-    return [...element.querySelectorAll("p")].map(p => p.textContent || "").join("\n\n").trim();
+    return [...element.querySelectorAll("p")]
+      .map((p) => p.textContent || "")
+      .join("\n\n")
+      .trim();
   }
 
   // 訳語の指定 (D-63): a short selection (a name) can be given a fixed translation.
   function offerFixedTerm(original, translation, target) {
     const link = document.getElementById("fix-term");
     if (!link) return;
-    const short = text => text && text.length <= 40 && !/[\n<>"&]/.test(text);
+    const short = (text) => text && text.length <= 40 && !/[\n<>"&]/.test(text);
     link.hidden = !(short(original) && short(translation));
     if (!link.hidden) {
       link.href = `${base}/translation-settings?${new URLSearchParams({ gsrc: original, gdst: translation, glang: target })}#glossary`;
@@ -110,13 +139,13 @@
     button.disabled = false;
     button.textContent = T("単語帳に入れる");
   }
-  document.getElementById("save-word")?.addEventListener("click", async event => {
+  document.getElementById("save-word")?.addEventListener("click", async (event) => {
     const button = event.currentTarget;
     if (!wordToKeep) return;
     button.disabled = true;
     try {
       const { ok, payload } = await postJson(base + "/api/words", { ...wordToKeep, id: articleId || undefined });
-      button.textContent = ok ? T("単語帳に入れました") : (payload.error || T("入れられませんでした"));
+      button.textContent = ok ? T("単語帳に入れました") : payload.error || T("入れられませんでした");
     } catch (_) {
       button.textContent = T("入れられませんでした");
       button.disabled = false;
@@ -133,7 +162,10 @@
   }
 
   function clearWordHighlight() {
-    if (!activeWordHighlight?.isConnected) { activeWordHighlight = null; return; }
+    if (!activeWordHighlight?.isConnected) {
+      activeWordHighlight = null;
+      return;
+    }
     const parent = activeWordHighlight.parentNode;
     activeWordHighlight.replaceWith(document.createTextNode(activeWordHighlight.textContent || ""));
     if (parent) parent.normalize();
@@ -212,7 +244,11 @@
         p.append(" ", a);
       }
       details.appendChild(p);
-    } else if (payload.dictionary_label && payload.dictionary_configured !== false && selectedText.match(/[\uac00-\ud7a3]/)) {
+    } else if (
+      payload.dictionary_label &&
+      payload.dictionary_configured !== false &&
+      selectedText.match(/[\uac00-\ud7a3]/)
+    ) {
       const p = document.createElement("p");
       p.textContent = T("辞書で一致する漢字語は見つかりませんでした。");
       details.appendChild(p);
@@ -223,7 +259,11 @@
       label.textContent = T("注音符號: ");
       p.append(label, document.createTextNode(payload.zhuyin));
       details.appendChild(p);
-    } else if (payload.dictionary_label && selectedText.match(/[\u3400-\u4dbf\u4e00-\u9fff\uf900-\ufaff]/) && !selectedText.match(/[\uac00-\ud7a3]/)) {
+    } else if (
+      payload.dictionary_label &&
+      selectedText.match(/[\u3400-\u4dbf\u4e00-\u9fff\uf900-\ufaff]/) &&
+      !selectedText.match(/[\uac00-\ud7a3]/)
+    ) {
       const p = document.createElement("p");
       p.textContent = T("教育部辞典で完全一致する見出しが見つかりませんでした。");
       details.appendChild(p);
@@ -238,7 +278,9 @@
     if (payload.dictionary_url) addDictionaryLink(details, payload.dictionary_url, payload.dictionary_label);
   }
 
-  function isSheet() { return narrow.matches; }
+  function isSheet() {
+    return narrow.matches;
+  }
 
   function setPinned(pinned) {
     selectionResult.classList.toggle("pinned", pinned);
@@ -249,7 +291,11 @@
     button.title = pinned ? T("固定を解除（単語の近くに表示）") : T("右側に固定（本文を隠さない）");
     button.setAttribute("aria-label", pinned ? T("固定を解除") : T("右側に固定"));
   }
-  try { setPinned(localStorage.getItem(PIN_KEY) === "1"); } catch (_) { setPinned(false); }
+  try {
+    setPinned(localStorage.getItem(PIN_KEY) === "1");
+  } catch (_) {
+    setPinned(false);
+  }
 
   // Desktop: a card just below the word (above it when there is no room), never covering it.
   // Phone: a bottom sheet; the page scrolls so the word stays visible above the sheet.
@@ -312,7 +358,9 @@
   function sentenceAround(range) {
     currentParagraph = null;
     if (!range) return "";
-    const block = (range.startContainer.nodeType === Node.TEXT_NODE ? range.startContainer.parentElement : range.startContainer)?.closest?.("p");
+    const block = (
+      range.startContainer.nodeType === Node.TEXT_NODE ? range.startContainer.parentElement : range.startContainer
+    )?.closest?.("p");
     if (!block || !reader.contains(block)) return "";
     if (!block.classList.contains("bi-tr")) currentParagraph = block;
     const before = document.createRange();
@@ -327,7 +375,7 @@
       }
     }
     const start = Math.max(text.lastIndexOf(". ", offset), text.lastIndexOf("。", offset), -1) + 1;
-    const ends = [". ", "。", "? ", "! "].map(mark => text.indexOf(mark, offset)).filter(i => i >= 0);
+    const ends = [". ", "。", "? ", "! "].map((mark) => text.indexOf(mark, offset)).filter((i) => i >= 0);
     return text.slice(start, ends.length ? Math.min(...ends) + 1 : text.length).trim();
   }
 
@@ -335,7 +383,10 @@
     currentSentence = sentence && sentence.length <= 1200 && sentence !== looked ? sentence : "";
     const button = document.getElementById("translate-sentence");
     const box = document.getElementById("sentence-tr");
-    if (button) { button.hidden = !currentSentence; button.disabled = false; }
+    if (button) {
+      button.hidden = !currentSentence;
+      button.disabled = false;
+    }
     if (box) box.hidden = true;
     // Without a sentence step (the whole sentence was selected), offer the paragraph at once.
     showParagraphButton(!currentSentence);
@@ -351,8 +402,12 @@
   function showParagraphButton(show) {
     const button = document.getElementById("translate-paragraph");
     if (!button) return;
-    button.hidden = !(show && currentParagraph?.isConnected && !inlineTranslation(currentParagraph)
-                      && (currentParagraph.textContent || "").trim().length <= 4000);
+    button.hidden = !(
+      show &&
+      currentParagraph?.isConnected &&
+      !inlineTranslation(currentParagraph) &&
+      (currentParagraph.textContent || "").trim().length <= 4000
+    );
     button.disabled = false;
   }
 
@@ -366,7 +421,11 @@
     let text = "";
     let failure = "";
     try {
-      const { ok, payload } = await postJson(base + "/api/translate", { text: (paragraph.textContent || "").trim(), target, plain: true });
+      const { ok, payload } = await postJson(base + "/api/translate", {
+        text: (paragraph.textContent || "").trim(),
+        target,
+        plain: true,
+      });
       if (ok && payload.translation) text = payload.translation;
       else failure = payload.translation_error || payload.error || T("翻訳できませんでした。");
     } catch (_) {
@@ -404,8 +463,15 @@
     placePopup();
     let text;
     try {
-      const { ok, payload } = await postJson(base + "/api/translate", { text: currentSentence, target: targetSelect.value, plain: true });
-      text = ok && payload.translation ? payload.translation : (payload.translation_error || payload.error || T("翻訳できませんでした。"));
+      const { ok, payload } = await postJson(base + "/api/translate", {
+        text: currentSentence,
+        target: targetSelect.value,
+        plain: true,
+      });
+      text =
+        ok && payload.translation
+          ? payload.translation
+          : payload.translation_error || payload.error || T("翻訳できませんでした。");
     } catch (_) {
       text = T("アプリに接続できませんでした。");
     }
@@ -440,7 +506,8 @@
     }
     if (sequence !== requestCounter) return;
     output.classList.remove("loading");
-    if (!ok && !payload.translation_error && !payload.error) payload.translation_error = T("翻訳要求に失敗しました。もう一度お試しください。");
+    if (!ok && !payload.translation_error && !payload.error)
+      payload.translation_error = T("翻訳要求に失敗しました。もう一度お試しください。");
     makeParagraphs(output, payload.translation || "");
     if (payload.translation_error || payload.error) {
       const error = document.getElementById("selection-error");
@@ -458,8 +525,12 @@
       offerFixedTerm(normalized, String(payload.translation).trim(), targetSelect.value);
       offerWordBook(normalized, String(payload.translation).trim(), targetSelect.value);
     }
-    const lost = payload.translation && window.NumberCheck ? window.NumberCheck.missing(normalized, String(payload.translation)) : [];
-    if (lost.length) {  // 訳文の数字チェック (D-69)
+    const lost =
+      payload.translation && window.NumberCheck
+        ? window.NumberCheck.missing(normalized, String(payload.translation))
+        : [];
+    if (lost.length) {
+      // 訳文の数字チェック (D-69)
       const note = document.createElement("p");
       note.className = "num-check-card";
       note.textContent = T("訳文に見当たらない数字: {numbers}", { numbers: lost.join(T("・")) });
@@ -478,10 +549,18 @@
     box.textContent = T("辞書を引いています…");
     details.prepend(box);
     let result = null;
-    try { result = await postJson(base + "/api/dictionary", { text, target }); } catch (_) { result = null; }
+    try {
+      result = await postJson(base + "/api/dictionary", { text, target });
+    } catch (_) {
+      result = null;
+    }
     if (sequence !== requestCounter || !box.isConnected) return;
     const senses = result?.ok && Array.isArray(result.payload.senses) ? result.payload.senses : [];
-    if (!senses.length) { box.remove(); placePopup({ reveal: true }); return; }
+    if (!senses.length) {
+      box.remove();
+      placePopup({ reveal: true });
+      return;
+    }
     box.className = "senses";
     box.replaceChildren();
     for (const sense of senses) {
@@ -504,7 +583,11 @@
     let range = null;
     if (document.caretPositionFromPoint) {
       const pos = document.caretPositionFromPoint(x, y);
-      if (pos) { range = document.createRange(); range.setStart(pos.offsetNode, pos.offset); range.collapse(true); }
+      if (pos) {
+        range = document.createRange();
+        range.setStart(pos.offsetNode, pos.offset);
+        range.collapse(true);
+      }
     } else if (document.caretRangeFromPoint) {
       range = document.caretRangeFromPoint(x, y);
     }
@@ -516,8 +599,13 @@
     const locale = korean ? "ko" : chinese ? "zh-TW" : "en-GB";
     if (typeof Intl.Segmenter === "function") {
       const segments = [...new Intl.Segmenter(locale, { granularity: "word" }).segment(nodeText)];
-      let match = segments.find(item => item.isWordLike && item.index <= offset && offset < item.index + item.segment.length);
-      if (!match && offset > 0) match = segments.find(item => item.isWordLike && item.index < offset && offset <= item.index + item.segment.length);
+      let match = segments.find(
+        (item) => item.isWordLike && item.index <= offset && offset < item.index + item.segment.length,
+      );
+      if (!match && offset > 0)
+        match = segments.find(
+          (item) => item.isWordLike && item.index < offset && offset <= item.index + item.segment.length,
+        );
       if (!match) return null;
       const wordRange = document.createRange();
       wordRange.setStart(range.startContainer, match.index);
@@ -564,37 +652,65 @@
     });
   }
 
-  reader.addEventListener("mouseup", event => {
+  reader.addEventListener("mouseup", (event) => {
     if (event.button !== 0) return;
     window.setTimeout(translateCurrentSelection, 0);
   });
 
   let lastPointer = "mouse";
   let touching = false;
-  document.addEventListener("pointerdown", event => { lastPointer = event.pointerType || "mouse"; }, { capture: true, passive: true });
-  document.addEventListener("touchstart", () => { touching = true; }, { capture: true, passive: true });
+  document.addEventListener(
+    "pointerdown",
+    (event) => {
+      lastPointer = event.pointerType || "mouse";
+    },
+    { capture: true, passive: true },
+  );
+  document.addEventListener(
+    "touchstart",
+    () => {
+      touching = true;
+    },
+    { capture: true, passive: true },
+  );
   let selectionTimer = 0;
-  const settleSelection = delay => {
+  const settleSelection = (delay) => {
     window.clearTimeout(selectionTimer);
-    selectionTimer = window.setTimeout(() => { if (!touching) translateCurrentSelection(); }, delay);
+    selectionTimer = window.setTimeout(() => {
+      if (!touching) translateCurrentSelection();
+    }, delay);
   };
-  document.addEventListener("touchend", () => { touching = false; if (currentReaderSelection()) settleSelection(350); }, { capture: true, passive: true });
-  document.addEventListener("touchcancel", () => { touching = false; }, { capture: true, passive: true });
+  document.addEventListener(
+    "touchend",
+    () => {
+      touching = false;
+      if (currentReaderSelection()) settleSelection(350);
+    },
+    { capture: true, passive: true },
+  );
+  document.addEventListener(
+    "touchcancel",
+    () => {
+      touching = false;
+    },
+    { capture: true, passive: true },
+  );
   document.addEventListener("selectionchange", () => {
     if (lastPointer !== "touch") return;
     settleSelection(700);
   });
   // Tapping / clicking outside the card (and outside the article text, where a tap looks up the
   // tapped word instead) closes it. A card docked to the side stays until closed.
-  document.addEventListener("click", event => {
+  document.addEventListener("click", (event) => {
     if (selectionResult.hidden) return;
-    if (selectionResult.contains(event.target) || toolbar.contains(event.target) || reader.contains(event.target)) return;
+    if (selectionResult.contains(event.target) || toolbar.contains(event.target) || reader.contains(event.target))
+      return;
     if (selectionResult.classList.contains("pinned") && !isSheet()) return;
     if (event.target.closest?.("#translation-controls")) return;
     closePopup();
   });
 
-  reader.addEventListener("click", event => {
+  reader.addEventListener("click", (event) => {
     if (event.target.closest?.(".bi-tr")) return; // translated text is not looked up again
     if (window.getSelection()?.toString().trim()) return;
     clearWordHighlight();
@@ -604,11 +720,13 @@
       lastSelectionText = "";
       resetSentence(sentenceAround(selected.range), selected.word);
       highlightWord(selected.range);
-      translateSelected(selected.word, () => (activeWordHighlight?.isConnected ? activeWordHighlight.getBoundingClientRect() : null));
+      translateSelected(selected.word, () =>
+        activeWordHighlight?.isConnected ? activeWordHighlight.getBoundingClientRect() : null,
+      );
     }
   });
 
-  selectionButton.addEventListener("mousedown", event => event.preventDefault());
+  selectionButton.addEventListener("mousedown", (event) => event.preventDefault());
   selectionButton.addEventListener("click", () => {
     const current = window.getSelection();
     const selection = current?.toString().trim() || selectedText;
@@ -621,7 +739,6 @@
     });
   });
 
-
   // ---- Side-by-side (対訳) view: each translated paragraph is inserted under its original ----
   // The text reads one of three ways: 原文, 対訳, or 訳文だけ (the 対訳 with the originals that
   // have a translation hidden, for a reader who does not read the source language). Which of
@@ -630,17 +747,31 @@
   const onlyButton = document.getElementById("translate-only");
   const originalButton = document.getElementById("show-original");
   const ONLY_KEY = "news-html-reader-translation-only";
-  const prefersOnly = () => { try { return localStorage.getItem(ONLY_KEY) === "1"; } catch (_) { return false; } };
+  const prefersOnly = () => {
+    try {
+      return localStorage.getItem(ONLY_KEY) === "1";
+    } catch (_) {
+      return false;
+    }
+  };
   function syncMode() {
     const only = Boolean(biTarget) && reader.classList.contains("tr-only");
     originalButton?.setAttribute("aria-pressed", String(!biTarget));
     biButton.setAttribute("aria-pressed", String(Boolean(biTarget) && !only));
     onlyButton?.setAttribute("aria-pressed", String(only));
-    [originalButton, onlyButton].forEach(button => { if (button) button.disabled = biButton.disabled; });
+    [originalButton, onlyButton].forEach((button) => {
+      if (button) button.disabled = biButton.disabled;
+    });
   }
   function setOnly(on, remember = true) {
     reader.classList.toggle("tr-only", on);
-    if (remember) { try { localStorage.setItem(ONLY_KEY, on ? "1" : "0"); } catch (_) { /* optional */ } }
+    if (remember) {
+      try {
+        localStorage.setItem(ONLY_KEY, on ? "1" : "0");
+      } catch (_) {
+        /* optional */
+      }
+    }
     syncMode();
   }
   const biTitle = document.getElementById("bi-title");
@@ -649,10 +780,14 @@
 
   // Sentence pairs (D-57): with the sentence lengths the server sends, each original sentence and
   // its translation become spans sharing data-pair; pointing at (or tapping) either lights both.
-  const sum = list => list.reduce((total, n) => total + n, 0);
+  const sum = (list) => list.reduce((total, n) => total + n, 0);
   function fitsSentences(node, lengths) {
-    return Array.isArray(lengths) && lengths.length > 1 && lengths.every(Number.isInteger)
-      && sum(lengths) === node.textContent.length;
+    return (
+      Array.isArray(lengths) &&
+      lengths.length > 1 &&
+      lengths.every(Number.isInteger) &&
+      sum(lengths) === node.textContent.length
+    );
   }
   function wrapSentences(node, lengths, prefix) {
     const text = node.textContent;
@@ -669,7 +804,7 @@
     node.replaceChildren(pieces);
   }
   function unwrapSentences() {
-    reader.querySelectorAll(":scope > p:not(.bi-tr)").forEach(node => {
+    reader.querySelectorAll(":scope > p:not(.bi-tr)").forEach((node) => {
       if (node.querySelector(".sent")) node.textContent = node.textContent;
     });
     reader.classList.remove("paired");
@@ -677,22 +812,27 @@
   let litPair = "";
   function lightPair(pair) {
     if ((pair || "") === litPair) return;
-    reader.querySelectorAll(".sent-on").forEach(node => node.classList.remove("sent-on"));
+    reader.querySelectorAll(".sent-on").forEach((node) => node.classList.remove("sent-on"));
     litPair = pair || "";
-    if (litPair) reader.querySelectorAll(`.sent[data-pair="${litPair}"]`).forEach(node => node.classList.add("sent-on"));
+    if (litPair)
+      reader.querySelectorAll(`.sent[data-pair="${litPair}"]`).forEach((node) => node.classList.add("sent-on"));
   }
-  reader.addEventListener("pointerover", event => {
-    if (event.pointerType === "mouse" && reader.classList.contains("paired")) lightPair(event.target.closest?.(".sent")?.dataset.pair);
+  reader.addEventListener("pointerover", (event) => {
+    if (event.pointerType === "mouse" && reader.classList.contains("paired"))
+      lightPair(event.target.closest?.(".sent")?.dataset.pair);
   });
-  reader.addEventListener("pointerleave", event => { if (event.pointerType === "mouse") lightPair(""); });
-  reader.addEventListener("pointerdown", event => {
-    if (event.pointerType !== "mouse" && reader.classList.contains("paired")) lightPair(event.target.closest?.(".sent")?.dataset.pair);
+  reader.addEventListener("pointerleave", (event) => {
+    if (event.pointerType === "mouse") lightPair("");
+  });
+  reader.addEventListener("pointerdown", (event) => {
+    if (event.pointerType !== "mouse" && reader.classList.contains("paired"))
+      lightPair(event.target.closest?.(".sent")?.dataset.pair);
   });
 
   function clearBilingual() {
     lightPair("");
     unwrapSentences();
-    reader.querySelectorAll(".bi-tr").forEach(node => node.remove());
+    reader.querySelectorAll(".bi-tr").forEach((node) => node.remove());
     reader.classList.remove("bilingual");
     biTitle.hidden = true;
     biTitle.textContent = "";
@@ -706,7 +846,11 @@
   // translated too, from the same per-headline cache as the list (the page may arrive with it).
   async function showTitleGloss() {
     let on = true;
-    try { on = localStorage.getItem("news-html-reader-list-gloss") !== "0"; } catch (_) { on = true; }
+    try {
+      on = localStorage.getItem("news-html-reader-list-gloss") !== "0";
+    } catch (_) {
+      on = true;
+    }
     if (!on || biTarget || !articleId) return;
     const target = targetSelect.value;
     try {
@@ -717,17 +861,23 @@
       biTitle.lang = langTags[target] || "";
       biTitle.classList.remove("kept");
       biTitle.hidden = false;
-    } catch (_) { /* the headline stays untranslated */ }
+    } catch (_) {
+      /* the headline stays untranslated */
+    }
   }
 
   // Picture captions in the reader's language, under each original caption (same switch as the
   // translated headlines; each caption is kept on the server, so a reload costs nothing).
   async function showCaptions() {
-    document.querySelectorAll(".cap-tr").forEach(node => node.remove());
+    document.querySelectorAll(".cap-tr").forEach((node) => node.remove());
     let on = true;
-    try { on = localStorage.getItem("news-html-reader-list-gloss") !== "0"; } catch (_) { on = true; }
+    try {
+      on = localStorage.getItem("news-html-reader-list-gloss") !== "0";
+    } catch (_) {
+      on = true;
+    }
     const figures = [...document.querySelectorAll(".article-images figure")];
-    if (!on || !articleId || !figures.some(f => f.querySelector("figcaption"))) return;
+    if (!on || !articleId || !figures.some((f) => f.querySelector("figcaption"))) return;
     const target = targetSelect.value;
     try {
       const { ok, payload } = await postJson(base + "/api/translate-captions", { id: articleId, target });
@@ -742,13 +892,18 @@
         line.textContent = text;
         original.after(line);
       });
-    } catch (_) { /* captions stay as they are */ }
+    } catch (_) {
+      /* captions stay as they are */
+    }
   }
 
   targetSelect.addEventListener("change", () => {
-    reader.querySelectorAll(".bi-one").forEach(node => node.remove()); // single paragraphs, old language
+    reader.querySelectorAll(".bi-one").forEach((node) => node.remove()); // single paragraphs, old language
     showCaptions();
-    if (!biTarget) { showTitleGloss(); return; }
+    if (!biTarget) {
+      showTitleGloss();
+      return;
+    }
     clearBilingual();
     // With "open in 対訳" on, follow the new language instead of just closing.
     if (document.getElementById("bi-auto")?.checked) toggleBilingual(true);
@@ -757,18 +912,31 @@
 
   biButton.addEventListener("click", () => {
     if (biTarget && reader.classList.contains("tr-only")) setOnly(false);
-    else { if (!biTarget) setOnly(false); toggleBilingual(false); }
+    else {
+      if (!biTarget) setOnly(false);
+      toggleBilingual(false);
+    }
   });
   onlyButton?.addEventListener("click", () => {
-    if (biTarget && reader.classList.contains("tr-only")) { setOnly(false); return; }
+    if (biTarget && reader.classList.contains("tr-only")) {
+      setOnly(false);
+      return;
+    }
     setOnly(true);
     if (!biTarget) toggleBilingual(false);
   });
-  originalButton?.addEventListener("click", () => { if (biTarget) toggleBilingual(false); });
+  originalButton?.addEventListener("click", () => {
+    if (biTarget) toggleBilingual(false);
+  });
   // auto: opened by the page itself ("記事を開いたら対訳で表示する"), which the server holds back
   // once the month's automatic translations reach their limit; the button is never held back.
   async function toggleBilingual(auto = false) {
-    if (biTarget) { clearBilingual(); status.textContent = ""; syncFloat(); return; }
+    if (biTarget) {
+      clearBilingual();
+      status.textContent = "";
+      syncFloat();
+      return;
+    }
     const target = targetSelect.value;
     biButton.disabled = true;
     reader.classList.toggle("tr-only", prefersOnly());
@@ -776,13 +944,17 @@
     syncFloat();
     status.textContent = T("対訳を作成しています…");
     try {
-      const { ok, payload } = await postJson(base + "/api/translate-paragraphs", { id: articleId, target, auto: auto === true });
+      const { ok, payload } = await postJson(base + "/api/translate-paragraphs", {
+        id: articleId,
+        target,
+        auto: auto === true,
+      });
       if (!ok || payload.error) throw new Error(payload.error || T("翻訳に失敗しました。"));
       const originals = [...reader.querySelectorAll(":scope > p:not(.bi-tr)")];
       if (!Array.isArray(payload.paragraphs) || payload.paragraphs.length !== originals.length) {
         throw new Error(T("段落の対応が取れませんでした。本文の下の「全文をまとめて翻訳する」をお試しください。"));
       }
-      reader.querySelectorAll(".bi-tr").forEach(node => node.remove()); // single-paragraph ones
+      reader.querySelectorAll(".bi-tr").forEach((node) => node.remove()); // single-paragraph ones
       unwrapSentences();
       let paired = 0;
       let doubtful = 0;
@@ -800,26 +972,41 @@
           const note = document.createElement("p");
           note.className = "bi-tr num-check";
           note.setAttribute("role", "note");
-          note.textContent = T("訳文に見当たらない数字: {numbers}（原文の数字を確かめてください）", { numbers: lost.join(T("・")) });
+          note.textContent = T("訳文に見当たらない数字: {numbers}（原文の数字を確かめてください）", {
+            numbers: lost.join(T("・")),
+          });
           translated.after(note);
           doubtful += 1;
         }
         const spans = payload.sentences?.[index];
-        if (spans && fitsSentences(paragraph, spans.src) && fitsSentences(translated, spans.tr)
-            && spans.src.length === spans.tr.length) {
+        if (
+          spans &&
+          fitsSentences(paragraph, spans.src) &&
+          fitsSentences(translated, spans.tr) &&
+          spans.src.length === spans.tr.length
+        ) {
           wrapSentences(paragraph, spans.src, `p${index}`);
           wrapSentences(translated, spans.tr, `p${index}`);
           paired += 1;
         }
       });
       reader.classList.toggle("paired", paired > 0);
-      if (payload.title) { biTitle.classList.remove("kept"); biTitle.textContent = payload.title; biTitle.lang = langTags[target] || ""; biTitle.hidden = false; }
+      if (payload.title) {
+        biTitle.classList.remove("kept");
+        biTitle.textContent = payload.title;
+        biTitle.lang = langTags[target] || "";
+        biTitle.hidden = false;
+      }
       reader.classList.add("bilingual");
       biTarget = target;
       // opened by itself, the 対訳 speaks for itself: only a warning takes room above the text
-      status.textContent = (auto ? "" : T("{language}の対訳を表示しました。", { language: targetNames[target] }) +
-        (reader.classList.contains("paired") ? T("文にカーソルを合わせる（タップする）と、対応する訳文が光ります。") : "")) +
-        (doubtful ? T("{count} 段落で、原文の数字が訳文に見当たりません。", { count: doubtful }) : "");
+      status.textContent =
+        (auto
+          ? ""
+          : T("{language}の対訳を表示しました。", { language: targetNames[target] }) +
+            (reader.classList.contains("paired")
+              ? T("文にカーソルを合わせる（タップする）と、対応する訳文が光ります。")
+              : "")) + (doubtful ? T("{count} 段落で、原文の数字が訳文に見当たりません。", { count: doubtful }) : "");
     } catch (error) {
       status.textContent = error.message || T("翻訳に失敗しました。");
     } finally {
@@ -838,26 +1025,42 @@
     biFloat.disabled = biButton.disabled;
     biFloat.textContent = biButton.disabled ? T("訳しています…") : biTarget ? T("訳を隠す") : T("対訳");
     biFloat.setAttribute("aria-pressed", biTarget ? "true" : "false");
-    biFloat.title = biButton.disabled ? "" : (biTarget ? T("対訳を閉じる") : T("この記事を対訳で表示")) + (status.textContent ? `（${status.textContent}）` : "");
+    biFloat.title = biButton.disabled
+      ? ""
+      : (biTarget ? T("対訳を閉じる") : T("この記事を対訳で表示")) +
+        (status.textContent ? `（${status.textContent}）` : "");
   }
   if (biFloat && "IntersectionObserver" in window) {
     const controls = document.getElementById("translation-controls");
     let barVisible = true;
     let textVisible = false;
-    const update = () => { biFloat.hidden = barVisible || !textVisible; };
-    new IntersectionObserver(entries => { barVisible = entries[0].isIntersecting; update(); }).observe(controls);
-    new IntersectionObserver(entries => { textVisible = entries[0].isIntersecting; update(); }).observe(reader);
+    const update = () => {
+      biFloat.hidden = barVisible || !textVisible;
+    };
+    new IntersectionObserver((entries) => {
+      barVisible = entries[0].isIntersecting;
+      update();
+    }).observe(controls);
+    new IntersectionObserver((entries) => {
+      textVisible = entries[0].isIntersecting;
+      update();
+    }).observe(reader);
     biFloat.addEventListener("click", async () => {
-      const onScreen = [...reader.querySelectorAll(":scope > p")]
-        .find(p => p.getClientRects().length && p.getBoundingClientRect().bottom > 80);
+      const onScreen = [...reader.querySelectorAll(":scope > p")].find(
+        (p) => p.getClientRects().length && p.getBoundingClientRect().bottom > 80,
+      );
       const before = onScreen?.getBoundingClientRect().top ?? 0;
       // a translation goes away on closing (訳文だけ): keep its original where it was instead
       const anchorParagraph = onScreen?.classList.contains("bi-tr") ? onScreen.previousElementSibling : onScreen;
       await toggleBilingual();
       // opening in 訳文だけ hides the original: its translation takes its place
       const next = anchorParagraph?.nextElementSibling;
-      const shown = anchorParagraph?.isConnected && anchorParagraph.getClientRects().length ? anchorParagraph
-        : next?.classList.contains("bi-tr") ? next : null;
+      const shown =
+        anchorParagraph?.isConnected && anchorParagraph.getClientRects().length
+          ? anchorParagraph
+          : next?.classList.contains("bi-tr")
+            ? next
+            : null;
       if (shown) window.scrollBy(0, shown.getBoundingClientRect().top - before);
     });
     syncFloat();
@@ -886,7 +1089,16 @@
       const done = total > 0 ? Math.min(1, Math.max(0, -box.top / total)) : 1;
       progress.style.transform = `scaleX(${done.toFixed(3)})`;
     };
-    window.addEventListener("scroll", () => { if (!queued) { queued = true; requestAnimationFrame(measure); } }, { passive: true });
+    window.addEventListener(
+      "scroll",
+      () => {
+        if (!queued) {
+          queued = true;
+          requestAnimationFrame(measure);
+        }
+      },
+      { passive: true },
+    );
     measure();
   }
 
@@ -895,9 +1107,17 @@
   const biAuto = document.getElementById("bi-auto");
   if (biAuto) {
     // On unless turned off on this device: a Japanese reader opens an article to read it in Japanese.
-    try { biAuto.checked = localStorage.getItem(BI_AUTO_KEY) !== "0"; } catch (_) { biAuto.checked = true; }
+    try {
+      biAuto.checked = localStorage.getItem(BI_AUTO_KEY) !== "0";
+    } catch (_) {
+      biAuto.checked = true;
+    }
     biAuto.addEventListener("change", () => {
-      try { localStorage.setItem(BI_AUTO_KEY, biAuto.checked ? "1" : "0"); } catch (_) { /* optional */ }
+      try {
+        localStorage.setItem(BI_AUTO_KEY, biAuto.checked ? "1" : "0");
+      } catch (_) {
+        /* optional */
+      }
       if (biAuto.checked && !biTarget) biButton.click();
     });
     if (biAuto.checked && !openedFor) toggleBilingual(true);
@@ -931,55 +1151,106 @@
   });
 
   document.getElementById("close-selection").addEventListener("click", closePopup);
-  document.getElementById("close-whole").addEventListener("click", () => { wholeResult.hidden = true; });
-  document.getElementById("copy-original").addEventListener("click", event => copyText(document.getElementById("selected-original").textContent, event.currentTarget));
-  document.getElementById("copy-selection").addEventListener("click", event => copyText(translationText(document.getElementById("selection-translation")), event.currentTarget));
-  document.getElementById("copy-whole").addEventListener("click", event => copyText(translationText(document.getElementById("whole-translation")), event.currentTarget));
+  document.getElementById("close-whole").addEventListener("click", () => {
+    wholeResult.hidden = true;
+  });
+  document
+    .getElementById("copy-original")
+    .addEventListener("click", (event) =>
+      copyText(document.getElementById("selected-original").textContent, event.currentTarget),
+    );
+  document
+    .getElementById("copy-selection")
+    .addEventListener("click", (event) =>
+      copyText(translationText(document.getElementById("selection-translation")), event.currentTarget),
+    );
+  document
+    .getElementById("copy-whole")
+    .addEventListener("click", (event) =>
+      copyText(translationText(document.getElementById("whole-translation")), event.currentTarget),
+    );
   document.getElementById("pin-selection")?.addEventListener("click", () => {
     const pinned = !selectionResult.classList.contains("pinned");
     setPinned(pinned);
-    try { localStorage.setItem(PIN_KEY, pinned ? "1" : "0"); } catch (_) { /* optional */ }
+    try {
+      localStorage.setItem(PIN_KEY, pinned ? "1" : "0");
+    } catch (_) {
+      /* optional */
+    }
     placePopup();
   });
-  document.addEventListener("keydown", event => {
-    if (event.key === "Escape") { closePopup(); toolbar.hidden = true; return; }
+  document.addEventListener("keydown", (event) => {
+    if (event.key === "Escape") {
+      closePopup();
+      toolbar.hidden = true;
+      return;
+    }
     // Keyboard (PC): J / K = next / previous article of the outlet, B = 対訳 on/off.
     if (event.ctrlKey || event.metaKey || event.altKey || event.isComposing) return;
     if (event.target.closest?.("input, select, textarea, [contenteditable]")) return;
     const key = event.key.toLowerCase();
-    const link = key === "j" ? document.querySelector('a[rel="next"]') : key === "k" ? document.querySelector('a[rel="prev"]') : null;
-    if (link) { event.preventDefault(); link.click(); }
-    else if (key === "b" && !biButton.disabled) { event.preventDefault(); toggleBilingual(false); }
+    const link =
+      key === "j"
+        ? document.querySelector('a[rel="next"]')
+        : key === "k"
+          ? document.querySelector('a[rel="prev"]')
+          : null;
+    if (link) {
+      event.preventDefault();
+      link.click();
+    } else if (key === "b" && !biButton.disabled) {
+      event.preventDefault();
+      toggleBilingual(false);
+    }
   });
   // The card moves with its word while the page scrolls (desktop); the toolbar just goes away.
   let placing = 0;
   const follow = () => {
     if (placing) return;
-    placing = window.requestAnimationFrame(() => { placing = 0; if (!isSheet()) placePopup(); });
+    placing = window.requestAnimationFrame(() => {
+      placing = 0;
+      if (!isSheet()) placePopup();
+    });
   };
-  window.addEventListener("scroll", () => { toolbar.hidden = true; follow(); }, { passive: true });
+  window.addEventListener(
+    "scroll",
+    () => {
+      toolbar.hidden = true;
+      follow();
+    },
+    { passive: true },
+  );
   window.addEventListener("resize", follow, { passive: true });
   narrow.addEventListener?.("change", () => placePopup());
 
   // Phone: drag the sheet down to close it.
   let dragStart = null;
-  selectionResult.addEventListener("touchstart", event => {
-    if (!isSheet() || event.touches.length !== 1) return;
-    if (selectionResult.scrollTop > 0 && !event.target.closest(".sheet-grip, .tr-head")) return;
-    dragStart = { y: event.touches[0].clientY, moved: 0 };
-    selectionResult.classList.add("dragging");
-  }, { passive: true });
-  selectionResult.addEventListener("touchmove", event => {
-    if (!dragStart) return;
-    dragStart.moved = Math.max(0, event.touches[0].clientY - dragStart.y);
-    selectionResult.style.transform = dragStart.moved ? `translateY(${dragStart.moved}px)` : "";
-  }, { passive: true });
+  selectionResult.addEventListener(
+    "touchstart",
+    (event) => {
+      if (!isSheet() || event.touches.length !== 1) return;
+      if (selectionResult.scrollTop > 0 && !event.target.closest(".sheet-grip, .tr-head")) return;
+      dragStart = { y: event.touches[0].clientY, moved: 0 };
+      selectionResult.classList.add("dragging");
+    },
+    { passive: true },
+  );
+  selectionResult.addEventListener(
+    "touchmove",
+    (event) => {
+      if (!dragStart) return;
+      dragStart.moved = Math.max(0, event.touches[0].clientY - dragStart.y);
+      selectionResult.style.transform = dragStart.moved ? `translateY(${dragStart.moved}px)` : "";
+    },
+    { passive: true },
+  );
   const endDrag = () => {
     if (!dragStart) return;
     const moved = dragStart.moved;
     dragStart = null;
     selectionResult.classList.remove("dragging");
-    if (moved > 70) closePopup(); else selectionResult.style.transform = "";
+    if (moved > 70) closePopup();
+    else selectionResult.style.transform = "";
   };
   selectionResult.addEventListener("touchend", endDrag);
   selectionResult.addEventListener("touchcancel", endDrag);

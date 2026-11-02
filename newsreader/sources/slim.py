@@ -9,6 +9,7 @@ canonical link stay.
 same result for both (``slim_if_equivalent`` does exactly that) — the extraction-equality
 check is what makes slimming safe, not the list of removed tags.
 """
+
 from __future__ import annotations
 
 from bs4 import BeautifulSoup, Comment
@@ -16,8 +17,20 @@ from bs4 import BeautifulSoup, Comment
 from newsreader.sources import ReaderError, extract_article
 
 DROP_TAGS = ("script", "style", "svg", "noscript", "iframe", "template", "canvas", "video", "audio")
-DROP_REL = {"stylesheet", "preload", "prefetch", "modulepreload", "preconnect", "dns-prefetch", "icon",
-            "apple-touch-icon", "manifest", "mask-icon", "shortcut icon", "alternate"}
+DROP_REL = {
+    "stylesheet",
+    "preload",
+    "prefetch",
+    "modulepreload",
+    "preconnect",
+    "dns-prefetch",
+    "icon",
+    "apple-touch-icon",
+    "manifest",
+    "mask-icon",
+    "shortcut icon",
+    "alternate",
+}
 DROP_ATTRS = ("style", "onclick", "onload", "onerror")
 
 

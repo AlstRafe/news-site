@@ -2,6 +2,7 @@
 
 Do not edit. Equivalence tests compare newsreader.sources against this file.
 """
+
 from __future__ import annotations
 
 import re
@@ -117,15 +118,17 @@ def list_html_files(directory: Path) -> list[dict]:
             if path.suffix.lower() not in ALLOWED_EXTENSIONS or path.is_symlink() or not path.is_file():
                 continue
             stat = path.stat()
-            files.append({
-                "name": path.name,
-                "display_name": path.stem,
-                "title": _title_preview(path),
-                "size": f"{stat.st_size / 1024:,.0f} KB",
-                "modified": time.strftime("%Y-%m-%d %H:%M", time.localtime(stat.st_mtime)),
-                "timestamp": stat.st_mtime,
-                "too_large": stat.st_size > MAX_HTML_BYTES,
-            })
+            files.append(
+                {
+                    "name": path.name,
+                    "display_name": path.stem,
+                    "title": _title_preview(path),
+                    "size": f"{stat.st_size / 1024:,.0f} KB",
+                    "modified": time.strftime("%Y-%m-%d %H:%M", time.localtime(stat.st_mtime)),
+                    "timestamp": stat.st_mtime,
+                    "too_large": stat.st_size > MAX_HTML_BYTES,
+                }
+            )
     except OSError as exc:
         raise ReaderError("ディレクトリを読み取れません。アクセス権を確認してください。") from exc
     files.sort(key=lambda f: f["timestamp"], reverse=True)
@@ -135,11 +138,7 @@ def list_html_files(directory: Path) -> list[dict]:
 def list_subdirectories(directory: Path) -> list[dict]:
     """List direct child folders for site-by-site article browsing."""
     try:
-        folders = [
-            {"name": path.name}
-            for path in directory.iterdir()
-            if path.is_dir() and not path.is_symlink()
-        ]
+        folders = [{"name": path.name} for path in directory.iterdir() if path.is_dir() and not path.is_symlink()]
     except OSError as exc:
         raise ReaderError("ディレクトリを読み取れません。アクセス権を確認してください。") from exc
     return sorted(folders, key=lambda folder: folder["name"].casefold())
@@ -193,7 +192,9 @@ def extract_article(html: bytes) -> dict:
         if is_bbc_video:
             kind = "動画記事（説明文）"
             selector = '[data-testid="video-page-video-section"] div[class*="TextStyled"] > p[class*="ParagraphStyled"]'
-            image_selector = '[data-testid="video-page-video-section"] img, #main-content article [data-testid="image"] img'
+            image_selector = (
+                '[data-testid="video-page-video-section"] img, #main-content article [data-testid="image"] img'
+            )
         else:
             kind = "通常記事"
             if soup.select_one('article [data-component="layout-block"]'):
@@ -226,9 +227,7 @@ def extract_article(html: bytes) -> dict:
             title_tag = soup.select_one("h1")
         paragraphs = [
             p.get_text(" ", strip=True)
-            for p in soup.select(
-                "article.article .centralContent .paragraph:not(.moreArticle):not(.appDownload) > p"
-            )
+            for p in soup.select("article.article .centralContent .paragraph:not(.moreArticle):not(.appDownload) > p")
         ]
         image_selector = "article.article .centralContent img"
         host_allowed = host in {"cna.com.tw", "www.cna.com.tw"}
@@ -275,7 +274,10 @@ def extract_article(html: bytes) -> dict:
         if og_image:
             source = urljoin(page_url, str(og_image.get("content", "")).strip())
             parsed_source = urlsplit(source)
-            if parsed_source.scheme in {"http", "https"} and Path(parsed_source.path).suffix.lower() in IMAGE_EXTENSIONS:
+            if (
+                parsed_source.scheme in {"http", "https"}
+                and Path(parsed_source.path).suffix.lower() in IMAGE_EXTENSIONS
+            ):
                 images.append({"src": source, "alt": title})
 
     if not host_allowed or not page_url.startswith("https://"):

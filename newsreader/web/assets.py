@@ -6,6 +6,7 @@
   prefetched page opens instantly; the list revalidates every time (``no-cache``).
 - JSON API: never cached (``no-store``); large answers (whole-article translations) gzipped.
 """
+
 from __future__ import annotations
 
 import gzip
@@ -24,8 +25,16 @@ from newsreader import i18n, paths
 
 YEAR = 365 * 24 * 3600
 MIN_GZIP_BYTES = 1024
-_COMPRESSIBLE = {"text/html", "text/css", "application/javascript", "text/javascript", "application/json",
-                 "text/plain", "image/svg+xml", "application/manifest+json"}
+_COMPRESSIBLE = {
+    "text/html",
+    "text/css",
+    "application/javascript",
+    "text/javascript",
+    "application/json",
+    "text/plain",
+    "image/svg+xml",
+    "application/manifest+json",
+}
 
 CACHE_LIST = "no-cache"
 CACHE_PAGE = "private, max-age=60"
@@ -128,13 +137,13 @@ def lag_filter(iso_utc: str, first_iso: str) -> str:
 
 
 def localtime_short_filter(iso_utc: str) -> str:
-    """"10/13 21:00" in the server's timezone (lists where the year is obvious)."""
+    """ "10/13 21:00" in the server's timezone (lists where the year is obvious)."""
     moment = _local(iso_utc)
     return i18n.short_time(moment) if moment else ""
 
 
 def localclock_filter(iso_utc: str) -> str:
-    """"21:00" in the server's timezone (the day is shown by the list's day separators)."""
+    """ "21:00" in the server's timezone (the day is shown by the list's day separators)."""
     moment = _local(iso_utc)
     return moment.strftime("%H:%M") if moment else ""
 
@@ -169,8 +178,9 @@ def init_app(app: Flask, *, dev: bool) -> None:
             response.headers["Content-Encoding"] = "gzip"
         response.headers["Vary"] = "Accept-Encoding"
         # Only a URL that names this exact content may be cached forever.
-        response.headers["Cache-Control"] = (f"public, max-age={YEAR}, immutable"
-                                             if request.args.get("v") == entry.digest else "no-cache")
+        response.headers["Cache-Control"] = (
+            f"public, max-age={YEAR}, immutable" if request.args.get("v") == entry.digest else "no-cache"
+        )
         response.make_conditional(request)
         return response
 
@@ -201,8 +211,12 @@ def init_app(app: Flask, *, dev: bool) -> None:
                 response.make_conditional(request)
             else:
                 response.headers.setdefault("Cache-Control", "no-store")
-        if (response.status_code == 200 and mimetype in _COMPRESSIBLE and "Content-Encoding" not in response.headers
-                and accepts_gzip()):
+        if (
+            response.status_code == 200
+            and mimetype in _COMPRESSIBLE
+            and "Content-Encoding" not in response.headers
+            and accepts_gzip()
+        ):
             body = response.get_data()
             if len(body) >= MIN_GZIP_BYTES:
                 response.set_data(gzip.compress(body, compresslevel=6, mtime=0))

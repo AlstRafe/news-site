@@ -1,4 +1,5 @@
 """Python-only application bootstrapper for Windows."""
+
 from __future__ import annotations
 
 import hashlib
@@ -45,9 +46,21 @@ HOSTED_PATH = INSTANCE_DIRECTORY / "hosted.json"
 PRESET_SETTINGS_PATH = PROJECT_ROOT / "preset" / "settings.json"
 PRESET_RECORD_PATH = INSTANCE_DIRECTORY / "preset-applied.json"
 #: The only settings a preset may set; anything else in the file is ignored.
-PRESET_KEYS = frozenset({"translation_source", "relay_url", "network_bind_host", "network_port", "library_limit",
-                         "start_at_logon", "collect_hourly", "build_channel", "stories_enabled",
-                         "stories_daily_chars", "glossary"})
+PRESET_KEYS = frozenset(
+    {
+        "translation_source",
+        "relay_url",
+        "network_bind_host",
+        "network_port",
+        "library_limit",
+        "start_at_logon",
+        "collect_hourly",
+        "build_channel",
+        "stories_enabled",
+        "stories_daily_chars",
+        "glossary",
+    }
+)
 CREATE_NO_WINDOW = 0x08000000
 
 
@@ -105,9 +118,14 @@ def validate_bind_host(value: str) -> str:
     # every interface including public ones, so unspecified/reserved/multicast are refused.
     # tests/test_web.py checks that this copy and netpolicy agree.
     tailscale_range = ipaddress.ip_network("100.64.0.0/10")
-    if (address.version != 4 or address.is_unspecified or address.is_multicast or address.is_reserved
-            or address in ipaddress.ip_network("0.0.0.0/8")
-            or not (address.is_loopback or address.is_private or address in tailscale_range)):
+    if (
+        address.version != 4
+        or address.is_unspecified
+        or address.is_multicast
+        or address.is_reserved
+        or address in ipaddress.ip_network("0.0.0.0/8")
+        or not (address.is_loopback or address.is_private or address in tailscale_range)
+    ):
         raise ValueError("待受けIPにはloopback、private IPv4、またはTailscale IPv4を指定してください。")
     return str(address)
 
@@ -132,8 +150,11 @@ def detect_tailscale() -> tuple[str | None, str | None]:
         return None, None
     try:
         output = subprocess.run(
-            [executable, "status", "--json"], capture_output=True, text=True,
-            timeout=4, check=True,
+            [executable, "status", "--json"],
+            capture_output=True,
+            text=True,
+            timeout=4,
+            check=True,
         ).stdout
         self_status = json.loads(output).get("Self", {})
         addresses = self_status.get("TailscaleIPs", [])
@@ -190,7 +211,9 @@ def is_port_available(host: str, port: int) -> bool:
 def select_connection(settings: dict[str, object]) -> tuple[str, int, set[str]]:
     saved_host = settings.get("network_bind_host", "")
     configured_host = os.environ.get("NEWS_BIND_HOST", "").strip()
-    bind_host = validate_bind_host(configured_host or (saved_host if isinstance(saved_host, str) else "") or detect_bind_host())
+    bind_host = validate_bind_host(
+        configured_host or (saved_host if isinstance(saved_host, str) else "") or detect_bind_host()
+    )
 
     saved_port = settings.get("network_port", "")
     configured_port = os.environ.get("NEWS_PORT", "").strip()
@@ -206,7 +229,9 @@ def select_connection(settings: dict[str, object]) -> tuple[str, int, set[str]]:
             raise OSError(f"Port {port} is already in use on {bind_host}.")
     else:
         first_port, last_port = APP_CONFIG["port_range"]
-        port = next((candidate for candidate in range(first_port, last_port + 1) if is_port_available(bind_host, candidate)), 0)
+        port = next(
+            (candidate for candidate in range(first_port, last_port + 1) if is_port_available(bind_host, candidate)), 0
+        )
         if not port:
             raise OSError(f"No available port from {first_port} through {last_port} was found on {bind_host}.")
 
@@ -259,9 +284,17 @@ def find_runtime_python() -> Path:
 
 def update_dependencies(runtime_python: Path) -> None:
     pip_command = [
-        str(runtime_python), "-m", "pip", "install", "--upgrade", "pip",
-        "--disable-pip-version-check", "--timeout", str(APP_CONFIG["pip_timeout_seconds"]),
-        "--retries", str(APP_CONFIG["pip_retries"]),
+        str(runtime_python),
+        "-m",
+        "pip",
+        "install",
+        "--upgrade",
+        "pip",
+        "--disable-pip-version-check",
+        "--timeout",
+        str(APP_CONFIG["pip_timeout_seconds"]),
+        "--retries",
+        str(APP_CONFIG["pip_retries"]),
     ]
     print("pipの最新版を確認・更新しています...")
     result = subprocess.run(pip_command, cwd=PROJECT_ROOT)
@@ -270,7 +303,8 @@ def update_dependencies(runtime_python: Path) -> None:
     print("依存パッケージを確認しています...")
     subprocess.run(
         [str(runtime_python), "-m", "pip", "install", "-r", str(PROJECT_ROOT / "requirements.txt")],
-        cwd=PROJECT_ROOT, check=True,
+        cwd=PROJECT_ROOT,
+        check=True,
     )
 
 
@@ -329,7 +363,10 @@ def ensure_hourly_collector_task(runtime_python: Path, library_root: Path) -> bo
     except (OSError, ValueError, TypeError):
         previous = {}
     query = subprocess.run(
-        [scheduler, "/Query", "/TN", task_name], capture_output=True, text=True, errors="replace",
+        [scheduler, "/Query", "/TN", task_name],
+        capture_output=True,
+        text=True,
+        errors="replace",
     )
     if query.returncode == 0 and previous == registration:
         return False
@@ -345,7 +382,11 @@ def ensure_hourly_collector_task(runtime_python: Path, library_root: Path) -> bo
 
     task = ElementTree.Element(f"{{{xml_namespace}}}Task", {"version": "1.3"})
     registration_info = element(task, "RegistrationInfo")
-    element(registration_info, "Description", "Collect supported news article HTML once per hour without starting the web app.")
+    element(
+        registration_info,
+        "Description",
+        "Collect supported news article HTML once per hour without starting the web app.",
+    )
 
     triggers = element(task, "Triggers")
     trigger = element(triggers, "CalendarTrigger")
@@ -395,7 +436,9 @@ def ensure_hourly_collector_task(runtime_python: Path, library_root: Path) -> bo
         ElementTree.ElementTree(task).write(temporary_xml, encoding="utf-16", xml_declaration=True)
         created = subprocess.run(
             [scheduler, "/Create", "/TN", task_name, "/XML", str(temporary_xml), "/F"],
-            capture_output=True, text=True, errors="replace",
+            capture_output=True,
+            text=True,
+            errors="replace",
         )
     finally:
         temporary_xml.unlink(missing_ok=True)
@@ -431,8 +474,11 @@ def logon_task_xml(command: Path, arguments: str, account: str) -> ElementTree.E
         return node
 
     task = ElementTree.Element(f"{{{xml_namespace}}}Task", {"version": "1.3"})
-    element(element(task, "RegistrationInfo"), "Description",
-            "Start the news reader in the background when this user logs on (phone access after a restart).")
+    element(
+        element(task, "RegistrationInfo"),
+        "Description",
+        "Start the news reader in the background when this user logs on (phone access after a restart).",
+    )
     trigger = element(element(task, "Triggers"), "LogonTrigger")
     element(trigger, "Enabled", "true")
     element(trigger, "UserId", account)
@@ -442,11 +488,19 @@ def logon_task_xml(command: Path, arguments: str, account: str) -> ElementTree.E
     element(principal, "LogonType", "InteractiveToken")
     element(principal, "RunLevel", "LeastPrivilege")
     settings = element(task, "Settings")
-    for name, value in (("MultipleInstancesPolicy", "IgnoreNew"), ("DisallowStartIfOnBatteries", "false"),
-                        ("StopIfGoingOnBatteries", "false"), ("AllowHardTerminate", "true"),
-                        ("StartWhenAvailable", "false"), ("RunOnlyIfNetworkAvailable", "false"),
-                        ("WakeToRun", "false"), ("Enabled", "true"), ("Hidden", "false"),
-                        ("ExecutionTimeLimit", "PT0S"), ("Priority", "7")):
+    for name, value in (
+        ("MultipleInstancesPolicy", "IgnoreNew"),
+        ("DisallowStartIfOnBatteries", "false"),
+        ("StopIfGoingOnBatteries", "false"),
+        ("AllowHardTerminate", "true"),
+        ("StartWhenAvailable", "false"),
+        ("RunOnlyIfNetworkAvailable", "false"),
+        ("WakeToRun", "false"),
+        ("Enabled", "true"),
+        ("Hidden", "false"),
+        ("ExecutionTimeLimit", "PT0S"),
+        ("Priority", "7"),
+    ):
         element(settings, name, value)
     execute = element(element(task, "Actions", Context="ReaderUser"), "Exec")
     element(execute, "Command", str(command))
@@ -468,15 +522,26 @@ def ensure_logon_task(runtime_python: Path, enabled: bool) -> bool:
         previous = {}
     if previous.get("task_name") == LEGACY_LOGON_TASK_NAME:
         # registered by this copy under the old shared name: remove it (only when it is ours)
-        legacy = subprocess.run([scheduler, "/Query", "/TN", LEGACY_LOGON_TASK_NAME, "/XML"],
-                                capture_output=True, text=True, errors="replace")
+        legacy = subprocess.run(
+            [scheduler, "/Query", "/TN", LEGACY_LOGON_TASK_NAME, "/XML"],
+            capture_output=True,
+            text=True,
+            errors="replace",
+        )
         if legacy.returncode == 0 and str(PROJECT_ROOT) in (legacy.stdout or ""):
-            subprocess.run([scheduler, "/Delete", "/TN", LEGACY_LOGON_TASK_NAME, "/F"], capture_output=True, text=True, errors="replace")
+            subprocess.run(
+                [scheduler, "/Delete", "/TN", LEGACY_LOGON_TASK_NAME, "/F"],
+                capture_output=True,
+                text=True,
+                errors="replace",
+            )
         previous = {}
         LOGON_REGISTRATION_PATH.unlink(missing_ok=True)
     if not enabled:
         if previous:
-            subprocess.run([scheduler, "/Delete", "/TN", LOGON_TASK_NAME, "/F"], capture_output=True, text=True, errors="replace")
+            subprocess.run(
+                [scheduler, "/Delete", "/TN", LOGON_TASK_NAME, "/F"], capture_output=True, text=True, errors="replace"
+            )
             LOGON_REGISTRATION_PATH.unlink(missing_ok=True)
             print("ログオン時の自動起動を解除しました。")
             return True
@@ -487,16 +552,27 @@ def ensure_logon_task(runtime_python: Path, enabled: bool) -> bool:
     if not pythonw.is_file() or not account:
         return False
     arguments = f'"{PROJECT_ROOT / "launcher.py"}" --background'
-    registration = {"definition_version": 1, "task_name": LOGON_TASK_NAME, "command": str(pythonw), "arguments": arguments}
-    query = subprocess.run([scheduler, "/Query", "/TN", LOGON_TASK_NAME, "/XML"], capture_output=True, text=True, errors="replace")
+    registration = {
+        "definition_version": 1,
+        "task_name": LOGON_TASK_NAME,
+        "command": str(pythonw),
+        "arguments": arguments,
+    }
+    query = subprocess.run(
+        [scheduler, "/Query", "/TN", LOGON_TASK_NAME, "/XML"], capture_output=True, text=True, errors="replace"
+    )
     if query.returncode == 0 and previous == registration and str(PROJECT_ROOT) in (query.stdout or ""):
         return False
     temporary_xml = INSTANCE_DIRECTORY / f"server-task-{os.getpid()}.xml"
     try:
         INSTANCE_DIRECTORY.mkdir(parents=True, exist_ok=True)
         logon_task_xml(pythonw, arguments, account).write(temporary_xml, encoding="utf-16", xml_declaration=True)
-        created = subprocess.run([scheduler, "/Create", "/TN", LOGON_TASK_NAME, "/XML", str(temporary_xml), "/F"],
-                                 capture_output=True, text=True, errors="replace")
+        created = subprocess.run(
+            [scheduler, "/Create", "/TN", LOGON_TASK_NAME, "/XML", str(temporary_xml), "/F"],
+            capture_output=True,
+            text=True,
+            errors="replace",
+        )
     finally:
         temporary_xml.unlink(missing_ok=True)
     if created.returncode:
@@ -562,7 +638,9 @@ def supervise_app(runtime_python: Path, env: dict[str, str], background: bool = 
         extra = {"creationflags": CREATE_NO_WINDOW} if background and os.name == "nt" else {}
         if background and hasattr(sys.stdout, "fileno"):  # the app's output goes to the same log
             extra.update(stdout=sys.stdout, stderr=subprocess.STDOUT)
-        code = subprocess.run([str(runtime_python), str(PROJECT_ROOT / "app.py")], cwd=PROJECT_ROOT, env=env, **extra).returncode
+        code = subprocess.run(
+            [str(runtime_python), str(PROJECT_ROOT / "app.py")], cwd=PROJECT_ROOT, env=env, **extra
+        ).returncode
         if code == 0:
             return 0
         if code == RESTART_EXIT_CODE:
@@ -613,7 +691,9 @@ def background_port_taken(settings: dict[str, object]) -> bool:
     """At logon: is the reader already running (something answers on its usual port)? Then do
     not start a second one. (Asked by connecting: a bind test also fails while the address
     itself is not up yet, which once made the logon start give up silently.)"""
-    port = str(os.environ.get("NEWS_PORT", "") or settings.get("network_port", "") or APP_CONFIG["port_range"][0]).strip()
+    port = str(
+        os.environ.get("NEWS_PORT", "") or settings.get("network_port", "") or APP_CONFIG["port_range"][0]
+    ).strip()
     if not port.isdecimal():
         return False
     hosts = {"127.0.0.1", _configured_host(settings) or detect_bind_host()}
@@ -692,8 +772,9 @@ def main(argv: list[str] | None = None) -> int:
     profile_root = Path(os.environ.get("LOCALAPPDATA", Path.home() / "AppData" / "Local")) / APP_CONFIG["name"]
     first_run_marker = profile_root / "first-run-complete"
     first_run = not first_run_marker.exists()
-    open_first_run_settings = (prepare_first_run(settings, first_run_marker, interactive=not preset_build)
-                               if first_run else False)
+    open_first_run_settings = (
+        prepare_first_run(settings, first_run_marker, interactive=not preset_build) if first_run else False
+    )
     select_connection(settings)
     runtime_python = find_runtime_python()
     update_dependencies(runtime_python)

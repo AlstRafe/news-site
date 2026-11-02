@@ -1,4 +1,5 @@
 """中央社 CNA (Central News Agency, Taiwan) article pages."""
+
 from __future__ import annotations
 
 import re

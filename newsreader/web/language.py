@@ -9,6 +9,7 @@ the templates and the scripts use.
 - Templates: ``_("日本語の文", name=value)`` (text) and ``_m(...)`` (where a value is markup),
   ``lang``, ``lang_menu`` and ``texts_js`` (the scripts' translations, ``/i18n/<lang>.js``).
 """
+
 from __future__ import annotations
 
 import hashlib
@@ -33,8 +34,9 @@ def init_app(app) -> None:
             rest = urlencode([(key, value) for key, value in request.args.items(multi=True) if key != i18n.COOKIE])
             path = "/" + request.path.lstrip("/")  # "//other.example/" must not lead off the site
             response = redirect(request.script_root + path + (f"?{rest}" if rest else ""))
-            response.set_cookie(i18n.COOKIE, asked, max_age=i18n.COOKIE_SECONDS, path="/", samesite="Lax",
-                                secure=request.is_secure)
+            response.set_cookie(
+                i18n.COOKIE, asked, max_age=i18n.COOKIE_SECONDS, path="/", samesite="Lax", secure=request.is_secure
+            )
             return response
         g.lang = i18n.chosen(request.cookies.get(i18n.COOKIE, ""), request.headers.get("Accept-Language", ""))
         return None
@@ -57,9 +59,10 @@ def init_app(app) -> None:
 
     def script_texts(lang: str) -> tuple[bytes, str]:
         if lang not in scripts:
-            body = ("/* NewsBridge: the scripts' texts in " + lang + " (newsreader/locale/" + lang + ".json) */\n"
-                    "window.NR_TEXTS=" + json.dumps(i18n.table(lang)["scripts"], ensure_ascii=False, sort_keys=True)
-                    + ";\n").encode("utf-8")
+            body = (
+                "/* NewsBridge: the scripts' texts in " + lang + " (newsreader/locale/" + lang + ".json) */\n"
+                "window.NR_TEXTS=" + json.dumps(i18n.table(lang)["scripts"], ensure_ascii=False, sort_keys=True) + ";\n"
+            ).encode("utf-8")
             scripts[lang] = (body, hashlib.sha256(body).hexdigest()[:12])
         return scripts[lang]
 
@@ -70,8 +73,9 @@ def init_app(app) -> None:
         response = Response(body, mimetype="application/javascript")
         response.headers["Content-Type"] = "application/javascript; charset=utf-8"
         response.set_etag(digest, weak=True)
-        response.headers["Cache-Control"] = (f"public, max-age={YEAR}, immutable" if request.args.get("v") == digest
-                                             else "no-cache")
+        response.headers["Cache-Control"] = (
+            f"public, max-age={YEAR}, immutable" if request.args.get("v") == digest else "no-cache"
+        )
         return response.make_conditional(request)
 
     app.add_url_rule("/i18n/<lang>.js", endpoint="texts_js", view_func=texts_js)
@@ -85,7 +89,12 @@ def init_app(app) -> None:
     @app.context_processor
     def _language():
         lang = g.get("lang", i18n.DEFAULT)
-        return {"lang": lang, "locale": i18n.LOCALES[lang], "lang_menu": i18n.menu(lang),
-                "texts_js": _texts_js_url(), "page_target": i18n.TARGETS[lang],
-                # the language of the headline translations printed with the page (they follow the page's)
-                "gloss_tag": LANG_TAGS[i18n.TARGETS[lang]]}
+        return {
+            "lang": lang,
+            "locale": i18n.LOCALES[lang],
+            "lang_menu": i18n.menu(lang),
+            "texts_js": _texts_js_url(),
+            "page_target": i18n.TARGETS[lang],
+            # the language of the headline translations printed with the page (they follow the page's)
+            "gloss_tag": LANG_TAGS[i18n.TARGETS[lang]],
+        }

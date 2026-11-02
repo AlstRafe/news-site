@@ -12,7 +12,8 @@
   NR.target = document.querySelector('meta[name="translation-default"]')?.content || "ja";
   NR.t = (ja, values) => {
     let said = own(texts, ja) ? texts[ja] : ja;
-    if (said && typeof said === "object") said = said[values && (values.count ?? values.n) === 1 ? "one" : "other"] || ja;
+    if (said && typeof said === "object")
+      said = said[values && (values.count ?? values.n) === 1 ? "one" : "other"] || ja;
     return values ? String(said).replace(/\{(\w+)\}/g, (hole, key) => (own(values, key) ? values[key] : hole)) : said;
   };
 })();

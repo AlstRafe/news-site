@@ -1,4 +1,5 @@
 """Local preferences and OS-backed secret storage for translation providers."""
+
 from __future__ import annotations
 
 import ipaddress
@@ -56,7 +57,9 @@ def get_settings() -> dict[str, str]:
         "network_bind_host": bind_host,
         "network_port": port,
         # "own": this PC's Azure key; "relay": ask another NewsBridge to translate (relay.py, D-50).
-        "translation_source": "relay" if isinstance(value, dict) and value.get("translation_source") == "relay" else "own",
+        "translation_source": "relay"
+        if isinstance(value, dict) and value.get("translation_source") == "relay"
+        else "own",
         "relay_url": relay_url(value.get("relay_url") if isinstance(value, dict) else ""),
     }
 
@@ -66,6 +69,7 @@ def relay_url(value) -> str:
     if not isinstance(value, str):
         return ""
     from urllib.parse import urlsplit
+
     text = value.strip().rstrip("/")
     parts = urlsplit(text)
     if parts.scheme not in ("http", "https") or not parts.hostname or parts.query or parts.fragment or len(text) > 200:
@@ -107,8 +111,14 @@ def save_settings(azure_region: str = "", network_bind_host: str = "", network_p
     if len(azure_region) > 80:
         raise ValueError("Azureのリージョン名が長すぎます。")
     network_bind_host, network_port = validate_network_settings(network_bind_host, network_port)
-    _write_merged({"provider": "azure", "azure_region": azure_region,
-                   "network_bind_host": network_bind_host, "network_port": network_port})
+    _write_merged(
+        {
+            "provider": "azure",
+            "azure_region": azure_region,
+            "network_bind_host": network_bind_host,
+            "network_port": network_port,
+        }
+    )
 
 
 def get_story_settings() -> dict:
@@ -126,7 +136,7 @@ def get_story_settings() -> dict:
 
 
 def validate_library_dir(text: str) -> str:
-    """"" (use the default) or an existing folder given as an absolute path; never a symlink."""
+    """ "" (use the default) or an existing folder given as an absolute path; never a symlink."""
     text = text.strip().strip('"')
     if not text:
         return ""
@@ -223,15 +233,20 @@ def glossary() -> list[dict]:
         value = json.loads(SETTINGS_PATH.read_text(encoding="utf-8")).get("glossary", [])
     except (OSError, ValueError, TypeError, AttributeError):
         return []
-    entries = [_glossary_entry(e.get("source"), e.get("target"), e.get("lang")) for e in value if isinstance(e, dict)] \
-        if isinstance(value, list) else []
+    entries = (
+        [_glossary_entry(e.get("source"), e.get("target"), e.get("lang")) for e in value if isinstance(e, dict)]
+        if isinstance(value, list)
+        else []
+    )
     return [e for e in entries if e][:MAX_GLOSSARY]
 
 
 def save_glossary_entry(source: str, target: str, lang: str) -> list[dict]:
     entry = _glossary_entry(source, target, lang)
     if entry is None:
-        raise ValueError(f"原語と訳語は1〜{MAX_GLOSSARY_CHARS}文字（< > \" & は使えません）、翻訳先は一覧から選んでください。")
+        raise ValueError(
+            f'原語と訳語は1〜{MAX_GLOSSARY_CHARS}文字（< > " & は使えません）、翻訳先は一覧から選んでください。'
+        )
     current = [e for e in glossary() if not (e["source"] == entry["source"] and e["lang"] == entry["lang"])]
     if len(current) >= MAX_GLOSSARY:
         raise ValueError(f"訳語の指定は{MAX_GLOSSARY}件までです。")
@@ -248,7 +263,7 @@ def remove_glossary_entry(index: int) -> list[dict]:
 
 
 def build_channel() -> str:
-    """"alpha" / "beta" for a test build made by make_alpha_zip.py, else ""."""
+    """ "alpha" / "beta" for a test build made by make_alpha_zip.py, else ""."""
     try:
         value = json.loads(SETTINGS_PATH.read_text(encoding="utf-8")).get("build_channel", "")
     except (OSError, ValueError, TypeError, AttributeError):

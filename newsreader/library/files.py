@@ -4,6 +4,7 @@ Everything here refuses symlinks and anything that resolves outside the folder i
 was asked about, so an article record (or a crafted URL) can never make the app
 read an arbitrary file.
 """
+
 from __future__ import annotations
 
 import os
@@ -113,6 +114,7 @@ def resolve_html_file(directory: Path, filename: str) -> Path:
 # Used by the folder-picker UI that v3 replaced with the URL-based list. They
 # stay (with their tests) because reviving that UI is an open question (C-01).
 
+
 def _title_preview(path: Path) -> str:
     try:
         with path.open("rb") as html_file:
@@ -137,15 +139,17 @@ def list_html_files(directory: Path) -> list[dict]:
             if path.suffix.lower() not in ALLOWED_EXTENSIONS or path.is_symlink() or not path.is_file():
                 continue
             stat = path.stat()
-            files.append({
-                "name": path.name,
-                "display_name": path.stem,
-                "title": _title_preview(path),
-                "size": f"{stat.st_size / 1024:,.0f} KB",
-                "modified": time.strftime("%Y-%m-%d %H:%M", time.localtime(stat.st_mtime)),
-                "timestamp": stat.st_mtime,
-                "too_large": stat.st_size > MAX_HTML_BYTES,
-            })
+            files.append(
+                {
+                    "name": path.name,
+                    "display_name": path.stem,
+                    "title": _title_preview(path),
+                    "size": f"{stat.st_size / 1024:,.0f} KB",
+                    "modified": time.strftime("%Y-%m-%d %H:%M", time.localtime(stat.st_mtime)),
+                    "timestamp": stat.st_mtime,
+                    "too_large": stat.st_size > MAX_HTML_BYTES,
+                }
+            )
     except OSError as exc:
         raise ReaderError("ディレクトリを読み取れません。アクセス権を確認してください。") from exc
     files.sort(key=lambda f: f["timestamp"], reverse=True)
@@ -155,11 +159,7 @@ def list_html_files(directory: Path) -> list[dict]:
 def list_subdirectories(directory: Path) -> list[dict]:
     """List direct child folders for site-by-site article browsing."""
     try:
-        folders = [
-            {"name": path.name}
-            for path in directory.iterdir()
-            if path.is_dir() and not path.is_symlink()
-        ]
+        folders = [{"name": path.name} for path in directory.iterdir() if path.is_dir() and not path.is_symlink()]
     except OSError as exc:
         raise ReaderError("ディレクトリを読み取れません。アクセス権を確認してください。") from exc
     return sorted(folders, key=lambda folder: folder["name"].casefold())

@@ -2,6 +2,7 @@
 translate through the 本体 without a key of its own. On first start the token moves into this
 PC's credential store and the file is deleted, so it does not stay on disk next to the app.
 (launcher.py applies ``preset/settings.json`` itself, before the app's dependencies exist.)"""
+
 from __future__ import annotations
 
 import logging
@@ -35,8 +36,9 @@ def import_relay_token() -> bool:
         if get_secret("relay_token") != token:  # a store that silently keeps nothing
             raise SecretStoreError("not kept")
     except (SecretStoreError, ValueError) as exc:
-        log.warning("Could not store the shipped relay token (%s); it stays in preset/ for the next start",
-                    type(exc).__name__)
+        log.warning(
+            "Could not store the shipped relay token (%s); it stays in preset/ for the next start", type(exc).__name__
+        )
         return False
     path.unlink(missing_ok=True)
     return True

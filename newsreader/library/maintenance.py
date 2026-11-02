@@ -13,6 +13,7 @@ Safety: nothing changes without ``--apply``; only paths inside the library root 
 symlinks are never followed or modified; the backup folder may not lie inside the library
 (the app would index the copies). Every run prints what it did or would do.
 """
+
 from __future__ import annotations
 
 import argparse
@@ -68,8 +69,11 @@ def _inside(path: Path, root: Path) -> bool:
 def _asset_dirs(root: Path) -> list[tuple[Path, str]]:
     """(folder, owning html name) for every ``*_files`` / ``*_media`` folder in root or a site folder."""
     found = []
-    for parent in [root] + [p for p in sorted(root.iterdir()) if p.is_dir() and not p.is_symlink()
-                            and not p.name.endswith(ASSET_DIR_SUFFIXES)]:
+    for parent in [root] + [
+        p
+        for p in sorted(root.iterdir())
+        if p.is_dir() and not p.is_symlink() and not p.name.endswith(ASSET_DIR_SUFFIXES)
+    ]:
         try:
             children = sorted(parent.iterdir())
         except OSError:
@@ -108,6 +112,7 @@ def _sqlite_free_bytes(path: Path) -> int | None:
 
 # ---- commands ------------------------------------------------------------------
 
+
 def report(root: Path, db_path: Path, cache_path: Path) -> Outcome:
     out = Outcome()
     files = scan_library(root)
@@ -131,7 +136,9 @@ def report(root: Path, db_path: Path, cache_path: Path) -> Outcome:
             if not _has_article(folder, stem):
                 orphans, orphan_size = orphans + 1, orphan_size + size
     out.say(f"  ブラウザ保存の付属フォルダ（*_files、アプリは不使用）: {saved_pages:,} 個 {_mb(saved_size)}")
-    out.say(f"  画像キャッシュ（*_media）: {media:,} 個 {_mb(media_size)}（記事が無いもの {orphans:,} 個 {_mb(orphan_size)}）")
+    out.say(
+        f"  画像キャッシュ（*_media）: {media:,} 個 {_mb(media_size)}（記事が無いもの {orphans:,} 個 {_mb(orphan_size)}）"
+    )
     for label, path in (("索引", db_path), ("翻訳キャッシュ", cache_path)):
         if path.is_file():
             free = ""
@@ -183,8 +190,11 @@ def slim(root: Path, *, apply: bool, backup: Path | None, limit: int = 0) -> Out
             out.errors += 1
             out.say(f"  失敗: {source}/{name}（{type(exc).__name__}）")
     verb = "軽量化しました" if apply else "軽量化できます（ドライラン）"
-    out.lines.insert(0, f"{verb}: {done:,} 本 {_mb(before)} → {_mb(after)}"
-                        f"（{(1 - after / before) * 100 if before else 0:.0f}% 削減）。抽出結果が変わるため対象外: {same:,} 本")
+    out.lines.insert(
+        0,
+        f"{verb}: {done:,} 本 {_mb(before)} → {_mb(after)}"
+        f"（{(1 - after / before) * 100 if before else 0:.0f}% 削減）。抽出結果が変わるため対象外: {same:,} 本",
+    )
     if apply and backup is not None and out.changed:
         out.say(f"  元のファイル: {backup}（確認後に削除して構いません）")
     return out
@@ -215,8 +225,11 @@ def prune(root: Path, *, apply: bool, backup: Path | None, delete: bool) -> Outc
         except OSError as exc:
             out.errors += 1
             out.say(f"  失敗: {folder.relative_to(root)}（{type(exc).__name__}）")
-    action = ("削除しました" if delete else f"移動しました → {backup}") if apply else (
-        "削除できます（ドライラン）" if delete else "移動できます（ドライラン）")
+    action = (
+        ("削除しました" if delete else f"移動しました → {backup}")
+        if apply
+        else ("削除できます（ドライラン）" if delete else "移動できます（ドライラン）")
+    )
     out.lines.insert(0, f"{action}: {len(targets):,} フォルダ {_mb(total)}")
     for folder, why in targets[:20]:
         out.say(f"  {why}: {folder.relative_to(root)}")
@@ -248,12 +261,17 @@ def compact(paths_to_compact: list[Path], *, apply: bool) -> Outcome:
 
 # ---- command line ----------------------------------------------------------------
 
+
 def main(argv: list[str] | None = None) -> int:
-    parser = argparse.ArgumentParser(prog="maintenance.py", description="記事ライブラリの整理（--apply が無ければ何も変更しない）")
+    parser = argparse.ArgumentParser(
+        prog="maintenance.py", description="記事ライブラリの整理（--apply が無ければ何も変更しない）"
+    )
     parser.add_argument("command", choices=("report", "slim", "prune", "compact"))
     parser.add_argument("--root", default="", help="記事フォルダ（既定: HTML_DIRECTORY、なければ articles/）")
     parser.add_argument("--apply", action="store_true", help="実際に変更する（無ければドライラン）")
-    parser.add_argument("--backup", default="", help="元ファイルの退避先（既定: 記事フォルダの隣の bkup/<種類>-<日時>）")
+    parser.add_argument(
+        "--backup", default="", help="元ファイルの退避先（既定: 記事フォルダの隣の bkup/<種類>-<日時>）"
+    )
     parser.add_argument("--no-backup", action="store_true", help="slim: 元ファイルを残さない")
     parser.add_argument("--delete", action="store_true", help="prune: 移動せず削除する")
     parser.add_argument("--limit", type=int, default=0, help="slim: 最大件数（試しに少しだけ）")
@@ -265,8 +283,11 @@ def main(argv: list[str] | None = None) -> int:
         return 2
     root = root.resolve()
     backup = None
-    if args.command in ("slim", "prune") and not (args.command == "slim" and args.no_backup) \
-            and not (args.command == "prune" and args.delete):
+    if (
+        args.command in ("slim", "prune")
+        and not (args.command == "slim" and args.no_backup)
+        and not (args.command == "prune" and args.delete)
+    ):
         backup = Path(args.backup).expanduser().resolve() if args.backup else default_backup(root, args.command)
         if _inside(backup, root):
             print("退避先を記事フォルダの中にはできません（コピーが記事として索引されるため）。", file=sys.stderr)
@@ -274,6 +295,7 @@ def main(argv: list[str] | None = None) -> int:
 
     from newsreader.library import index
     from newsreader.services import cache
+
     if args.command == "report":
         out = report(root, index.DEFAULT_DB_PATH, cache.CACHE_PATH)
     elif args.command == "slim":

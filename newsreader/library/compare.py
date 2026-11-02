@@ -11,6 +11,7 @@ translated to English once and cached by the caller); nothing here translates or
 2. Words (``framing``): the words of the English headlines that only one outlet uses, and the
    ones every outlet uses — how each frames the same event.
 """
+
 from __future__ import annotations
 
 import re
@@ -20,37 +21,144 @@ from newsreader.library.stories_core import _CANON, _STOP, _stem
 
 # ---- numbers -----------------------------------------------------------------------------------
 
-_SMALL = {"one": 1, "two": 2, "three": 3, "four": 4, "five": 5, "six": 6, "seven": 7, "eight": 8, "nine": 9,
-          "ten": 10, "eleven": 11, "twelve": 12, "thirteen": 13, "fourteen": 14, "fifteen": 15, "sixteen": 16,
-          "seventeen": 17, "eighteen": 18, "nineteen": 19, "twenty": 20, "thirty": 30, "forty": 40,
-          "fifty": 50, "sixty": 60, "seventy": 70, "eighty": 80, "ninety": 90, "hundred": 100}
+_SMALL = {
+    "one": 1,
+    "two": 2,
+    "three": 3,
+    "four": 4,
+    "five": 5,
+    "six": 6,
+    "seven": 7,
+    "eight": 8,
+    "nine": 9,
+    "ten": 10,
+    "eleven": 11,
+    "twelve": 12,
+    "thirteen": 13,
+    "fourteen": 14,
+    "fifteen": 15,
+    "sixteen": 16,
+    "seventeen": 17,
+    "eighteen": 18,
+    "nineteen": 19,
+    "twenty": 20,
+    "thirty": 30,
+    "forty": 40,
+    "fifty": 50,
+    "sixty": 60,
+    "seventy": 70,
+    "eighty": 80,
+    "ninety": 90,
+    "hundred": 100,
+}
 _VAGUE = {"dozens": "数十", "hundreds": "数百", "thousands": "数千", "scores": "数十", "a dozen": "十数"}
 _SCALE = {"thousand": 1e3, "million": 1e6, "m": 1e6, "billion": 1e9, "bn": 1e9, "trillion": 1e12, "tn": 1e12}
-_QUALIFIERS = (("at least", "少なくとも"), ("more than", "超"), ("over", "超"), ("nearly", "近く"),
-               ("almost", "近く"), ("about", "約"), ("around", "約"), ("approximately", "約"),
-               ("roughly", "約"), ("some", "約"), ("up to", "最大"), ("fewer than", "未満"), ("less than", "未満"))
-_CURRENCY_PREFIX = {"us$": "ドル", "nt$": "台湾ドル", "$": "ドル", "€": "ユーロ", "£": "ポンド", "¥": "円", "₩": "ウォン"}
-_CURRENCY_WORD = {"dollars": "ドル", "dollar": "ドル", "won": "ウォン", "yuan": "元", "yen": "円", "euros": "ユーロ",
-                  "euro": "ユーロ", "pounds": "ポンド", "rupees": "ルピー", "rubles": "ルーブル", "roubles": "ルーブル",
-                  "dinars": "ディナール", "pesos": "ペソ", "reais": "レアル", "shekels": "シェケル", "baht": "バーツ",
-                  "rupiah": "ルピア", "francs": "フラン", "hryvnias": "フリヴニャ", "ringgit": "リンギット"}
+_QUALIFIERS = (
+    ("at least", "少なくとも"),
+    ("more than", "超"),
+    ("over", "超"),
+    ("nearly", "近く"),
+    ("almost", "近く"),
+    ("about", "約"),
+    ("around", "約"),
+    ("approximately", "約"),
+    ("roughly", "約"),
+    ("some", "約"),
+    ("up to", "最大"),
+    ("fewer than", "未満"),
+    ("less than", "未満"),
+)
+_CURRENCY_PREFIX = {
+    "us$": "ドル",
+    "nt$": "台湾ドル",
+    "$": "ドル",
+    "€": "ユーロ",
+    "£": "ポンド",
+    "¥": "円",
+    "₩": "ウォン",
+}
+_CURRENCY_WORD = {
+    "dollars": "ドル",
+    "dollar": "ドル",
+    "won": "ウォン",
+    "yuan": "元",
+    "yen": "円",
+    "euros": "ユーロ",
+    "euro": "ユーロ",
+    "pounds": "ポンド",
+    "rupees": "ルピー",
+    "rubles": "ルーブル",
+    "roubles": "ルーブル",
+    "dinars": "ディナール",
+    "pesos": "ペソ",
+    "reais": "レアル",
+    "shekels": "シェケル",
+    "baht": "バーツ",
+    "rupiah": "ルピア",
+    "francs": "フラン",
+    "hryvnias": "フリヴニャ",
+    "ringgit": "リンギット",
+}
 
 #: kind -> (label, words that, near a number, say what is counted)
 _KINDS = {
-    "dead": ("死者", ("killed", "kills", "kill", "dead", "died", "deaths", "death", "toll", "fatalities", "lives",
-                    "bodies", "killing")),
+    "dead": (
+        "死者",
+        (
+            "killed",
+            "kills",
+            "kill",
+            "dead",
+            "died",
+            "deaths",
+            "death",
+            "toll",
+            "fatalities",
+            "lives",
+            "bodies",
+            "killing",
+        ),
+    ),
     "injured": ("負傷者", ("injured", "injuring", "wounded", "wounding", "hurt", "injuries", "casualties")),
     "missing": ("行方不明", ("missing",)),
     "detained": ("拘束・逮捕", ("arrested", "detained", "arrests", "detentions", "custody")),
     "displaced": ("避難", ("evacuated", "displaced", "evacuees", "homeless", "fled")),
 }
-_PEOPLE = ("people", "persons", "residents", "citizens", "soldiers", "troops", "protesters", "workers", "children",
-           "students", "passengers", "civilians", "employees", "members", "voters", "nationals", "migrants",
-           "patients", "staff", "police", "officers", "fighters", "hostages", "prisoners", "votes")
+_PEOPLE = (
+    "people",
+    "persons",
+    "residents",
+    "citizens",
+    "soldiers",
+    "troops",
+    "protesters",
+    "workers",
+    "children",
+    "students",
+    "passengers",
+    "civilians",
+    "employees",
+    "members",
+    "voters",
+    "nationals",
+    "migrants",
+    "patients",
+    "staff",
+    "police",
+    "officers",
+    "fighters",
+    "hostages",
+    "prisoners",
+    "votes",
+)
 #: Counts of people that are compared between outlets (others are shown side by side only).
 COMPARED = ("dead", "injured", "missing", "detained", "displaced")
 LABELS = {kind: label for kind, (label, _) in _KINDS.items()} | {
-    "percent": "割合", "money": "金額", "people": "人数", "age": "年齢"}
+    "percent": "割合",
+    "money": "金額",
+    "people": "人数",
+    "age": "年齢",
+}
 ORDER = ("dead", "injured", "missing", "detained", "displaced", "people", "money", "percent", "age")
 
 _NUMBER = re.compile(
@@ -59,9 +167,12 @@ _NUMBER = re.compile(
     r"(?:\s?(?P<scale>thousand|million|billion|trillion|bn|tn|m)\b)?"
     r"(?P<pct>\s?%|\s?percent\b|\s?per cent\b|\s?percentage points?\b|%p)?"
     r"(?P<yo>-year-old|\s?years? old)?",
-    re.IGNORECASE)
-_WORDNUM = re.compile(r"\b(?P<word>" + "|".join(sorted(_SMALL, key=len, reverse=True))
-                      + r"|dozens|hundreds|thousands|scores|a dozen)\b", re.IGNORECASE)
+    re.IGNORECASE,
+)
+_WORDNUM = re.compile(
+    r"\b(?P<word>" + "|".join(sorted(_SMALL, key=len, reverse=True)) + r"|dozens|hundreds|thousands|scores|a dozen)\b",
+    re.IGNORECASE,
+)
 _SENTENCE_END = re.compile(r"(?<=[.!?])\s+(?=[A-Z\"“‘'(])|(?<=[.!?][\"”’'])\s+(?=[A-Z\"“‘'(])|\n+")
 _YEAR = re.compile(r"^(19|20)\d\d$")
 
@@ -69,10 +180,10 @@ _YEAR = re.compile(r"^(19|20)\d\d$")
 @dataclass
 class Fact:
     kind: str
-    value: float | None   # None: "dozens", "hundreds" …
-    text: str             # as shown: "少なくとも 53", "数十", "1.9兆ドル"
-    number: str           # the figure as written in English, for highlighting: "53", "1.9"
-    sentence: str         # the English sentence it came from
+    value: float | None  # None: "dozens", "hundreds" …
+    text: str  # as shown: "少なくとも 53", "数十", "1.9兆ドル"
+    number: str  # the figure as written in English, for highlighting: "53", "1.9"
+    sentence: str  # the English sentence it came from
 
 
 def sentences(text: str) -> list[str]:
@@ -153,7 +264,7 @@ def facts_in(text: str) -> list[Fact]:
             scale = (match.group("scale") or "").lower()
             percent = bool(match.group("pct"))
             age = bool(match.group("yo")) or bool(re.search(r"\baged\s*$", sentence[:start], re.IGNORECASE))
-            after = sentence[end:end + 60]
+            after = sentence[end : end + 60]
             currency = _CURRENCY_PREFIX.get((match.group("cur") or "").lower(), "")
             word_currency = re.match(r"\s*(?:[A-Za-z]+\s)?(" + "|".join(_CURRENCY_WORD) + r")\b", after, re.IGNORECASE)
             if not currency and word_currency:
@@ -162,8 +273,11 @@ def facts_in(text: str) -> list[Fact]:
                 scale = ""  # "5m" without money is more likely metres
             if _YEAR.match(raw) and not (scale or percent or currency or age):
                 continue
-            if re.match(r"\s*(?:a\.m\.|p\.m\.|am\b|pm\b|GMT|BST|KST|km|kg|cm|mm|ft|metres|meters|miles|km/h)",
-                        after, re.IGNORECASE):
+            if re.match(
+                r"\s*(?:a\.m\.|p\.m\.|am\b|pm\b|GMT|BST|KST|km|kg|cm|mm|ft|metres|meters|miles|km/h)",
+                after,
+                re.IGNORECASE,
+            ):
                 continue
             value *= _SCALE.get(scale, 1)
             kind = _kind(sentence[:start], after, percent=percent, currency=currency, age=age)
@@ -171,10 +285,17 @@ def facts_in(text: str) -> list[Fact]:
                 continue
             qualifier = _qualifier(sentence[:start])
             points = percent and ("point" in match.group("pct").lower() or match.group("pct").lower() == "%p")
-            shown = (f"{float(raw.replace(',', '')):g}ポイント" if points else
-                     f"{float(raw.replace(',', '')):g}%" if percent else
-                     _format(value) + currency if currency else
-                     f"{_format(value)}歳" if age else _format(value) + _unit(kind))
+            shown = (
+                f"{float(raw.replace(',', '')):g}ポイント"
+                if points
+                else f"{float(raw.replace(',', '')):g}%"
+                if percent
+                else _format(value) + currency
+                if currency
+                else f"{_format(value)}歳"
+                if age
+                else _format(value) + _unit(kind)
+            )
             found.append(Fact(kind, value, _with_qualifier(shown, qualifier), raw, sentence))
             taken.append((start, end))
         for match in _WORDNUM.finditer(sentence):
@@ -182,9 +303,10 @@ def facts_in(text: str) -> list[Fact]:
             if any(s <= start < e for s, e in taken):
                 continue
             word = match.group("word").lower()
-            after = sentence[end:end + 60]
-            if re.match(r"\s*(?:of\s)?(?:years?|days?|weeks?|months?|hours?|minutes?|times|percent|%)\b", after,
-                        re.IGNORECASE):
+            after = sentence[end : end + 60]
+            if re.match(
+                r"\s*(?:of\s)?(?:years?|days?|weeks?|months?|hours?|minutes?|times|percent|%)\b", after, re.IGNORECASE
+            ):
                 continue
             kind = _kind(sentence[:start], after, percent=False, currency="", age=False)
             if kind not in COMPARED and kind != "people":
@@ -200,37 +322,113 @@ def facts_in(text: str) -> list[Fact]:
 # Facts are written once, in Japanese ("少なくとも 53人", "1.9兆ドル", "50人超"), and kept that way
 # (facts_watch stores them); a page in another language says them in its own words.
 
-_SAID = re.compile(r"^(?:(?P<pre>少なくとも|約|最大) )?(?:(?P<vague>数十|数百|数千|十数|百|千)人|(?P<num>\d[\d,]*(?:\.\d+)?)"
-                   r"(?P<big>兆|億|万)?(?P<unit>ポイント|%|歳|人|[^\d\s超近未]+)?)(?P<post>超|近く|未満)?$")
+_SAID = re.compile(
+    r"^(?:(?P<pre>少なくとも|約|最大) )?(?:(?P<vague>数十|数百|数千|十数|百|千)人|(?P<num>\d[\d,]*(?:\.\d+)?)"
+    r"(?P<big>兆|億|万)?(?P<unit>ポイント|%|歳|人|[^\d\s超近未]+)?)(?P<post>超|近く|未満)?$"
+)
 _BIG = {"兆": 1e12, "億": 1e8, "万": 1e4}
 _SAY = {  # lang -> what each Japanese piece is
-    "ko": {"pre": {"少なくとも": "최소 {x}", "約": "약 {x}", "最大": "최대 {x}"},
-           "post": {"超": "{x} 이상", "近く": "{x} 가까이", "未満": "{x} 미만"},
-           "vague": {"数十": "수십 명", "数百": "수백 명", "数千": "수천 명", "十数": "십수 명", "百": "백여 명", "千": "천여 명"},
-           "big": {"兆": "조", "億": "억", "万": "만"},
-           "unit": {"人": "{x}명", "歳": "{x}세", "ポイント": "{x}%p", "%": "{x}%"},
-           "money": {"ドル": "달러", "台湾ドル": "대만달러", "ユーロ": "유로", "ポンド": "파운드", "円": "엔", "ウォン": "원",
-                     "元": "위안", "ルピー": "루피", "ルーブル": "루블", "ディナール": "디나르", "ペソ": "페소", "レアル": "헤알",
-                     "シェケル": "셰켈", "バーツ": "바트", "ルピア": "루피아", "フラン": "프랑", "フリヴニャ": "흐리우냐",
-                     "リンギット": "링깃"}},
-    "en-GB": {"pre": {"少なくとも": "at least {x}", "約": "about {x}", "最大": "up to {x}"},
-              "post": {"超": "more than {x}", "近く": "nearly {x}", "未満": "fewer than {x}"},
-              "vague": {"数十": "dozens", "数百": "hundreds", "数千": "thousands", "十数": "a dozen or so",
-                        "百": "a hundred or so", "千": "a thousand or so"},
-              "unit": {"人": "{x}", "歳": "aged {x}", "ポイント": "{x} points", "%": "{x}%"},
-              "money": {"ドル": "${x}", "台湾ドル": "NT${x}", "ユーロ": "€{x}", "ポンド": "£{x}", "円": "¥{x}", "ウォン": "₩{x}",
-                        "元": "{x} yuan", "ルピー": "{x} rupees", "ルーブル": "{x} roubles", "ディナール": "{x} dinars",
-                        "ペソ": "{x} pesos", "レアル": "{x} reais", "シェケル": "{x} shekels", "バーツ": "{x} baht",
-                        "ルピア": "{x} rupiah", "フラン": "{x} francs", "フリヴニャ": "{x} hryvnias", "リンギット": "{x} ringgit"}},
-    "zh-TW": {"pre": {"少なくとも": "至少{x}", "約": "約{x}", "最大": "最多{x}"},
-              "post": {"超": "超過{x}", "近く": "近{x}", "未満": "不到{x}"},
-              "vague": {"数十": "數十人", "数百": "數百人", "数千": "數千人", "十数": "十多人", "百": "上百人", "千": "上千人"},
-              "big": {"兆": "兆", "億": "億", "万": "萬"},
-              "unit": {"人": "{x}人", "歳": "{x}歲", "ポイント": "{x}個百分點", "%": "{x}%"},
-              "money": {"ドル": "美元", "台湾ドル": "新台幣", "ユーロ": "歐元", "ポンド": "英鎊", "円": "日圓", "ウォン": "韓元",
-                        "元": "人民幣", "ルピー": "盧比", "ルーブル": "盧布", "ディナール": "第納爾", "ペソ": "披索", "レアル": "雷亞爾",
-                        "シェケル": "謝克爾", "バーツ": "泰銖", "ルピア": "印尼盾", "フラン": "法郎", "フリヴニャ": "格里夫納",
-                        "リンギット": "令吉"}},
+    "ko": {
+        "pre": {"少なくとも": "최소 {x}", "約": "약 {x}", "最大": "최대 {x}"},
+        "post": {"超": "{x} 이상", "近く": "{x} 가까이", "未満": "{x} 미만"},
+        "vague": {
+            "数十": "수십 명",
+            "数百": "수백 명",
+            "数千": "수천 명",
+            "十数": "십수 명",
+            "百": "백여 명",
+            "千": "천여 명",
+        },
+        "big": {"兆": "조", "億": "억", "万": "만"},
+        "unit": {"人": "{x}명", "歳": "{x}세", "ポイント": "{x}%p", "%": "{x}%"},
+        "money": {
+            "ドル": "달러",
+            "台湾ドル": "대만달러",
+            "ユーロ": "유로",
+            "ポンド": "파운드",
+            "円": "엔",
+            "ウォン": "원",
+            "元": "위안",
+            "ルピー": "루피",
+            "ルーブル": "루블",
+            "ディナール": "디나르",
+            "ペソ": "페소",
+            "レアル": "헤알",
+            "シェケル": "셰켈",
+            "バーツ": "바트",
+            "ルピア": "루피아",
+            "フラン": "프랑",
+            "フリヴニャ": "흐리우냐",
+            "リンギット": "링깃",
+        },
+    },
+    "en-GB": {
+        "pre": {"少なくとも": "at least {x}", "約": "about {x}", "最大": "up to {x}"},
+        "post": {"超": "more than {x}", "近く": "nearly {x}", "未満": "fewer than {x}"},
+        "vague": {
+            "数十": "dozens",
+            "数百": "hundreds",
+            "数千": "thousands",
+            "十数": "a dozen or so",
+            "百": "a hundred or so",
+            "千": "a thousand or so",
+        },
+        "unit": {"人": "{x}", "歳": "aged {x}", "ポイント": "{x} points", "%": "{x}%"},
+        "money": {
+            "ドル": "${x}",
+            "台湾ドル": "NT${x}",
+            "ユーロ": "€{x}",
+            "ポンド": "£{x}",
+            "円": "¥{x}",
+            "ウォン": "₩{x}",
+            "元": "{x} yuan",
+            "ルピー": "{x} rupees",
+            "ルーブル": "{x} roubles",
+            "ディナール": "{x} dinars",
+            "ペソ": "{x} pesos",
+            "レアル": "{x} reais",
+            "シェケル": "{x} shekels",
+            "バーツ": "{x} baht",
+            "ルピア": "{x} rupiah",
+            "フラン": "{x} francs",
+            "フリヴニャ": "{x} hryvnias",
+            "リンギット": "{x} ringgit",
+        },
+    },
+    "zh-TW": {
+        "pre": {"少なくとも": "至少{x}", "約": "約{x}", "最大": "最多{x}"},
+        "post": {"超": "超過{x}", "近く": "近{x}", "未満": "不到{x}"},
+        "vague": {
+            "数十": "數十人",
+            "数百": "數百人",
+            "数千": "數千人",
+            "十数": "十多人",
+            "百": "上百人",
+            "千": "上千人",
+        },
+        "big": {"兆": "兆", "億": "億", "万": "萬"},
+        "unit": {"人": "{x}人", "歳": "{x}歲", "ポイント": "{x}個百分點", "%": "{x}%"},
+        "money": {
+            "ドル": "美元",
+            "台湾ドル": "新台幣",
+            "ユーロ": "歐元",
+            "ポンド": "英鎊",
+            "円": "日圓",
+            "ウォン": "韓元",
+            "元": "人民幣",
+            "ルピー": "盧比",
+            "ルーブル": "盧布",
+            "ディナール": "第納爾",
+            "ペソ": "披索",
+            "レアル": "雷亞爾",
+            "シェケル": "謝克爾",
+            "バーツ": "泰銖",
+            "ルピア": "印尼盾",
+            "フラン": "法郎",
+            "フリヴニャ": "格里夫納",
+            "リンギット": "令吉",
+        },
+    },
 }
 
 
@@ -262,8 +460,13 @@ def say_fact(text: str, lang: str) -> str:
                 shown = f"{number} 명"  # 5만 명, but 53명
         elif unit in say["money"]:
             money = say["money"][unit]
-            shown = (money.replace("{x}", number) if "{x}" in money else
-                     f"{number}{money}" if lang == "zh-TW" else f"{number} {money}")
+            shown = (
+                money.replace("{x}", number)
+                if "{x}" in money
+                else f"{number}{money}"
+                if lang == "zh-TW"
+                else f"{number} {money}"
+            )
         elif not unit:
             shown = number
         else:
@@ -279,17 +482,30 @@ def say_fact(text: str, lang: str) -> str:
 # Counts of people are written in a few fixed ways ("최소 53명이 숨졌다", "至少53人死亡",
 # "4軍人罹難"), so they are read from the original text: no translation, no MT drift in numbers.
 
-_KO_KIND = (("dead", ("사망", "숨지", "숨졌", "숨진", "죽", "목숨", "희생")), ("injured", ("부상", "다치", "다쳤", "중상", "경상")),
-            ("missing", ("실종",)), ("detained", ("체포", "구금", "연행", "구속")), ("displaced", ("대피", "이재민", "피란")))
-_ZH_KIND = (("dead", ("死亡", "罹難", "喪生", "身亡", "遇難", "死", "殞命")), ("injured", ("受傷", "輕重傷", "重傷", "輕傷", "傷")),
-            ("missing", ("失蹤", "下落不明")), ("detained", ("被捕", "逮捕", "拘留", "拘捕", "羈押")),
-            ("displaced", ("撤離", "疏散", "流離失所")))
+_KO_KIND = (
+    ("dead", ("사망", "숨지", "숨졌", "숨진", "죽", "목숨", "희생")),
+    ("injured", ("부상", "다치", "다쳤", "중상", "경상")),
+    ("missing", ("실종",)),
+    ("detained", ("체포", "구금", "연행", "구속")),
+    ("displaced", ("대피", "이재민", "피란")),
+)
+_ZH_KIND = (
+    ("dead", ("死亡", "罹難", "喪生", "身亡", "遇難", "死", "殞命")),
+    ("injured", ("受傷", "輕重傷", "重傷", "輕傷", "傷")),
+    ("missing", ("失蹤", "下落不明")),
+    ("detained", ("被捕", "逮捕", "拘留", "拘捕", "羈押")),
+    ("displaced", ("撤離", "疏散", "流離失所")),
+)
 _ZH_DIGITS = {"一": 1, "兩": 2, "二": 2, "三": 3, "四": 4, "五": 5, "六": 6, "七": 7, "八": 8, "九": 9, "十": 10}
-_KO_COUNT = re.compile(r"(?P<pre>최소|적어도|약)?\s*(?P<num>\d[\d,]*)\s*(?P<unit>만|천)?\s*(?P<about>여)?\s*명"
-                       r"(?:\s*(?P<post>이상|넘게|넘는|가량|안팎|이))?")
+_KO_COUNT = re.compile(
+    r"(?P<pre>최소|적어도|약)?\s*(?P<num>\d[\d,]*)\s*(?P<unit>만|천)?\s*(?P<about>여)?\s*명"
+    r"(?:\s*(?P<post>이상|넘게|넘는|가량|안팎|이))?"
+)
 _KO_VAGUE = re.compile(r"(?P<word>수십|수백|수천)\s*명")
-_ZH_COUNT = re.compile(r"(?P<pre>至少|最少|逾|超過|超|約|近)?\s*(?P<num>\d[\d,]*|[一兩二三四五六七八九十])\s*(?P<unit>萬|千)?"
-                       r"\s*(?P<about>多|餘)?\s*(?P<who>名|人|位)?")
+_ZH_COUNT = re.compile(
+    r"(?P<pre>至少|最少|逾|超過|超|約|近)?\s*(?P<num>\d[\d,]*|[一兩二三四五六七八九十])\s*(?P<unit>萬|千)?"
+    r"\s*(?P<about>多|餘)?\s*(?P<who>名|人|位)?"
+)
 _ZH_VAGUE = re.compile(r"(?P<word>數十|數百|數千|上百|上千)\s*(?:名|人)")
 _NATIVE_SENTENCE = re.compile(r"(?<=[.!?。！？])\s*")
 
@@ -311,12 +527,22 @@ def native_facts(text: str, lang: str) -> list[Fact]:
         pattern = _KO_COUNT if lang == "ko" else _ZH_COUNT
         for match in pattern.finditer(sentence):
             raw = match.group("num")
-            if lang == "zh" and not raw[0].isdigit() and (not match.group("who") or sentence[max(0, match.start("num") - 1):match.start("num")] in ("數", "幾", "上", "第")):
+            if (
+                lang == "zh"
+                and not raw[0].isdigit()
+                and (
+                    not match.group("who")
+                    or sentence[max(0, match.start("num") - 1) : match.start("num")] in ("數", "幾", "上", "第")
+                )
+            ):
                 continue  # a lone 一/三… is a word; 數十人 is "dozens", read below
-            after = sentence[match.end():match.end() + (12 if lang == "ko" else 6)]
-            before = sentence[max(0, match.start() - 8):match.start()]
+            after = sentence[match.end() : match.end() + (12 if lang == "ko" else 6)]
+            before = sentence[max(0, match.start() - 8) : match.start()]
             if lang == "zh":
-                if re.match(r"\s*(?:年|月|日|時|點|分|歲|%|％|公里|公尺|億|元|美元)", sentence[match.end("num"):match.end("num") + 3]):
+                if re.match(
+                    r"\s*(?:年|月|日|時|點|分|歲|%|％|公里|公尺|億|元|美元)",
+                    sentence[match.end("num") : match.end("num") + 3],
+                ):
                     continue
                 # "4軍人罹難": up to three characters between the count and what happened
                 kind = _native_kind(after[:6], table) if match.group("who") else _native_kind(after[:5], table)
@@ -328,17 +554,32 @@ def native_facts(text: str, lang: str) -> list[Fact]:
             value = float(raw.replace(",", "")) if raw[0].isdigit() else float(_ZH_DIGITS[raw])
             value *= {"만": 1e4, "천": 1e3, "萬": 1e4, "千": 1e3}.get(match.group("unit") or "", 1)
             pre, post, about = match.group("pre") or "", (match.groupdict().get("post") or ""), match.group("about")
-            qualifier = ("少なくとも" if pre in ("최소", "적어도", "至少", "最少") else
-                         "超" if pre in ("逾", "超過", "超") or post in ("이상", "넘게", "넘는") else
-                         "約" if pre in ("약", "約") or post in ("가량", "안팎") or about in ("여", "多", "餘") else
-                         "近く" if pre == "近" else "")
+            qualifier = (
+                "少なくとも"
+                if pre in ("최소", "적어도", "至少", "最少")
+                else "超"
+                if pre in ("逾", "超過", "超") or post in ("이상", "넘게", "넘는")
+                else "約"
+                if pre in ("약", "約") or post in ("가량", "안팎") or about in ("여", "多", "餘")
+                else "近く"
+                if pre == "近"
+                else ""
+            )
             found.append(Fact(kind, value, _with_qualifier(_format(value) + "人", qualifier), raw, sentence))
         vague = _KO_VAGUE if lang == "ko" else _ZH_VAGUE
         for match in vague.finditer(sentence):
-            kind = _native_kind(sentence[match.end():match.end() + 8], table)
+            kind = _native_kind(sentence[match.end() : match.end() + 8], table)
             if kind:
-                label = {"수십": "数十", "수백": "数百", "수천": "数千", "數十": "数十", "數百": "数百", "數千": "数千",
-                         "上百": "百", "上千": "千"}[match.group("word")]
+                label = {
+                    "수십": "数十",
+                    "수백": "数百",
+                    "수천": "数千",
+                    "數十": "数十",
+                    "數百": "数百",
+                    "數千": "数千",
+                    "上百": "百",
+                    "上千": "千",
+                }[match.group("word")]
                 found.append(Fact(kind, None, f"{label}人", match.group("word"), sentence))
     return found
 
@@ -349,6 +590,7 @@ DISPUTE_HOURS = 24
 
 def _moment(stamp: str):
     from datetime import datetime
+
     try:
         return datetime.strptime(stamp, "%Y-%m-%dT%H:%M:%SZ")
     except (TypeError, ValueError):
@@ -372,11 +614,24 @@ def compare(members: list[dict]) -> list[dict]:
             if key in seen:
                 continue
             seen.add(key)
-            row = per_kind.setdefault(fact.kind, {}).setdefault(member["id"], {
-                "id": member["id"], "source": member.get("source") or "", "published": member.get("published", ""),
-                "facts": []})
-            row["facts"].append({"text": fact.text, "value": fact.value, "number": fact.number,
-                                 "sentence": fact.sentence, "native": bool(member.get("native")) and fact.kind in COMPARED})
+            row = per_kind.setdefault(fact.kind, {}).setdefault(
+                member["id"],
+                {
+                    "id": member["id"],
+                    "source": member.get("source") or "",
+                    "published": member.get("published", ""),
+                    "facts": [],
+                },
+            )
+            row["facts"].append(
+                {
+                    "text": fact.text,
+                    "value": fact.value,
+                    "number": fact.number,
+                    "sentence": fact.sentence,
+                    "native": bool(member.get("native")) and fact.kind in COMPARED,
+                }
+            )
     out = []
     for kind in ORDER:
         rows = list(per_kind.get(kind, {}).values())
@@ -394,10 +649,14 @@ def compare(members: list[dict]) -> list[dict]:
                 moment = _moment(row["published"])
                 if values and moment:
                     tops.append((row["source"], moment, max(values)))
-            differs = any(a[0] != b[0] and a[2] != b[2] and abs((a[1] - b[1]).total_seconds()) <= DISPUTE_HOURS * 3600
-                          for i, a in enumerate(tops) for b in tops[i + 1:])
-        out.append({"kind": kind, "label": LABELS[kind], "compared": kind in COMPARED, "differs": differs,
-                    "rows": rows})
+            differs = any(
+                a[0] != b[0] and a[2] != b[2] and abs((a[1] - b[1]).total_seconds()) <= DISPUTE_HOURS * 3600
+                for i, a in enumerate(tops)
+                for b in tops[i + 1 :]
+            )
+        out.append(
+            {"kind": kind, "label": LABELS[kind], "compared": kind in COMPARED, "differs": differs, "rows": rows}
+        )
     return out
 
 
@@ -466,8 +725,8 @@ QUOTE_SAME = 0.35  # word overlap (Jaccard of content words) for "the same state
 
 @dataclass
 class Quote:
-    text: str       # the quoted words (English)
-    sentence: str   # the English sentence around them
+    text: str  # the quoted words (English)
+    sentence: str  # the English sentence around them
 
 
 def quotes_in(text: str) -> list[Quote]:
@@ -496,13 +755,23 @@ def quote_groups(members: list[dict], limit: int = 8) -> list[dict]:
             if quote.text in seen:
                 continue
             seen.add(quote.text)
-            items.append({"id": member["id"], "source": member.get("source") or "", "published": member.get("published", ""),
-                          "text": quote.text, "sentence": quote.sentence, "words": _content_words(quote.text)})
+            items.append(
+                {
+                    "id": member["id"],
+                    "source": member.get("source") or "",
+                    "published": member.get("published", ""),
+                    "text": quote.text,
+                    "sentence": quote.sentence,
+                    "words": _content_words(quote.text),
+                }
+            )
     groups: list[list[dict]] = []
     for item in items:
         best, best_score = None, 0.0
         for group in groups:
-            score = max(len(item["words"] & other["words"]) / max(1, len(item["words"] | other["words"])) for other in group)
+            score = max(
+                len(item["words"] & other["words"]) / max(1, len(item["words"] | other["words"])) for other in group
+            )
             if score > best_score:
                 best, best_score = group, score
         if best is not None and best_score >= QUOTE_SAME:
@@ -523,8 +792,10 @@ def quote_groups(members: list[dict], limit: int = 8) -> list[dict]:
 
 _NAME_WORD = r"(?:[A-Z][a-z]+(?:[A-Z][A-Za-z]*)?(?:-[a-z]+)?|[A-Z]{2,}[a-z]*)"  # Zelensky, OpenAI, Jae-myung, NATO
 #: "Iran-backed", "Saudi-led": the tail is no part of the name.
-_ADJECTIVE_TAIL = re.compile(r"-(?:backed|led|based|made|born|owned|run|funded|linked|style|era|related|wide|bound|"
-                             r"controlled|allied|occupied|held|affiliated|aligned|friendly|majority|speaking)$")
+_ADJECTIVE_TAIL = re.compile(
+    r"-(?:backed|led|based|made|born|owned|run|funded|linked|style|era|related|wide|bound|"
+    r"controlled|allied|occupied|held|affiliated|aligned|friendly|majority|speaking)$"
+)
 _NAME = re.compile(rf"(?<![A-Za-z'’])({_NAME_WORD}(?:[ -]{_NAME_WORD}){{0,2}})")
 _NOT_NAMES = frozenset(
     "The A An In On At For To Of And But Or As By With From After Before Over Under Into Amid Why How What Who When "
@@ -532,7 +803,8 @@ _NOT_NAMES = frozenset(
     "Would Could Can May Might Has Have Had Not No New More Most First Last Says Said Live Watch Photos Video Analysis "
     "Ex Former Ex-PM Mr Mrs Ms Dr President Prime Minister PM "
     "Monday Tuesday Wednesday Thursday Friday Saturday Sunday January February March April May June July August "
-    "September October November December BBC Yonhap CNA AP AFP Reuters".split())
+    "September October November December BBC Yonhap CNA AP AFP Reuters".split()
+)
 
 
 def names_in(pivot: str, with_initial: bool = False) -> list[str]:
@@ -548,8 +820,13 @@ def names_in(pivot: str, with_initial: bool = False) -> list[str]:
             found.append(name)
 
     for match in _NAME.finditer(pivot):
-        if match.start() == 0 and " " not in match.group(1) and "-" not in match.group(1) \
-                and match.group(1)[1:].islower() and not with_initial:
+        if (
+            match.start() == 0
+            and " " not in match.group(1)
+            and "-" not in match.group(1)
+            and match.group(1)[1:].islower()
+            and not with_initial
+        ):
             continue  # "Missile strike…": capitalised because it starts the headline
         current: list[str] = []
         for token in match.group(1).split(" "):
@@ -568,7 +845,7 @@ def names_in(pivot: str, with_initial: bool = False) -> list[str]:
 
 
 def _name_key(name: str) -> str:
-    """"Ukrainian" counts as "Ukraine", "Houthis" as "Houthi"."""
+    """ "Ukrainian" counts as "Ukraine", "Houthis" as "Houthi"."""
     lowered = _CANON.get(name.lower(), name.lower())
     return lowered[:-1] if lowered.endswith("s") and len(lowered) > 4 and " " not in lowered else lowered
 
@@ -580,8 +857,13 @@ def top_names(items: list[dict], limit: int = 15) -> list[dict]:
     # A headline's first word counts only if some headline has it as a name mid-sentence.
     # Headlines In Title Case capitalise every word: their names count only if known from others.
     from newsreader.library.stories_core import is_title_case
-    known = {_name_key(name) for item in items if not is_title_case(item.get("pivot") or "")
-             for name in names_in(item.get("pivot") or "")}
+
+    known = {
+        _name_key(name)
+        for item in items
+        if not is_title_case(item.get("pivot") or "")
+        for name in names_in(item.get("pivot") or "")
+    }
     for item in items:
         seen: set[str] = set()
         pivot = item.get("pivot") or ""

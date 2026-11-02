@@ -4,6 +4,7 @@ The root ``collector.py`` is a thin wrapper over ``main()`` here: the Windows ta
 ``NewsHtmlReader-HourlyCollector-ef29a11a`` runs ``pythonw.exe collector.py --once``
 and that command line must keep working.
 """
+
 from __future__ import annotations
 
 import json
@@ -115,33 +116,68 @@ def main() -> int:
         library_root = get_library_root()
         if collected_elsewhere(library_root):
             log.info("Skipped: the installation that owns %s collected into it recently", library_root)
-            status.update("collector", {"running": False, "finished": status.now_iso(), "ok": True, "error": "",
-                                        "seconds": round(time.perf_counter() - started, 1), "sites": {},
-                                        "skipped_for": str(paths.status_path_beside(library_root).parent.parent),
-                                        "library_root": str(library_root)}, path=status_path())
+            status.update(
+                "collector",
+                {
+                    "running": False,
+                    "finished": status.now_iso(),
+                    "ok": True,
+                    "error": "",
+                    "seconds": round(time.perf_counter() - started, 1),
+                    "sites": {},
+                    "skipped_for": str(paths.status_path_beside(library_root).parent.parent),
+                    "library_root": str(library_root),
+                },
+                path=status_path(),
+            )
             update_library_index(library_root)
             from newsreader.library import pipeline
+
             pipeline.refresh_stories(library.DEFAULT_DB_PATH, status_path())
             return 0
         log.info("Standalone scheduled collection started: %s", library_root)
         report: dict = {}
         from newsreader.services.settings import library_limit  # late: keyring only when needed
-        totals = fetch_cycle(library_root, report=report,
-                             skip_memory_path=INSTANCE_DIRECTORY / "collector_skipped.json", limit=library_limit())
+
+        totals = fetch_cycle(
+            library_root,
+            report=report,
+            skip_memory_path=INSTANCE_DIRECTORY / "collector_skipped.json",
+            limit=library_limit(),
+        )
         log.info("Standalone scheduled collection complete: %s", totals)
-        status.update("collector", {"running": False, "finished": status.now_iso(), "ok": True, "error": "",
-                                    "seconds": round(time.perf_counter() - started, 1), "sites": report,
-                                    "library_root": str(library_root)}, path=status_path())
+        status.update(
+            "collector",
+            {
+                "running": False,
+                "finished": status.now_iso(),
+                "ok": True,
+                "error": "",
+                "seconds": round(time.perf_counter() - started, 1),
+                "sites": report,
+                "library_root": str(library_root),
+            },
+            path=status_path(),
+        )
         update_library_index(library_root)
         from newsreader.library import pipeline  # imported late: translation/keyring only when needed
+
         pipeline.refresh_stories(library.DEFAULT_DB_PATH, status_path())
         print("Article collection complete:", ", ".join(f"{source}={count}" for source, count in totals.items()))
         return 0
     except Exception as exc:
         log.exception("Standalone scheduled collection failed")
-        status.update("collector", {"running": False, "finished": status.now_iso(), "ok": False,
-                                    "error": f"自動取得が失敗しました（{type(exc).__name__}）",
-                                    "seconds": round(time.perf_counter() - started, 1)}, path=status_path())
+        status.update(
+            "collector",
+            {
+                "running": False,
+                "finished": status.now_iso(),
+                "ok": False,
+                "error": f"自動取得が失敗しました（{type(exc).__name__}）",
+                "seconds": round(time.perf_counter() - started, 1),
+            },
+            path=status_path(),
+        )
         return 1
     finally:
         lock_file.close()

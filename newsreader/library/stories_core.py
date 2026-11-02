@@ -11,6 +11,7 @@ Case headline (machine translation sometimes produces them) says nothing about w
 names, so its capitals are ignored. Without ``shapes`` (the handover's call signature) the
 behaviour is exactly D-07.
 """
+
 from __future__ import annotations
 
 import math
@@ -27,7 +28,9 @@ MAX_CLUSTER = 12
 COMMON_SHARE = 0.25
 STEM_LENGTH = 6
 _GENERIC = frozenset({"us", "uk", "eu"})
-_NUMBER_WORDS = frozenset("one two three four five six seven eight nine ten dozen hundred thousand million".split())  # too common in headlines to count as evidence on their own
+_NUMBER_WORDS = frozenset(
+    "one two three four five six seven eight nine ten dozen hundred thousand million".split()
+)  # too common in headlines to count as evidence on their own
 
 _STOP = frozenset(
     "a an the and or but of to in on for at by with from as is are was were be been being it its this that "
@@ -36,16 +39,50 @@ _STOP = frozenset(
     "also just now still after again all one two three first last year years day days week".split()
 )
 _CANON = {
-    "ukrainian": "ukraine", "ukrainians": "ukraine", "russian": "russia", "russians": "russia", "iranian": "iran",
-    "yemeni": "yemen", "polish": "poland", "indian": "india", "french": "france", "chinese": "china",
-    "japanese": "japan", "israeli": "israel", "palestinian": "palestine", "german": "germany",
-    "taiwanese": "taiwan", "european": "eu", "british": "uk", "britain": "uk", "american": "us", "americans": "us",
-    "saudis": "saudi", "korean": "korea", "philippine": "philippines",
-    "premier": "pm", "prime": "pm",
-    "strike": "attack", "struck": "attack", "attacked": "attack", "hit": "attack", "assault": "attack",
-    "kill": "dead", "killed": "dead", "death": "dead", "died": "dead", "dies": "dead", "die": "dead",
-    "arrest": "detain", "arrested": "detain", "detained": "detain", "held": "detain",
-    "protester": "protest", "demonstration": "protest", "demonstrator": "protest", "rally": "protest",
+    "ukrainian": "ukraine",
+    "ukrainians": "ukraine",
+    "russian": "russia",
+    "russians": "russia",
+    "iranian": "iran",
+    "yemeni": "yemen",
+    "polish": "poland",
+    "indian": "india",
+    "french": "france",
+    "chinese": "china",
+    "japanese": "japan",
+    "israeli": "israel",
+    "palestinian": "palestine",
+    "german": "germany",
+    "taiwanese": "taiwan",
+    "european": "eu",
+    "british": "uk",
+    "britain": "uk",
+    "american": "us",
+    "americans": "us",
+    "saudis": "saudi",
+    "korean": "korea",
+    "philippine": "philippines",
+    "premier": "pm",
+    "prime": "pm",
+    "strike": "attack",
+    "struck": "attack",
+    "attacked": "attack",
+    "hit": "attack",
+    "assault": "attack",
+    "kill": "dead",
+    "killed": "dead",
+    "death": "dead",
+    "died": "dead",
+    "dies": "dead",
+    "die": "dead",
+    "arrest": "detain",
+    "arrested": "detain",
+    "detained": "detain",
+    "held": "detain",
+    "protester": "protest",
+    "demonstration": "protest",
+    "demonstrator": "protest",
+    "rally": "protest",
     "truce": "ceasefire",
 }
 _US = re.compile(r"\bU\.S\.A?\.?|\bUnited States\b|\bAmerica(?:n|ns)?\b")
@@ -139,7 +176,8 @@ def features(pivot: str) -> dict[str, float]:
 
 _BODY_STOP = frozenset(
     "the a an of to in and for on is was were be by with as at that this it from has have had he she they his her "
-    "their its but or not are been said says will would also who which after more than about into over".split())
+    "their its but or not are been said says will would also who which after more than about into over".split()
+)
 _BODY_WORD = re.compile(r"[A-Za-z][A-Za-z'\-]+")
 _BODY_DROP = re.compile(r"[\W\d_]+")
 
@@ -156,12 +194,12 @@ def body_terms(text: str, lang: str) -> dict[str, int]:
     else:
         run = _BODY_DROP.sub("", text)
         for i in range(len(run) - 1):
-            counts[run[i:i + 2]] += 1
+            counts[run[i : i + 2]] += 1
     return dict(counts)
 
 
 def is_title_case(pivot: str) -> bool:
-    """"Man Killed After Attacking Tiger Zone": every content word (4+ letters) after the first is capitalised."""
+    """ "Man Killed After Attacking Tiger Zone": every content word (4+ letters) after the first is capitalised."""
     words = [w for w in _WORD.findall(pivot)[1:] if len(w) >= 4 and w[0].isalpha() and w.lower() not in _STOP]
     return len(words) >= 3 and sum(w[0].isupper() for w in words) >= 0.9 * len(words)
 
@@ -183,8 +221,11 @@ def name_tokens(per_item: dict[int, dict[str, frozenset[str]]]) -> set[str]:
     for item in per_item.values():
         for word, found in item.items():
             seen[word] |= found
-    return {word for word, found in seen.items()
-            if "name" in found or "quoted" in found or ("initial" in found and "lower" not in found)}
+    return {
+        word
+        for word, found in seen.items()
+        if "name" in found or "quoted" in found or ("initial" in found and "lower" not in found)
+    }
 
 
 def parse_utc(published: str) -> datetime | None:
@@ -195,8 +236,13 @@ def parse_utc(published: str) -> datetime | None:
 
 
 class Corpus:
-    def __init__(self, items: dict[int, tuple[dict[str, float], datetime]], names: set[str] | None = None,
-                 forbidden: set[tuple[int, int]] | None = None, apart=None):
+    def __init__(
+        self,
+        items: dict[int, tuple[dict[str, float], datetime]],
+        names: set[str] | None = None,
+        forbidden: set[tuple[int, int]] | None = None,
+        apart=None,
+    ):
         self.names = names
         self.forbidden = forbidden or set()
         self.apart = apart  # (a, b) -> True: different news whatever the headlines say
@@ -273,9 +319,12 @@ class Corpus:
         return sorted(pairs, reverse=True)
 
 
-def cluster(items: dict[int, tuple[dict[str, float], datetime]],
-            shapes_by_item: dict[int, dict[str, frozenset[str]]] | None = None,
-            forbidden: set[tuple[int, int]] | None = None, apart=None) -> list[dict[int, float]]:
+def cluster(
+    items: dict[int, tuple[dict[str, float], datetime]],
+    shapes_by_item: dict[int, dict[str, frozenset[str]]] | None = None,
+    forbidden: set[tuple[int, int]] | None = None,
+    apart=None,
+) -> list[dict[int, float]]:
     """Average-link clustering. Returns clusters (size >= 2) as {article_id: mean similarity to the others}.
 
     With ``shapes_by_item`` (see ``shapes``) weak pairs need a shared name-like token (D-21).
@@ -290,6 +339,7 @@ def cluster(items: dict[int, tuple[dict[str, float], datetime]],
         if key not in apart_seen:
             apart_seen[key] = apart(*key)
         return apart_seen[key]
+
     members = {i: [i] for i in items}
     owner = {i: i for i in items}
     for _, a, b in corpus.candidate_pairs():
@@ -308,5 +358,6 @@ def cluster(items: dict[int, tuple[dict[str, float], datetime]],
         members[ca].extend(members.pop(cb))
     return [
         {i: sum(corpus.sim(i, j) for j in g if j != i) / (len(g) - 1) for i in g}
-        for g in members.values() if len(g) > 1
+        for g in members.values()
+        if len(g) > 1
     ]

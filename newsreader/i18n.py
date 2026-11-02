@@ -15,6 +15,7 @@ What is translated is the site, not the news: headlines and articles stay in the
 language, beside the translation the reader asks for (翻訳先, which follows the page's
 language until the reader picks another).
 """
+
 from __future__ import annotations
 
 import json
@@ -55,6 +56,7 @@ def current() -> str:
     """The language of the page being made (Japanese outside a request)."""
     try:
         from flask import g, has_app_context
+
         if has_app_context():
             return g.get("lang", DEFAULT)
     except ImportError:  # pragma: no cover - Flask is a requirement
@@ -118,20 +120,37 @@ def menu(lang: str) -> Markup:
     """The language menu every site of the PC shows in its header: a <details> that needs no script
     (each choice is a link with ?lang=), the current language marked."""
     marked = ' aria-current="true"'  # (no backslash inside an f-string's braces before Python 3.12)
-    items = "".join(f'<li><a href="?{COOKIE}={code}" lang="{code}" hreflang="{code}"'
-                    f'{marked if code == lang else ""}>{escape(NAMES[code])}</a></li>' for code in LANGS)
+    items = "".join(
+        f'<li><a href="?{COOKIE}={code}" lang="{code}" hreflang="{code}"'
+        f"{marked if code == lang else ''}>{escape(NAMES[code])}</a></li>"
+        for code in LANGS
+    )
     label = escape(text("言語", lang))
-    return Markup(f'<details class="lang"><summary title="{label}" aria-label="{label}: {escape(NAMES[lang])}">'
-                  '<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3c2.5 2.6 3.8 5.6 3.8 9s-1.3 6.4-3.8 9c-2.5-2.6-3.8-5.6-3.8-9S9.5 5.6 12 3z"/></svg>'
-                  f'<span>{escape(NAMES[lang])}</span></summary><ul>{items}</ul></details>')
+    return Markup(
+        f'<details class="lang"><summary title="{label}" aria-label="{label}: {escape(NAMES[lang])}">'
+        '<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3c2.5 2.6 3.8 5.6 3.8 9s-1.3 6.4-3.8 9c-2.5-2.6-3.8-5.6-3.8-9S9.5 5.6 12 3z"/></svg>'
+        f"<span>{escape(NAMES[lang])}</span></summary><ul>{items}</ul></details>"
+    )
 
 
 # ---- dates and times, as people write them in each language -----------------------------------
 
 _WEEKDAYS = {"ja": "月火水木金土日", "ko": "월화수목금토일", "zh-TW": "一二三四五六日"}
 _EN_WEEKDAYS = ("Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday")
-_EN_MONTHS = ("January", "February", "March", "April", "May", "June", "July", "August", "September",
-              "October", "November", "December")
+_EN_MONTHS = (
+    "January",
+    "February",
+    "March",
+    "April",
+    "May",
+    "June",
+    "July",
+    "August",
+    "September",
+    "October",
+    "November",
+    "December",
+)
 
 
 def _weekday(lang: str, moment: datetime) -> str:

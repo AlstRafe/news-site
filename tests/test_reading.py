@@ -1,4 +1,5 @@
 """保存（後で読む）, 既読 and 単語帳: kept beside the index, named by outlet and file."""
+
 import shutil
 import sys
 import tempfile
@@ -28,9 +29,11 @@ class ReadingTests(unittest.TestCase):
         self.db = self.tmp / "library.sqlite3"
         index._last_sync.clear()
         index.sync(root, self.db, force=True)
-        self.patches = [mock.patch.object(ts, "_translate_batch", lambda p, texts, t: [f"[{t}] {x}" for x in texts]),
-                        mock.patch.object(ts, "active_provider", lambda: "deepl"),
-                        mock.patch.object(cache, "CACHE_PATH", self.tmp / "cache.sqlite3")]
+        self.patches = [
+            mock.patch.object(ts, "_translate_batch", lambda p, texts, t: [f"[{t}] {x}" for x in texts]),
+            mock.patch.object(ts, "active_provider", lambda: "deepl"),
+            mock.patch.object(cache, "CACHE_PATH", self.tmp / "cache.sqlite3"),
+        ]
         for patch in self.patches:
             patch.start()
         self.app = create_app(root, self.db, start_background=False, secret_key=b"r" * 32)
@@ -55,7 +58,9 @@ class ReadingTests(unittest.TestCase):
     def test_saved_articles_survive_a_rebuilt_index(self):
         r = self.client.post("/api/saved", headers=self.hdr, json={"id": self.ids[1], "saved": True})
         self.assertEqual(r.get_json(), {"saved": True})
-        self.assertIn('aria-pressed="true">保存済み', self.client.get(f"/a/{self.ids[1]}", headers=H).get_data(as_text=True))
+        self.assertIn(
+            'aria-pressed="true">保存済み', self.client.get(f"/a/{self.ids[1]}", headers=H).get_data(as_text=True)
+        )
         title = index.get(self.db, self.ids[1])["title"]
         # the index is rebuilt from the files: ids change, the saved article is still found
         self.db.unlink()
@@ -71,15 +76,31 @@ class ReadingTests(unittest.TestCase):
     def test_bad_requests(self):
         for body in ({"id": "1", "saved": True}, {"id": True, "saved": True}, {}):
             self.assertEqual(self.client.post("/api/saved", headers=self.hdr, json=body).status_code, 400)
-        self.assertEqual(self.client.post("/api/saved", headers=self.hdr, json={"id": 999999, "saved": True}).status_code, 404)
-        self.assertEqual(self.client.post("/api/saved", headers=H, json={"id": self.ids[0], "saved": True}).status_code, 400)
-        self.assertEqual(self.client.post("/api/words", headers=self.hdr, json={"word": "", "target": "ja"}).status_code, 400)
-        self.assertEqual(self.client.post("/api/words", headers=self.hdr, json={"word": "x", "target": "xx"}).status_code, 400)
+        self.assertEqual(
+            self.client.post("/api/saved", headers=self.hdr, json={"id": 999999, "saved": True}).status_code, 404
+        )
+        self.assertEqual(
+            self.client.post("/api/saved", headers=H, json={"id": self.ids[0], "saved": True}).status_code, 400
+        )
+        self.assertEqual(
+            self.client.post("/api/words", headers=self.hdr, json={"word": "", "target": "ja"}).status_code, 400
+        )
+        self.assertEqual(
+            self.client.post("/api/words", headers=self.hdr, json={"word": "x", "target": "xx"}).status_code, 400
+        )
 
     def test_word_book(self):
-        body = {"word": "ceasefire", "target": "ja", "meaning": "停戦", "sentence": "A ceasefire was agreed.", "id": self.ids[0]}
+        body = {
+            "word": "ceasefire",
+            "target": "ja",
+            "meaning": "停戦",
+            "sentence": "A ceasefire was agreed.",
+            "id": self.ids[0],
+        }
         self.assertEqual(self.client.post("/api/words", headers=self.hdr, json=body).status_code, 200)
-        self.client.post("/api/words", headers=self.hdr, json={**body, "meaning": "休戦"})  # again: updated, not doubled
+        self.client.post(
+            "/api/words", headers=self.hdr, json={**body, "meaning": "休戦"}
+        )  # again: updated, not doubled
         entries = reading.words(self.marks)
         self.assertEqual([(e["word"], e["meaning"]) for e in entries], [("ceasefire", "休戦")])
         page = self.client.get("/words", headers=H).get_data(as_text=True)

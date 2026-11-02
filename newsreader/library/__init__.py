@@ -4,6 +4,7 @@
 and Phase 3 can add ``files.py`` / ``stories.py`` / ``status.py`` / ``pipeline.py``
 beside it without touching callers.
 """
+
 from __future__ import annotations
 
 from newsreader.library import index  # noqa: F401

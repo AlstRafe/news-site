@@ -7,6 +7,7 @@ every page. Two rules keep that cheap and safe (D-12):
 - readers ``stat`` it once per request and re-read only when the mtime changed; a missing
   or corrupt file reads as "nothing known yet" — it never breaks a page.
 """
+
 from __future__ import annotations
 
 import json
@@ -94,7 +95,7 @@ def minutes_since(iso_utc: str) -> int | None:
 
 
 def ago(iso_utc: str) -> str:
-    """"5分前", in the page's language (newsreader/i18n.py)."""
+    """ "5分前", in the page's language (newsreader/i18n.py)."""
     minutes = minutes_since(iso_utc)
     if minutes is None:
         return ""
@@ -109,6 +110,7 @@ def ago(iso_utc: str) -> str:
 
 def _say(ja: str, **values) -> str:
     from newsreader import i18n
+
     return i18n.text(ja, **values)
 
 
@@ -122,17 +124,32 @@ def badge(data: dict | None = None, collects: bool = True) -> dict:
         return {"label": _say("取得中…"), "tone": "ok", "title": _say("自動取得を実行中です")}
     if not finished:
         if not collects:
-            return {"label": _say("サンプル記事"), "tone": "idle", "title": _say("テスト版: 記事はサンプルのみで、自動取得はしません")}
+            return {
+                "label": _say("サンプル記事"),
+                "tone": "idle",
+                "title": _say("テスト版: 記事はサンプルのみで、自動取得はしません"),
+            }
         return {"label": _say("未取得"), "tone": "idle", "title": _say("自動取得の記録がまだありません")}
     since = minutes_since(finished)
     if not collector.get("ok", False):
-        return {"label": _say("取得失敗 · {when}", when=ago(finished)), "tone": "bad", "title": collector.get("error", "")}
+        return {
+            "label": _say("取得失敗 · {when}", when=ago(finished)),
+            "tone": "bad",
+            "title": collector.get("error", ""),
+        }
     # The task runs hourly; three missed hours means the PC slept or the task stopped.
     tone = "warn" if since is not None and since > 3 * 60 else "ok"
     sites = (collector.get("sites") or {}).values()
     saved = sum(int(site.get("saved", 0)) for site in sites)
     if sites and all(site.get("limited") for site in sites):  # a test build at its article limit
-        return {"label": _say("記事数の上限"), "tone": "idle",
-                "title": _say("テスト版の記事数の上限に達しているため、新しい記事は追加していません")}
-    return {"label": _say("取得 {when}", when=ago(finished)), "tone": tone,
-            "title": _say("前回の自動取得で {count} 件保存", count=saved) + (_say("（3時間以上更新がありません）") if tone == "warn" else "")}
+        return {
+            "label": _say("記事数の上限"),
+            "tone": "idle",
+            "title": _say("テスト版の記事数の上限に達しているため、新しい記事は追加していません"),
+        }
+    return {
+        "label": _say("取得 {when}", when=ago(finished)),
+        "tone": tone,
+        "title": _say("前回の自動取得で {count} 件保存", count=saved)
+        + (_say("（3時間以上更新がありません）") if tone == "warn" else ""),
+    }

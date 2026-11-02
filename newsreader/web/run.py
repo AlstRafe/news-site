@@ -9,6 +9,7 @@ Live updates: when started by launcher.py (``NEWS_SUPERVISED=1``), the server wa
 connections, lets the requests in flight finish, and exits with RESTART_EXIT_CODE; the
 launcher then starts the new code. Started any other way, it never exits on its own.
 """
+
 from __future__ import annotations
 
 import ipaddress
@@ -30,6 +31,7 @@ NETWORK_POLL_ROUNDS = 4
 
 def _dev_mode() -> bool:
     from newsreader.web.assets import is_dev
+
     # A child of Flask's reloader (an older version of this app ran with the reloader on
     # loopback) must keep using the reloader's inherited socket, i.e. stay in dev mode.
     return is_dev() or os.environ.get("WERKZEUG_RUN_MAIN") == "true"
@@ -41,6 +43,7 @@ def _listen_spec(hosts: list[str], port: int) -> str:
 
 def _bindable(host: str, port: int) -> bool:
     import socket
+
     family = socket.AF_INET6 if ipaddress.ip_address(host).version == 6 else socket.AF_INET
     try:
         with socket.socket(family, socket.SOCK_STREAM) as probe:
@@ -50,9 +53,15 @@ def _bindable(host: str, port: int) -> bool:
         return False
 
 
-def serve_until_redeployed(app, host: str, port: int, poll_seconds: float = VERSION_POLL_SECONDS,
-                           supervised: bool = True, also: tuple[str, ...] = (),
-                           network=None) -> int:
+def serve_until_redeployed(
+    app,
+    host: str,
+    port: int,
+    poll_seconds: float = VERSION_POLL_SECONDS,
+    supervised: bool = True,
+    also: tuple[str, ...] = (),
+    network=None,
+) -> int:
     """Serve on ``host`` and, when they can be bound, on the addresses in ``also`` as well.
 
     ``network``: returns the extra addresses this PC has now; when one appears that is not
@@ -64,8 +73,9 @@ def serve_until_redeployed(app, host: str, port: int, poll_seconds: float = VERS
     hosts = [host] + [item for item in also if item != host and _bindable(item, port)]
     sockets: dict = {}
     try:
-        server = create_server(app, map=sockets, listen=_listen_spec(hosts, port), threads=WAITRESS_THREADS,
-                               ident="NewsHtmlReader")
+        server = create_server(
+            app, map=sockets, listen=_listen_spec(hosts, port), threads=WAITRESS_THREADS, ident="NewsHtmlReader"
+        )
     except OSError:
         if len(hosts) == 1:
             raise
@@ -76,12 +86,16 @@ def serve_until_redeployed(app, host: str, port: int, poll_seconds: float = VERS
         hosts = [host]  # an extra address that cannot be bound never keeps the main one down
         server = create_server(app, listen=_listen_spec(hosts, port), threads=WAITRESS_THREADS, ident="NewsHtmlReader")
     # One listening server per address (waitress wraps several in a MultiSocketServer).
-    listeners = [server] if isinstance(server, BaseWSGIServer) else list(
-        {id(item): item for item in server.map.values() if isinstance(item, BaseWSGIServer)}.values())
+    listeners = (
+        [server]
+        if isinstance(server, BaseWSGIServer)
+        else list({id(item): item for item in server.map.values() if isinstance(item, BaseWSGIServer)}.values())
+    )
 
     def close_listeners() -> None:
         for listener in listeners:
             listener.close()
+
     redeployed = threading.Event()
 
     def watch() -> None:
@@ -95,9 +109,13 @@ def serve_until_redeployed(app, host: str, port: int, poll_seconds: float = VERS
                 new_address = next((a for a in network() if a not in hosts and _bindable(a, port)), None)
             if (current and current != started) or new_address:
                 if new_address:
-                    print(f"新しいアドレス {new_address} が使えるようになりました。再起動して待ち受けます。", flush=True)
+                    print(
+                        f"新しいアドレス {new_address} が使えるようになりました。再起動して待ち受けます。", flush=True
+                    )
                 else:
-                    print(f"新しいバージョン {current} を検出しました。処理中の要求を終えてから再起動します。", flush=True)
+                    print(
+                        f"新しいバージョン {current} を検出しました。処理中の要求を終えてから再起動します。", flush=True
+                    )
                 redeployed.set()
                 # close() must run on the server's own loop thread; the loop then ends once the
                 # connections still open have been answered.
@@ -107,6 +125,7 @@ def serve_until_redeployed(app, host: str, port: int, poll_seconds: float = VERS
     if supervised:
         threading.Thread(target=watch, name="deploy-watch", daemon=True).start()
     from newsreader.branding import APP_NAME
+
     for where in _listen_spec(hosts, port).split():
         print(f"{APP_NAME}: http://{where}/ （終了は Ctrl+C）", flush=True)
     try:
@@ -134,6 +153,7 @@ def main() -> int:
         serving_child = os.environ.get("WERKZEUG_RUN_MAIN") == "true"
         app = create_app(start_background=serving_child, mount=portal.NEWS_MOUNT)
         from werkzeug.serving import run_simple
+
         run_simple(bind_host, port, portal.build(app), use_reloader=True)
         return 0
     # Opened to the network at all (not loopback only)? Then also answer on this PC's other
@@ -149,8 +169,14 @@ def main() -> int:
     if os.environ.get("NEWS_SUPERVISED") == "1":
         _keep_logon_task_current()
     network = None if ipaddress.ip_address(bind_host).is_loopback else (lambda: _network_too(bind_host))
-    return serve_until_redeployed(portal.build(app), bind_host, port,
-                                  supervised=os.environ.get("NEWS_SUPERVISED") == "1", also=also, network=network)
+    return serve_until_redeployed(
+        portal.build(app),
+        bind_host,
+        port,
+        supervised=os.environ.get("NEWS_SUPERVISED") == "1",
+        also=also,
+        network=network,
+    )
 
 
 def _network_too(bind_host: str) -> tuple[str, ...]:
@@ -159,6 +185,7 @@ def _network_too(bind_host: str) -> tuple[str, ...]:
     if ipaddress.ip_address(bind_host).is_loopback:
         return ()
     from newsreader.netpolicy import lan_address, tailscale_address
+
     found = [tailscale_address(), lan_address(), "127.0.0.1"]
     return tuple(dict.fromkeys(item for item in found if item and item != bind_host))
 
@@ -167,12 +194,14 @@ def _keep_logon_task_current() -> None:
     """Under launcher.py (Windows), register or remove the start-at-logon task as the settings
     say, at each (re)start, so a new version applies it without starting the app by hand.
     Runs in the background; any problem only means the task is left as it was."""
+
     def work() -> None:
         try:
             import importlib.util
             from pathlib import Path
 
             from newsreader.services.settings import start_at_logon
+
             spec = importlib.util.spec_from_file_location("newsreader_launcher", paths.PROJECT_ROOT / "launcher.py")
             launcher = importlib.util.module_from_spec(spec)
             spec.loader.exec_module(launcher)
@@ -186,6 +215,7 @@ def _keep_logon_task_current() -> None:
 def _ja_style_ready() -> bool:
     """Whether Japanese translations get the newspaper style (Janome installed), for /status readers."""
     from newsreader.services import ja_polish
+
     return ja_polish._analyser() is not None
 
 
@@ -194,14 +224,25 @@ def _record_web_status(app, host: str, port: int, also: tuple[str, ...] = ()) ->
     from pathlib import Path
 
     from newsreader.library import status
+
     target = app.config.get("STATUS_PATH")
     if not isinstance(target, Path):  # a stand-in app (tests) has nowhere real to write
         return
     where = f"[{host}]" if ipaddress.ip_address(host).version == 6 else host
     try:
-        status.update("web", {"url": f"http://{where}:{port}/", "started": status.now_iso(), "pid": os.getpid(),
-                              "also": [f"http://{item}:{port}/" for item in also], "ja_style": _ja_style_ready(),
-                              "version": paths.deployed_version(), "library": str(app.config["LIBRARY_ROOT"]),
-                              "project": str(paths.PROJECT_ROOT)}, path=target)
+        status.update(
+            "web",
+            {
+                "url": f"http://{where}:{port}/",
+                "started": status.now_iso(),
+                "pid": os.getpid(),
+                "also": [f"http://{item}:{port}/" for item in also],
+                "ja_style": _ja_style_ready(),
+                "version": paths.deployed_version(),
+                "library": str(app.config["LIBRARY_ROOT"]),
+                "project": str(paths.PROJECT_ROOT),
+            },
+            path=target,
+        )
     except OSError:
         pass

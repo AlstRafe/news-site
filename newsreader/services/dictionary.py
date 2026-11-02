@@ -1,4 +1,5 @@
 """Pronunciation and dictionary metadata from local eSpeak and official dictionaries."""
+
 from __future__ import annotations
 
 import hashlib
@@ -48,7 +49,9 @@ def _british_ipa_cached(text: str) -> str:
     with _ESPEAK_LOCK:
         EspeakWrapper.set_library(get_library_path())
         EspeakWrapper.set_data_path(get_data_path())
-        result = phonemize(text, language="en-gb", backend="espeak", preserve_punctuation=True, with_stress=True, strip=True)
+        result = phonemize(
+            text, language="en-gb", backend="espeak", preserve_punctuation=True, with_stress=True, strip=True
+        )
     return result.strip()
 
 
@@ -69,7 +72,12 @@ def _normalise_word(text: str) -> str:
 
 def lookup_chinese(text: str) -> dict:
     selected = text.strip()
-    empty = {"zhuyin": None, "entries": [], "source_url": MOE_DICTIONARY, "source_label": "教育部《重編國語辭典修訂本》"}
+    empty = {
+        "zhuyin": None,
+        "entries": [],
+        "source_url": MOE_DICTIONARY,
+        "source_label": "教育部《重編國語辭典修訂本》",
+    }
     if not selected or len(selected) > 30:
         return empty
     cache_key = hashlib.sha256(("moedict-v2\0" + selected).encode("utf-8")).hexdigest()
@@ -110,12 +118,17 @@ def lookup_chinese(text: str) -> dict:
                     if not re.search(r"釋義|Interpretation", label, re.IGNORECASE):
                         continue
                     definition_cell = cells[-1]
-                    definitions = [re.sub(r"\s+", " ", item.get_text(" ", strip=True)) for item in definition_cell.select("li")]
+                    definitions = [
+                        re.sub(r"\s+", " ", item.get_text(" ", strip=True)) for item in definition_cell.select("li")
+                    ]
                     if not definitions:
                         definition = re.sub(r"\s+", " ", definition_cell.get_text(" ", strip=True))
                         definitions = [definition] if definition else []
                     if definitions:
-                        output["entries"] = [{"word": anchor.get_text("", strip=True), "definition": definition} for definition in definitions[:6]]
+                        output["entries"] = [
+                            {"word": anchor.get_text("", strip=True), "definition": definition}
+                            for definition in definitions[:6]
+                        ]
                     break
             except (OSError, ValueError, ssl.SSLError, urllib.error.URLError):
                 pass
@@ -155,7 +168,9 @@ def _hanja_and_meaning(item: dict) -> tuple[str, str]:
     if isinstance(language_info, dict):
         origin += " " + str(language_info.get("original_language") or language_info.get("word") or "")
     elif isinstance(language_info, list):
-        origin += " " + " ".join(str(part.get("original_language", "")) for part in language_info if isinstance(part, dict))
+        origin += " " + " ".join(
+            str(part.get("original_language", "")) for part in language_info if isinstance(part, dict)
+        )
     elif isinstance(language_info, str):
         origin += " " + language_info
     hanja = "".join(dict.fromkeys(_HANJA_RE.findall(origin)))
@@ -185,7 +200,9 @@ def _query_korean(word: str, key: str) -> list[dict]:
         if not hanja and target_code:
             view_params = {"key": key, "q": target_code, "req_type": "json", "method": "target_code"}
             try:
-                view = json.loads(_fetch(KOREAN_VIEW + "?" + urllib.parse.urlencode(view_params), timeout=12).decode("utf-8-sig"))
+                view = json.loads(
+                    _fetch(KOREAN_VIEW + "?" + urllib.parse.urlencode(view_params), timeout=12).decode("utf-8-sig")
+                )
                 entry = _items(view)
                 if not entry and isinstance(view, dict):
                     entry = [view.get("channel", {}).get("item", {})]
@@ -210,9 +227,19 @@ def lookup_korean_hanja(text: str) -> dict:
     try:
         key = get_secret("stdict_api_key")
     except SecretStoreError:
-        return {"entries": [], "configured": False, "source_label": "국립국어원 표준국어대사전", "source_url": "https://stdict.korean.go.kr/openapi/openApiInfo.do"}
+        return {
+            "entries": [],
+            "configured": False,
+            "source_label": "국립국어원 표준국어대사전",
+            "source_url": "https://stdict.korean.go.kr/openapi/openApiInfo.do",
+        }
     if not key:
-        return {"entries": [], "configured": False, "source_label": "국립국어원 표준국어대사전", "source_url": "https://stdict.korean.go.kr/openapi/openApiInfo.do"}
+        return {
+            "entries": [],
+            "configured": False,
+            "source_label": "국립국어원 표준국어대사전",
+            "source_url": "https://stdict.korean.go.kr/openapi/openApiInfo.do",
+        }
     terms = list(dict.fromkeys(_HANGUL_WORD_RE.findall(text.strip())))
     # Bound remote lookups for sentence selections; short selected words are checked exactly.
     terms = [term for term in terms if len(term) <= 12][:4]
@@ -239,4 +266,9 @@ def lookup_korean_hanja(text: str) -> dict:
         if identity not in seen:
             seen.add(identity)
             unique.append(entry)
-    return {"entries": unique[:8], "configured": True, "source_label": "국립국어원 표준국어대사전", "source_url": "https://stdict.korean.go.kr/"}
+    return {
+        "entries": unique[:8],
+        "configured": True,
+        "source_label": "국립국어원 표준국어대사전",
+        "source_url": "https://stdict.korean.go.kr/",
+    }

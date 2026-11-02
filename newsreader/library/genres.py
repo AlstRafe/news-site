@@ -12,6 +12,7 @@ Two sources of evidence, in this order:
 
 Pure functions; the index stores the result per article (articles.genre).
 """
+
 from __future__ import annotations
 
 import re
@@ -39,21 +40,57 @@ def menu(counts: dict[str, int]) -> list[dict]:
     items.append({"key": OTHER, "label": "その他", "count": counts.get("", 0)})
     return items
 
+
 _BBC_SECTIONS = {
-    "technology": "tech", "business": "economy", "science & environment": "science", "science": "science",
-    "environment": "science", "climate": "science", "health": "health", "entertainment & arts": "culture",
-    "culture": "culture", "sport": "culture", "uk politics": "politics", "politics": "politics",
-    "education & family": "society", "family & education": "society",
+    "technology": "tech",
+    "business": "economy",
+    "science & environment": "science",
+    "science": "science",
+    "environment": "science",
+    "climate": "science",
+    "health": "health",
+    "entertainment & arts": "culture",
+    "culture": "culture",
+    "sport": "culture",
+    "uk politics": "politics",
+    "politics": "politics",
+    "education & family": "society",
+    "family & education": "society",
 }
 _YONHAP_SECTIONS = {
-    "경제": "economy", "산업": "economy", "마켓+": "economy", "금융": "economy", "it/과학": "tech", "it·과학": "tech",
-    "과학": "science", "건강": "health", "정치": "politics", "북한": "politics", "사회": "society", "전국": "society",
-    "문화": "culture", "연예": "culture", "스포츠": "culture",
+    "경제": "economy",
+    "산업": "economy",
+    "마켓+": "economy",
+    "금융": "economy",
+    "it/과학": "tech",
+    "it·과학": "tech",
+    "과학": "science",
+    "건강": "health",
+    "정치": "politics",
+    "북한": "politics",
+    "사회": "society",
+    "전국": "society",
+    "문화": "culture",
+    "연예": "culture",
+    "스포츠": "culture",
 }
 _CNA_CODES = {
-    "aipl": "politics", "acn": "politics", "afe": "economy", "aie": "economy", "asc": "economy", "ait": "tech",
-    "ahel": "health", "asoc": "society", "aloc": "society", "acul": "culture", "aspt": "culture", "amov": "culture",
-    "aedu": "society", "ahot": "", "aopl": "", "aall": "",
+    "aipl": "politics",
+    "acn": "politics",
+    "afe": "economy",
+    "aie": "economy",
+    "asc": "economy",
+    "ait": "tech",
+    "ahel": "health",
+    "asoc": "society",
+    "aloc": "society",
+    "acul": "culture",
+    "aspt": "culture",
+    "amov": "culture",
+    "aedu": "society",
+    "ahot": "",
+    "aopl": "",
+    "aall": "",
 }
 _NAVER_SECTIONS = {"100": "politics", "101": "economy", "102": "society", "103": "culture", "105": "tech"}
 
@@ -73,9 +110,9 @@ _WORDS: dict[str, dict[str, str]] = {
     },
     "dev": {
         "en": "programming, programmer, developer, open source, open-source, github, linux, kubernetes, cloud native, "
-              "networking, network outage, router, protocol, API, database, compiler, rust, python, javascript, "
-              "typescript, java, golang, framework, devops, data center, datacenter, vulnerability, CVE, patch, zero-day, "
-              "ransomware, malware, observability, microservice, serverless, container, LLM inference, coding agent",
+        "networking, network outage, router, protocol, API, database, compiler, rust, python, javascript, "
+        "typescript, java, golang, framework, devops, data center, datacenter, vulnerability, CVE, patch, zero-day, "
+        "ransomware, malware, observability, microservice, serverless, container, LLM inference, coding agent",
         "zh": "開發者 開發人員 程式 開源 雲端 資安 漏洞 伺服器 資料庫 Linux Kubernetes API 框架 網通 路由器 頻寬 資料中心 勒索軟體 惡意程式 修補 DevOps 容器 程式碼",
         "ko": "개발자 프로그래밍 오픈소스 클라우드 네트워크 서버 데이터베이스 취약점 리눅스 쿠버네티스 데이터센터 랜섬웨어 악성코드 보안패치 코딩",
     },
@@ -126,7 +163,9 @@ def _compile(words: str, lang: str) -> list[re.Pattern]:
     return patterns
 
 
-_PATTERNS = {genre: {lang: _compile(words, lang) for lang, words in by_lang.items()} for genre, by_lang in _WORDS.items()}
+_PATTERNS = {
+    genre: {lang: _compile(words, lang) for lang, words in by_lang.items()} for genre, by_lang in _WORDS.items()
+}
 _HANGUL = re.compile(r"[가-힣]")
 _HAN = re.compile(r"[一-鿿]")
 
@@ -186,7 +225,9 @@ def classify(source: str, url: str, section: str, title: str, paragraphs: list[s
 
 
 _META_SECTION = re.compile(
-    rb'<meta[^>]+(?:property="article:section"[^>]*content="([^"]*)"|content="([^"]*)"[^>]*property="article:section")', re.I)
+    rb'<meta[^>]+(?:property="article:section"[^>]*content="([^"]*)"|content="([^"]*)"[^>]*property="article:section")',
+    re.I,
+)
 _NAVER_SECTION = re.compile(rb'name="napp-site-analysis"[^>]*content="[^"]*section=(\d+)', re.I)
 
 

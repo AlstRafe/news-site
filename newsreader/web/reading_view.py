@@ -1,4 +1,5 @@
 """保存（後で読む）, 既読 and 単語帳: the reader's own marks, kept across the PC and the phone."""
+
 from __future__ import annotations
 
 from flask import abort, current_app, jsonify, render_template, request
@@ -52,10 +53,17 @@ def saved_page():
             items.append({**mark, "id": 0})
             continue
         thumb = record.get("thumb_src", "")
-        items.append({**record, "saved_at": mark["saved_at"], "read": mark["read"],
-                      "thumb": image_url(record["id"], 0, thumb) if image_service.allowed_image_url(thumb) else ""})
+        items.append(
+            {
+                **record,
+                "saved_at": mark["saved_at"],
+                "read": mark["read"],
+                "thumb": image_url(record["id"], 0, thumb) if image_service.allowed_image_url(thumb) else "",
+            }
+        )
     from newsreader.services import translation
     from newsreader.web.pages import page_target
+
     for item, ja in zip(items, translation.cached_titles([i.get("title") or "" for i in items], page_target())):
         item["ja"] = ja
     response = current_app.make_response(render_template("saved.html", items=items))
@@ -69,8 +77,14 @@ def add_word():
     payload = _payload()
     word, target = payload.get("word"), payload.get("target")
     meaning, sentence = payload.get("meaning", ""), payload.get("sentence", "")
-    if (not isinstance(word, str) or not word.strip() or len(word) > 80 or target not in TARGETS
-            or not isinstance(meaning, str) or not isinstance(sentence, str)):
+    if (
+        not isinstance(word, str)
+        or not word.strip()
+        or len(word) > 80
+        or target not in TARGETS
+        or not isinstance(meaning, str)
+        or not isinstance(sentence, str)
+    ):
         return jsonify({"error": "単語の指定が不正です。"}), 400
     record = None
     if payload.get("id") is not None:

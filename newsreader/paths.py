@@ -6,6 +6,7 @@ per-PC values (article folder, instance folder) impossible to see at a glance.
 Nothing outside this module may hard-code a path; per-PC values come from the
 environment (``HTML_DIRECTORY``) or from local settings files.
 """
+
 from __future__ import annotations
 
 import os
@@ -44,6 +45,7 @@ def deployed_version() -> str:
     except OSError:
         return ""
 
+
 #: Used when ``HTML_DIRECTORY`` is unset. The collector keeps using this default
 #: directly (it does not read ``HTML_DIRECTORY``); see ``collect/runner.py``.
 DEFAULT_ARTICLES_DIR = PROJECT_ROOT / "articles"
@@ -52,6 +54,7 @@ DEFAULT_ARTICLES_DIR = PROJECT_ROOT / "articles"
 def configured_library_dir() -> str:
     """The "記事フォルダ" saved on the settings page (instance/settings.json), or ""."""
     import json
+
     try:
         value = json.loads(SETTINGS_PATH.read_text(encoding="utf-8")).get("library_dir", "")
     except (OSError, ValueError, TypeError, AttributeError):
@@ -78,8 +81,13 @@ def articles_dir() -> Path:
         configured = saved
     # Under launcher.py, HTML_DIRECTORY is only the launcher's reading of the settings when it
     # started (it runs for weeks); a folder saved on the settings page since is the newer choice.
-    elif (saved and configured and os.environ.get("NEWS_SUPERVISED") == "1"
-          and not _same_path(configured, saved) and Path(saved).expanduser().is_dir()):
+    elif (
+        saved
+        and configured
+        and os.environ.get("NEWS_SUPERVISED") == "1"
+        and not _same_path(configured, saved)
+        and Path(saved).expanduser().is_dir()
+    ):
         configured = saved
     return Path(configured).expanduser() if configured else DEFAULT_ARTICLES_DIR
 
@@ -93,8 +101,9 @@ def status_path_beside(library_root: Path) -> Path:
 def same_path(a: Path | str, b: Path | str) -> bool:
     """Same folder after resolving (and, on Windows, ignoring case)."""
     try:
-        return (os.path.normcase(str(Path(a).expanduser().resolve()))
-                == os.path.normcase(str(Path(b).expanduser().resolve())))
+        return os.path.normcase(str(Path(a).expanduser().resolve())) == os.path.normcase(
+            str(Path(b).expanduser().resolve())
+        )
     except (OSError, RuntimeError):
         return False
 

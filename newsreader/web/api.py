@@ -3,6 +3,7 @@
 
 CSRF and Host checks happen centrally in ``security`` before any of these run.
 """
+
 from __future__ import annotations
 
 import re
@@ -46,7 +47,12 @@ def _article_request():
     payload = _json_request()
     target = payload.get("target")
     article_id = payload.get("id")
-    if not isinstance(target, str) or target not in TARGETS or not isinstance(article_id, int) or isinstance(article_id, bool):
+    if (
+        not isinstance(target, str)
+        or target not in TARGETS
+        or not isinstance(article_id, int)
+        or isinstance(article_id, bool)
+    ):
         return None, (jsonify({"error": "記事または翻訳先の指定が不正です。"}), 400)
     record = index.get(db_path(), article_id)
     if record is None:
@@ -65,7 +71,14 @@ def translate_selection():
     target = payload.get("target")
     if not isinstance(text, str) or not isinstance(target, str) or target not in TARGETS:
         return jsonify({"error": "翻訳する文章または翻訳先の指定が不正です。"}), 400
-    response = {"translation": None, "translation_error": None, "ipa": None, "hanja": [], "zhuyin": None, "dictionary_url": None}
+    response = {
+        "translation": None,
+        "translation_error": None,
+        "ipa": None,
+        "hanja": [],
+        "zhuyin": None,
+        "dictionary_url": None,
+    }
     try:
         response["translation"] = translate_text(text, target, limit=MAX_SELECTION_CHARS)
     except TranslationError as exc:
@@ -89,7 +102,9 @@ def translate_selection():
         response["dictionary_url"] = dictionary["source_url"]
         response["dictionary_label"] = dictionary["source_label"]
         if dictionary.get("entries"):
-            response["meaning"] = "\n".join(entry["definition"] for entry in dictionary["entries"] if entry.get("definition")) or None
+            response["meaning"] = (
+                "\n".join(entry["definition"] for entry in dictionary["entries"] if entry.get("definition")) or None
+            )
             response["meaning_language"] = i18n.text("教育部辞典・繁體中文")
         # Read in Chinese (翻訳先 繁體中文), a word still gets its meaning in the page's language.
         own = i18n.TARGETS[i18n.current()]
@@ -145,13 +160,18 @@ def translate_article_paragraphs():
     target, article = found
     try:
         with automatic(_json_request().get("auto") is True):
-            translated = translate_paragraphs([article["title"], *article["paragraphs"]], target, limit=MAX_ARTICLE_CHARS)
+            translated = translate_paragraphs(
+                [article["title"], *article["paragraphs"]], target, limit=MAX_ARTICLE_CHARS
+            )
     except TranslationError as exc:
         return jsonify({"error": str(exc)}), 503
     from newsreader.services import sentences
+
     # Sentence lengths (UTF-16) so the page can pair each original sentence with its translation (D-57).
-    pairs = [sentences.spans(target, original.strip(), text) if text else None
-             for original, text in zip(article["paragraphs"], translated[1:])]
+    pairs = [
+        sentences.spans(target, original.strip(), text) if text else None
+        for original, text in zip(article["paragraphs"], translated[1:])
+    ]
     return jsonify({"title": translated[0], "paragraphs": translated[1:], "sentences": pairs})
 
 
@@ -168,8 +188,12 @@ def translate_image_captions():
         return error
     target, article = found
     from newsreader.services import images as image_service
-    shown = [image.get("alt", "") for image in article.get("images", [])[:image_service.MAX_IMAGE_COUNT]
-             if image_service.allowed_image_url(image.get("src", ""))]
+
+    shown = [
+        image.get("alt", "")
+        for image in article.get("images", [])[: image_service.MAX_IMAGE_COUNT]
+        if image_service.allowed_image_url(image.get("src", ""))
+    ]
     if not any(text.strip() for text in shown):
         return jsonify({"captions": ["" for _ in shown]})
     try:
@@ -189,15 +213,25 @@ def translate_list_titles():
     """Headline translations for the cards on a list page: {"translations": {id: text}}."""
     payload = _json_request()
     ids, target = payload.get("ids"), payload.get("target")
-    if (not isinstance(target, str) or target not in TARGETS or not isinstance(ids, list)
-            or not 0 < len(ids) <= MAX_TITLES_PER_REQUEST
-            or not all(isinstance(i, int) and not isinstance(i, bool) for i in ids)):
+    if (
+        not isinstance(target, str)
+        or target not in TARGETS
+        or not isinstance(ids, list)
+        or not 0 < len(ids) <= MAX_TITLES_PER_REQUEST
+        or not all(isinstance(i, int) and not isinstance(i, bool) for i in ids)
+    ):
         return jsonify({"error": "記事または翻訳先の指定が不正です。"}), 400
     records = [(i, index.get(db_path(), i)) for i in dict.fromkeys(ids)]
     # A headline already in the target language is not sent (an English page has the BBC's as they are).
     from newsreader.library import stories
-    found = [(i, record["title"]) for i, record in records if record and record.get("title")
-             and stories.LANG_TARGETS.get(stories.headline_language(db_path(), i), "") != target]
+
+    found = [
+        (i, record["title"])
+        for i, record in records
+        if record
+        and record.get("title")
+        and stories.LANG_TARGETS.get(stories.headline_language(db_path(), i), "") != target
+    ]
     if not found:
         return jsonify({"translations": {}})
     try:
@@ -229,11 +263,16 @@ def compare_translate():
     that language are left out. Cached per headline / opening like the other comparisons."""
     payload = _json_request()
     ids, target = payload.get("ids"), payload.get("target")
-    if (not isinstance(target, str) or target not in TARGETS or not isinstance(ids, list)
-            or not 0 < len(ids) <= MAX_LEADS_PER_REQUEST
-            or not all(isinstance(i, int) and not isinstance(i, bool) for i in ids)):
+    if (
+        not isinstance(target, str)
+        or target not in TARGETS
+        or not isinstance(ids, list)
+        or not 0 < len(ids) <= MAX_LEADS_PER_REQUEST
+        or not all(isinstance(i, int) and not isinstance(i, bool) for i in ids)
+    ):
         return jsonify({"error": "記事または翻訳先の指定が不正です。"}), 400
     from newsreader.library import stories
+
     wanted = []
     for article_id in dict.fromkeys(ids):
         record = index.get(db_path(), article_id)
@@ -258,9 +297,13 @@ def translate_story_leads():
     """Opening paragraphs of the articles on a same-news page: {"leads": {id: {"original", "translation"}}}."""
     payload = _json_request()
     ids, target = payload.get("ids"), payload.get("target")
-    if (not isinstance(target, str) or target not in TARGETS or not isinstance(ids, list)
-            or not 0 < len(ids) <= MAX_LEADS_PER_REQUEST
-            or not all(isinstance(i, int) and not isinstance(i, bool) for i in ids)):
+    if (
+        not isinstance(target, str)
+        or target not in TARGETS
+        or not isinstance(ids, list)
+        or not 0 < len(ids) <= MAX_LEADS_PER_REQUEST
+        or not all(isinstance(i, int) and not isinstance(i, bool) for i in ids)
+    ):
         return jsonify({"error": "記事または翻訳先の指定が不正です。"}), 400
     found = []
     for article_id in dict.fromkeys(ids):
@@ -275,13 +318,16 @@ def translate_story_leads():
             translated = translate_titles([text for _, text in found], target, kind="lead", max_chars=LEAD_CHARS)
     except TranslationError as exc:
         return jsonify({"error": str(exc)}), 503
-    return jsonify({"leads": {str(i): {"original": text, "translation": tr} for (i, text), tr in zip(found, translated)}})
+    return jsonify(
+        {"leads": {str(i): {"original": text, "translation": tr} for (i, text), tr in zip(found, translated)}}
+    )
 
 
 @routes.post("/api/topics", "follow_topic")
 def follow_topic():
     """話題を追う (D-61): {"topic", "follow": true|false} -> {"topics": [...]}"""
     from newsreader.services.settings import save_topic
+
     payload = _json_request()
     topic, follow = payload.get("topic"), payload.get("follow")
     if not isinstance(topic, str) or not isinstance(follow, bool):

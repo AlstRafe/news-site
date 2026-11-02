@@ -3,6 +3,7 @@ status.json -> index -> visible on the list page with a fresh header badge.
 
 The news sites are replaced by canned responses; everything is written to a temp dir.
 """
+
 import io
 import json
 import os
@@ -25,7 +26,9 @@ from newsreader.web import create_app
 ROBOTS_OK = b"User-agent: *\nAllow: /\n"
 BBC_ARTICLE = NORMAL.replace(b"<head>", b'<head><link rel="canonical" href="https://www.bbc.com/news/articles/c1">')
 BBC_NO_BODY = b'<html><head><link rel="canonical" href="https://www.bbc.com/news/videos/v1"></head><body></body></html>'
-CNA_ARTICLE = CNA.replace(b"https://www.cna.com.tw/news/aopl/example.aspx", b"https://www.cna.com.tw/news/aopl/202610180001.aspx")
+CNA_ARTICLE = CNA.replace(
+    b"https://www.cna.com.tw/news/aopl/example.aspx", b"https://www.cna.com.tw/news/aopl/202610180001.aspx"
+)
 
 BBC_FEED = b"""<?xml version="1.0"?><rss><channel>
 <item><link>https://www.bbc.com/news/articles/c1</link></item>
@@ -80,6 +83,7 @@ def fake_urlopen(request, timeout=None):
     url = request.full_url if hasattr(request, "full_url") else request
     if url not in RESPONSES:
         from urllib.error import HTTPError
+
         raise HTTPError(url, 404, "not found", {}, None)
     data, content_type = RESPONSES[url]
     return FakeResponse(url, data, content_type)
@@ -151,16 +155,26 @@ class CollectionEndToEndTests(unittest.TestCase):
         responses = dict(RESPONSES)
         finance = [f"https://www.cna.com.tw/news/afe/20261018000{n}.aspx" for n in (2, 3, 4)]
         responses["https://feeds.feedburner.com/rsscna/finance"] = (
-            ("<?xml version='1.0'?><rss><channel>" + "".join(f"<item><link>{u}</link></item>" for u in finance)
-             + "</channel></rss>").encode(), "application/rss+xml")
+            (
+                "<?xml version='1.0'?><rss><channel>"
+                + "".join(f"<item><link>{u}</link></item>" for u in finance)
+                + "</channel></rss>"
+            ).encode(),
+            "application/rss+xml",
+        )
         for u in finance:
-            responses[u] = (CNA.replace(b"https://www.cna.com.tw/news/aopl/example.aspx", u.encode())
-                            .replace(b"<h1>", f"<h1>{u[-8:]} ".encode(), 1), "text/html")
+            responses[u] = (
+                CNA.replace(b"https://www.cna.com.tw/news/aopl/example.aspx", u.encode()).replace(
+                    b"<h1>", f"<h1>{u[-8:]} ".encode(), 1
+                ),
+                "text/html",
+            )
 
         def opener(request, timeout=None):
             target = request.full_url if hasattr(request, "full_url") else request
             if target not in responses:
                 from urllib.error import HTTPError
+
                 raise HTTPError(target, 404, "not found", {}, None)
             return FakeResponse(target, *responses[target])
 
@@ -182,6 +196,7 @@ class CollectionEndToEndTests(unittest.TestCase):
             target = request.full_url if hasattr(request, "full_url") else request
             if target not in responses:
                 from urllib.error import HTTPError
+
                 raise HTTPError(target, 404, "not found", {}, None)
             return FakeResponse(target, *responses[target])
 
@@ -189,12 +204,15 @@ class CollectionEndToEndTests(unittest.TestCase):
             self.assertEqual(runner.main(), 0)
 
     def test_new_pages_are_saved_slimmed_when_extraction_is_identical(self):
-        fat = BBC_ARTICLE.replace(b"</head>", b"<script>" + b"var x = 1;" * 2000 + b"</script><style>p{color:red}</style></head>")
+        fat = BBC_ARTICLE.replace(
+            b"</head>", b"<script>" + b"var x = 1;" * 2000 + b"</script><style>p{color:red}</style></head>"
+        )
         self.run_with("https://www.bbc.com/news/articles/c1", fat)
         saved = next(self.root.glob("BBC/*.html")).read_bytes()
         self.assertLess(len(saved), len(fat) // 4)
         self.assertNotIn(b"<script>", saved)
         from newsreader.sources import extract_article
+
         self.assertEqual(extract_article(saved), extract_article(fat))
         # The slimmed file keeps its canonical link, so the next run sees it as a duplicate.
         autofetch._robots_cache.clear()
@@ -203,10 +221,13 @@ class CollectionEndToEndTests(unittest.TestCase):
 
     def test_original_is_kept_when_slimming_would_change_the_article(self):
         # Text inside an inline <svg>: the extractor reads it, slimming would drop it.
-        page = CNA_ARTICLE.replace(b'<div class="paragraph"><p>Second CNA paragraph.</p></div>',
-                                   b'<div class="paragraph"><p>Chart<svg><text>2026</text></svg></p></div>'
-                                   b'<script>' + b"x" * 5000 + b'</script>')
+        page = CNA_ARTICLE.replace(
+            b'<div class="paragraph"><p>Second CNA paragraph.</p></div>',
+            b'<div class="paragraph"><p>Chart<svg><text>2026</text></svg></p></div>'
+            b"<script>" + b"x" * 5000 + b"</script>",
+        )
         from newsreader.sources import extract_article
+
         self.assertIn("Chart 2026", extract_article(page)["paragraphs"])
         self.run_with("https://www.cna.com.tw/news/aopl/202610180001.aspx", page)
         self.assertEqual(next(self.root.glob("CNA/*.html")).read_bytes(), page)
@@ -251,6 +272,7 @@ class CollectionEndToEndTests(unittest.TestCase):
             url = request.full_url if hasattr(request, "full_url") else request
             if url not in broken:
                 from urllib.error import HTTPError
+
                 raise HTTPError(url, 404, "not found", {}, None)
             return FakeResponse(url, *broken[url])
 
@@ -267,6 +289,7 @@ class CollectionEndToEndTests(unittest.TestCase):
             url = request.full_url
             if url == "https://feeds.bbci.co.uk/news/world/rss.xml":
                 from urllib.error import URLError
+
                 raise URLError("offline")
             return fake_urlopen(request, timeout)
 
@@ -316,10 +339,13 @@ class StatusFileTests(unittest.TestCase):
 
     def test_pages_render_with_a_corrupt_status_file(self):
         from newsreader.web import create_app
+
         root = self.tmp / "articles"
         root.mkdir()
         self.path.write_text("garbage", encoding="utf-8")
-        client = create_app(root, self.tmp / "library.sqlite3", start_background=False, secret_key=b"k" * 32).test_client()
+        client = create_app(
+            root, self.tmp / "library.sqlite3", start_background=False, secret_key=b"k" * 32
+        ).test_client()
         for url in ("/", "/status"):
             self.assertEqual(client.get(url, headers={"Host": "localhost"}).status_code, 200, url)
 
@@ -341,7 +367,10 @@ class SharedLibraryStatusTests(unittest.TestCase):
         self.live_status = self.tmp / "live" / "instance" / "status.json"
         self.own_status = self.tmp / "dev" / "instance" / "status.json"
         from newsreader.web import create_app
-        self.app = create_app(self.root, self.tmp / "dev" / "library.sqlite3", start_background=False, secret_key=b"k" * 32)
+
+        self.app = create_app(
+            self.root, self.tmp / "dev" / "library.sqlite3", start_background=False, secret_key=b"k" * 32
+        )
         self.app.config["STATUS_PATH"] = self.own_status
         self.client = self.app.test_client()
 
@@ -353,10 +382,14 @@ class SharedLibraryStatusTests(unittest.TestCase):
 
     def test_badge_and_status_page_follow_the_newer_collection_beside_the_folder(self):
         status.update("collector", {"ok": True, "finished": "2000-01-01T00:00:00Z"}, path=self.own_status)
-        status.update("collector", {"ok": True, "finished": status.now_iso(), "library_root": str(self.root),
-                                    "sites": {"BBC": {"saved": 2}}}, path=self.live_status)
+        status.update(
+            "collector",
+            {"ok": True, "finished": status.now_iso(), "library_root": str(self.root), "sites": {"BBC": {"saved": 2}}},
+            path=self.live_status,
+        )
         with self.app.test_request_context(headers={"Host": "localhost"}):
             from newsreader.web import status_view
+
             self.assertEqual(status.badge(status_view.status_data())["tone"], "ok")
         self.assertIn("記事フォルダ側の収集タスク", self.page())
         # a newer run of this copy's own task wins again
@@ -364,16 +397,22 @@ class SharedLibraryStatusTests(unittest.TestCase):
         self.assertNotIn("記事フォルダ側の収集タスク", self.page())
 
     def test_a_task_collecting_into_another_folder_is_ignored(self):
-        status.update("collector", {"ok": True, "finished": status.now_iso(), "library_root": str(self.tmp / "elsewhere")},
-                      path=self.live_status)
+        status.update(
+            "collector",
+            {"ok": True, "finished": status.now_iso(), "library_root": str(self.tmp / "elsewhere")},
+            path=self.live_status,
+        )
         self.assertNotIn("記事フォルダ側の収集タスク", self.page())
         self.assertIn("まだ記録がありません", self.page())
 
     def test_this_copys_task_leaves_the_folder_to_the_owner_that_collected_recently(self):
         with mock.patch.object(runner, "status_path", return_value=self.own_status):
             self.assertFalse(runner.collected_elsewhere(self.root))  # nothing recorded there yet
-            status.update("collector", {"ok": True, "finished": status.now_iso(), "library_root": str(self.root)},
-                          path=self.live_status)
+            status.update(
+                "collector",
+                {"ok": True, "finished": status.now_iso(), "library_root": str(self.root)},
+                path=self.live_status,
+            )
             status._cache.clear()  # same-second rewrites: some file systems keep the mtime
             self.assertTrue(runner.collected_elsewhere(self.root))
             status.update("collector", {"ok": True, "finished": "2000-01-01T00:00:00Z"}, path=self.live_status)
@@ -383,14 +422,21 @@ class SharedLibraryStatusTests(unittest.TestCase):
             status._cache.clear()  # same-second rewrites: some file systems keep the mtime
             self.assertFalse(runner.collected_elsewhere(self.root))  # failed there: collect here
         # the skip record defers to the owner's record on the status page
-        status.update("collector", {"ok": True, "finished": status.now_iso(), "library_root": str(self.root),
-                                    "sites": {"BBC": {"saved": 2}}}, path=self.live_status)
-        status.update("collector", {"ok": True, "finished": "2999-01-01T00:00:00Z", "skipped_for": "x", "sites": {}},
-                      path=self.own_status)
+        status.update(
+            "collector",
+            {"ok": True, "finished": status.now_iso(), "library_root": str(self.root), "sites": {"BBC": {"saved": 2}}},
+            path=self.live_status,
+        )
+        status.update(
+            "collector",
+            {"ok": True, "finished": "2999-01-01T00:00:00Z", "skipped_for": "x", "sites": {}},
+            path=self.own_status,
+        )
         self.assertIn("記事フォルダ側の収集タスク", self.page())
 
     def test_own_status_beside_the_folder_is_not_read_twice(self):
         from newsreader.web import status_view
+
         self.assertIsNone(status_view.library_collector(self.root, self.live_status))
         self.assertIsNone(status_view.library_collector(self.tmp / "nowhere" / "articles", self.own_status))
 

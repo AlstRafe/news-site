@@ -1,4 +1,5 @@
 """List page: "見出しを訳す" — headline translations, cached one by one, never more than one page."""
+
 import shutil
 import sys
 import tempfile
@@ -36,9 +37,11 @@ class ListGlossTests(unittest.TestCase):
             self.calls.append(list(texts))
             return [f"[{target}] {t}" for t in texts]
 
-        self.patches = [mock.patch.object(ts, "_translate_batch", fake),
-                        mock.patch.object(ts, "active_provider", lambda: "deepl"),
-                        mock.patch.object(cache, "CACHE_PATH", self.tmp / "cache.sqlite3")]
+        self.patches = [
+            mock.patch.object(ts, "_translate_batch", fake),
+            mock.patch.object(ts, "active_provider", lambda: "deepl"),
+            mock.patch.object(cache, "CACHE_PATH", self.tmp / "cache.sqlite3"),
+        ]
         for patch in self.patches:
             patch.start()
         self.client.get("/", headers=H)
@@ -68,11 +71,19 @@ class ListGlossTests(unittest.TestCase):
         self.assertEqual(sum(len(c) for c in self.calls), 4)
 
     def test_rejects_bad_requests(self):
-        for body in ({"ids": [], "target": "ja"}, {"ids": list(range(1, 50)), "target": "ja"},
-                     {"ids": ["1"], "target": "ja"}, {"ids": [1], "target": "xx"}, {"ids": [True], "target": "ja"}):
+        for body in (
+            {"ids": [], "target": "ja"},
+            {"ids": list(range(1, 50)), "target": "ja"},
+            {"ids": ["1"], "target": "ja"},
+            {"ids": [1], "target": "xx"},
+            {"ids": [True], "target": "ja"},
+        ):
             self.assertEqual(self.post(body).status_code, 400, body)
         self.assertEqual(self.post({"ids": [999999], "target": "ja"}).get_json(), {"translations": {}})
-        self.assertEqual(self.client.post("/api/translate-titles", headers=H, json={"ids": self.ids, "target": "ja"}).status_code, 400)
+        self.assertEqual(
+            self.client.post("/api/translate-titles", headers=H, json={"ids": self.ids, "target": "ja"}).status_code,
+            400,
+        )
 
     def test_provider_error_is_a_message(self):
         with mock.patch.object(ts, "_translate_batch", side_effect=ts.TranslationError("上限に達しました")):
@@ -105,8 +116,11 @@ class JapaneseFirstTests(ListGlossTests):
         self.assertIn('<meta property="og:title" content="[ja] ', article)
 
     def test_captions_are_translated_in_page_order(self):
-        response = self.client.post("/api/translate-captions", headers={**H, "X-CSRF-Token": self.token},
-                                    json={"id": self.ids[0], "target": "ja"})
+        response = self.client.post(
+            "/api/translate-captions",
+            headers={**H, "X-CSRF-Token": self.token},
+            json={"id": self.ids[0], "target": "ja"},
+        )
         self.assertEqual(response.status_code, 200)
         captions = response.get_json()["captions"]
         self.assertIsInstance(captions, list)
@@ -128,4 +142,5 @@ class JapaneseFirstTests(ListGlossTests):
         self.assertEqual(manifest.status_code, 200)
         self.assertEqual(manifest.get_json()["start_url"], "/")
         from newsreader.web.assets import localtime_filter
+
         self.assertRegex(localtime_filter("2026-10-23T07:20:00Z"), r"^2026年10月2[34]日（[月火水木金土日]）\d\d:\d\d$")

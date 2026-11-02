@@ -5,12 +5,18 @@ from newsreader.library import genres
 
 class GenreTests(unittest.TestCase):
     def test_the_outlets_own_section_decides_when_it_names_a_kind(self):
-        self.assertEqual(genres.classify("BBC", "https://www.bbc.com/news/articles/x", "Technology", "Anything", []), "tech")
+        self.assertEqual(
+            genres.classify("BBC", "https://www.bbc.com/news/articles/x", "Technology", "Anything", []), "tech"
+        )
         self.assertEqual(genres.classify("Yonhap", "", "경제", "아무거나", []), "economy")
-        self.assertEqual(genres.classify("CNA", "https://www.cna.com.tw/news/ait/202610220412.aspx", "", "標題", []), "tech")
+        self.assertEqual(
+            genres.classify("CNA", "https://www.cna.com.tw/news/ait/202610220412.aspx", "", "標題", []), "tech"
+        )
         self.assertEqual(genres.classify("NAVER NEWS", "", "101", "제목", []), "economy")
         # A region is not a kind: the words decide.
-        self.assertEqual(genres.classify("BBC", "", "US & Canada", "Fed holds interest rates as inflation cools", []), "economy")
+        self.assertEqual(
+            genres.classify("BBC", "", "US & Canada", "Fed holds interest rates as inflation cools", []), "economy"
+        )
 
     def test_words_in_each_language(self):
         cases = [
@@ -28,15 +34,23 @@ class GenreTests(unittest.TestCase):
                 self.assertEqual(genres.classify("", "", "", title, []), expected)
 
     def test_too_little_evidence_gives_no_kind(self):
-        self.assertEqual(genres.classify("", "", "", "Obama says drift is not inevitable", ["He spoke on Tuesday."]), "")
+        self.assertEqual(
+            genres.classify("", "", "", "Obama says drift is not inevitable", ["He spoke on Tuesday."]), ""
+        )
         # Body words alone need to add up.
         self.assertEqual(genres.from_words("A quiet day", ["The hospital said.", "Nothing else."]), "")
 
     def test_section_is_read_from_the_page(self):
-        self.assertEqual(genres.section_of(b'<meta data-rh="true" property="article:section" content="Science &amp; Environment"/>'),
-                         "Science & Environment")
-        self.assertEqual(genres.section_of(b'<meta content="\xea\xb2\xbd\xec\xa0\x9c" property="article:section"/>'), "경제")
-        self.assertEqual(genres.section_of(b'<meta name="napp-site-analysis" content="gdid=1,service=news,section=105">'), "105")
+        self.assertEqual(
+            genres.section_of(b'<meta data-rh="true" property="article:section" content="Science &amp; Environment"/>'),
+            "Science & Environment",
+        )
+        self.assertEqual(
+            genres.section_of(b'<meta content="\xea\xb2\xbd\xec\xa0\x9c" property="article:section"/>'), "경제"
+        )
+        self.assertEqual(
+            genres.section_of(b'<meta name="napp-site-analysis" content="gdid=1,service=news,section=105">'), "105"
+        )
         self.assertEqual(genres.section_of(b"<html></html>"), "")
 
     def test_menu_lists_every_kind_and_the_rest(self):

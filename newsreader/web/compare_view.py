@@ -4,6 +4,7 @@ Both answer on request (a button on the group page), translate only what they sh
 every cache: an English outlet's own text is never sent; other outlets' openings go to English
 once (kind "facts_src"); the sentences and words shown go to the reader's language once each.
 """
+
 from __future__ import annotations
 
 import re
@@ -61,8 +62,11 @@ def _show_sentences(items: list[tuple[dict, dict]], originals: dict, target: str
     outlet's own sentence, else from the English one). Raises TranslationError."""
     wanted: dict[str, str] = {}
     for member, item in items:
-        own = item["sentence"] if item.get("native") else \
-            next((o for o, e in originals.get(member["id"], []) if _same(e, item["sentence"])), "")
+        own = (
+            item["sentence"]
+            if item.get("native")
+            else next((o for o, e in originals.get(member["id"], []) if _same(e, item["sentence"])), "")
+        )
         item["original"] = own
         if stories.LANG_TARGETS.get(member.get("lang") or "", "") == target:
             item["shown"] = own or item["sentence"]
@@ -97,8 +101,13 @@ def story_facts():
         members, english_of, originals = _english_texts(story)
         by_id = {member["id"]: member for member in members}
         native = facts_watch.native_texts(db_path(), members)  # counts read in Korean/Chinese (D-65)
-        categories = compare.compare([dict(member, english=english_of[member["id"]], native=native.get(member["id"]))
-                                      for member in members if member["id"] in english_of])
+        categories = compare.compare(
+            [
+                dict(member, english=english_of[member["id"]], native=native.get(member["id"]))
+                for member in members
+                if member["id"] in english_of
+            ]
+        )
         facts_watch.store(db_path(), story["key"], members, categories)  # the home page's 数字の食い違い
         items = []
         for category in categories:
@@ -131,8 +140,9 @@ def story_quotes():
     try:
         members, english_of, originals = _english_texts(story)
         by_id = {member["id"]: member for member in members}
-        groups = compare.quote_groups([dict(member, english=english_of[member["id"]])
-                                       for member in members if member["id"] in english_of])
+        groups = compare.quote_groups(
+            [dict(member, english=english_of[member["id"]]) for member in members if member["id"] in english_of]
+        )
         items = []
         for group in groups:
             for quote in group["quotes"]:
@@ -160,8 +170,16 @@ def story_words():
             glosses = dict(zip(words, translate_titles(words, target, kind="word", max_chars=60)))
         except TranslationError as exc:
             return jsonify({"error": str(exc)}), 503
-    entry = lambda word: {"word": word, "gloss": glosses.get(word, "") if glosses.get(word, "").lower() != word.lower() else ""}
-    return jsonify({"shared": [entry(w) for w in framing["shared"]],
-                    "only": [{"source": source, "lang": branding.source_language(source),
-                              "words": [entry(w) for w in found_words]}
-                             for source, found_words in framing["only"].items()]})
+    entry = lambda word: {
+        "word": word,
+        "gloss": glosses.get(word, "") if glosses.get(word, "").lower() != word.lower() else "",
+    }
+    return jsonify(
+        {
+            "shared": [entry(w) for w in framing["shared"]],
+            "only": [
+                {"source": source, "lang": branding.source_language(source), "words": [entry(w) for w in found_words]}
+                for source, found_words in framing["only"].items()
+            ],
+        }
+    )

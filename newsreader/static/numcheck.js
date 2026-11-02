@@ -4,8 +4,22 @@
 (function (root) {
   "use strict";
   const SCALE = {
-    "万": 1e4, "萬": 1e4, "만": 1e4, "億": 1e8, "억": 1e8, "千": 1e3, "천": 1e3, "兆": 1e12, "조": 1e12,
-    thousand: 1e3, million: 1e6, billion: 1e9, trillion: 1e12, bn: 1e9, m: 1e6, k: 1e3,
+    万: 1e4,
+    萬: 1e4,
+    만: 1e4,
+    億: 1e8,
+    억: 1e8,
+    千: 1e3,
+    천: 1e3,
+    兆: 1e12,
+    조: 1e12,
+    thousand: 1e3,
+    million: 1e6,
+    billion: 1e9,
+    trillion: 1e12,
+    bn: 1e9,
+    m: 1e6,
+    k: 1e3,
   };
   // A figure, then an optional scale written after it ("1.2 million", "53만", "1万2000" is two parts).
   const FIGURE = /(\d(?:[\d,]*\d)?(?:\.\d+)?)\s*(thousand|million|billion|trillion|bn|[万萬만億억千천兆조])?/gi;
@@ -30,8 +44,14 @@
         previous.end = match.index + match[0].length;
         continue;
       }
-      out.push({ text: match[0].trim(), value: scaled, scaled: Boolean(SCALE[unit]), scale: SCALE[unit] || 1,
-                 end: match.index + match[0].length, plain: number });
+      out.push({
+        text: match[0].trim(),
+        value: scaled,
+        scaled: Boolean(SCALE[unit]),
+        scale: SCALE[unit] || 1,
+        end: match.index + match[0].length,
+        plain: number,
+      });
     }
     return out;
   }
@@ -46,7 +66,9 @@
     const out = [];
     for (const figure of values(original)) {
       if (figure.value < 10 && !figure.scaled) continue; // small numbers are often written as words (二人, two)
-      const found = theirs.some(t => near(t.value, figure.value) || near(t.plain, figure.plain) || near(t.value, figure.plain));
+      const found = theirs.some(
+        (t) => near(t.value, figure.value) || near(t.plain, figure.plain) || near(t.value, figure.plain),
+      );
       if (!found && !seen.has(figure.text)) {
         seen.add(figure.text);
         out.push(figure.text);

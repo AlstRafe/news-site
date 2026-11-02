@@ -10,6 +10,7 @@ redirected to the same page under ``/news``; the translation relay (``/relay/...
 test builds with a fixed address) is answered where it always was. Requests under the public
 name (テスト公開) are https and kept out of search results.
 """
+
 from __future__ import annotations
 
 from urllib.parse import quote
@@ -18,15 +19,21 @@ from newsreader.hosting import DISALLOW, LEGACY_DIRECT
 
 NEWS_MOUNT = "/news"
 #: Crawlers may read pages (link previews come from them) but not call the APIs or the relay.
-ROBOTS = ("User-agent: *\n" + "".join(f"Disallow: {NEWS_MOUNT}{part}\n" for part in DISALLOW)
-          + "".join(f"Disallow: {part}\n" for part in LEGACY_DIRECT)).encode()
+ROBOTS = (
+    "User-agent: *\n"
+    + "".join(f"Disallow: {NEWS_MOUNT}{part}\n" for part in DISALLOW)
+    + "".join(f"Disallow: {part}\n" for part in LEGACY_DIRECT)
+).encode()
 
 
 def _public_headers(start_response):
     """For the public name: https only from now on, and no search-engine listing (a test, for people sent the link)."""
+
     def start(status, headers, exc_info=None):
-        return start_response(status, [*headers, ("Strict-Transport-Security", "max-age=31536000"),
-                                       ("X-Robots-Tag", "noindex")], exc_info)
+        return start_response(
+            status, [*headers, ("Strict-Transport-Security", "max-age=31536000"), ("X-Robots-Tag", "noindex")], exc_info
+        )
+
     return start
 
 
@@ -44,12 +51,19 @@ class NewsOnly:
             environ = dict(environ, **{"wsgi.url_scheme": "https"})
             start_response = _public_headers(start_response)
         if path.startswith(NEWS_MOUNT + "/"):
-            environ = dict(environ, SCRIPT_NAME=environ.get("SCRIPT_NAME", "") + NEWS_MOUNT,
-                           PATH_INFO=path[len(NEWS_MOUNT):])
+            environ = dict(
+                environ, SCRIPT_NAME=environ.get("SCRIPT_NAME", "") + NEWS_MOUNT, PATH_INFO=path[len(NEWS_MOUNT) :]
+            )
             return self.news_app(environ, start_response)
         if path == "/robots.txt" and method in ("GET", "HEAD"):
-            start_response("200 OK", [("Content-Type", "text/plain; charset=utf-8"), ("Content-Length", str(len(ROBOTS))),
-                                      ("Cache-Control", "public, max-age=86400")])
+            start_response(
+                "200 OK",
+                [
+                    ("Content-Type", "text/plain; charset=utf-8"),
+                    ("Content-Length", str(len(ROBOTS))),
+                    ("Cache-Control", "public, max-age=86400"),
+                ],
+            )
             return [ROBOTS]
         if path.startswith(LEGACY_DIRECT) or method not in ("GET", "HEAD"):
             return self.news_app(environ, start_response)
@@ -61,12 +75,14 @@ class NewsOnly:
 def _redirect(start_response, target: str, environ, permanent: bool = False):
     query = environ.get("QUERY_STRING", "")
     location = quote(target, safe="/%:@!$&'()*+,;=-._~") + (f"?{query}" if query else "")
-    start_response("308 Permanent Redirect" if permanent else "302 Found",
-                   [("Location", location), ("Content-Length", "0")])
+    start_response(
+        "308 Permanent Redirect" if permanent else "302 Found", [("Location", location), ("Content-Length", "0")]
+    )
     return [b""]
 
 
 def build(news_app) -> NewsOnly:
     """What app.py serves: News Site alone."""
     from newsreader.web import public, security
+
     return NewsOnly(news_app, public_hosts=lambda host: public.is_funnel_host(security.host_without_port(host)))

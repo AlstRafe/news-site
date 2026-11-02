@@ -9,6 +9,7 @@ punctuation that is used only when both sides have the same number of sentences.
 
 Lengths are returned in UTF-16 code units, what JavaScript's ``String.slice`` counts.
 """
+
 from __future__ import annotations
 
 import hashlib
@@ -33,10 +34,19 @@ def _digest(text: str) -> str:
 
 def remember(target: str, source: str, translation: str, src: list, tr: list) -> None:
     """Keep the sentence lengths a provider reported for one translated text."""
-    if (isinstance(src, list) and isinstance(tr, list) and src and len(src) == len(tr)
-            and all(isinstance(n, int) and n >= 0 for n in src + tr)):
-        cache_put(CACHE_KIND, _key(target, source), {"t": _digest(translation), "src": src, "tr": tr},
-                  max_entries=CACHE_ENTRIES)
+    if (
+        isinstance(src, list)
+        and isinstance(tr, list)
+        and src
+        and len(src) == len(tr)
+        and all(isinstance(n, int) and n >= 0 for n in src + tr)
+    ):
+        cache_put(
+            CACHE_KIND,
+            _key(target, source),
+            {"t": _digest(translation), "src": src, "tr": tr},
+            max_entries=CACHE_ENTRIES,
+        )
 
 
 def reported(target: str, source: str, translation: str) -> dict | None:
@@ -58,7 +68,7 @@ def _as_utf16(text: str, lengths: list[int]) -> list[int] | None:
     if sum(lengths) == len(text):
         out, position = [], 0
         for n in lengths:
-            out.append(_utf16(text[position:position + n]))
+            out.append(_utf16(text[position : position + n]))
             position += n
         return out
     return None
@@ -68,7 +78,7 @@ def cut(text: str, lengths: list[int]) -> list[str]:
     """``text`` in pieces of the given UTF-16 lengths (which must add up to it)."""
     data, out, i = text.encode("utf-16-le"), [], 0
     for n in lengths:
-        out.append(data[i * 2:(i + n) * 2].decode("utf-16-le", "replace"))
+        out.append(data[i * 2 : (i + n) * 2].decode("utf-16-le", "replace"))
         i += n
     return out
 
@@ -81,8 +91,8 @@ def split(text: str) -> list[str]:
     """Sentences, keeping every character (the pieces join back to ``text``)."""
     pieces, start = [], 0
     for match in _END.finditer(text):
-        if match.end() > start and text[start:match.end()].strip():
-            pieces.append(text[start:match.end()])
+        if match.end() > start and text[start : match.end()].strip():
+            pieces.append(text[start : match.end()])
             start = match.end()
     if text[start:]:
         if pieces and not text[start:].strip():
@@ -116,7 +126,11 @@ def pairs(target: str, source: str, translation: str) -> list[tuple[str, str]] |
     out, a, b = [], source.encode("utf-16-le"), translation.encode("utf-16-le")
     i = j = 0
     for n, m in zip(found["src"], found["tr"]):
-        out.append((a[i * 2:(i + n) * 2].decode("utf-16-le", "replace").strip(),
-                    b[j * 2:(j + m) * 2].decode("utf-16-le", "replace").strip()))
+        out.append(
+            (
+                a[i * 2 : (i + n) * 2].decode("utf-16-le", "replace").strip(),
+                b[j * 2 : (j + m) * 2].decode("utf-16-le", "replace").strip(),
+            )
+        )
         i, j = i + n, j + m
     return out

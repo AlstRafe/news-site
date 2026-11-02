@@ -6,6 +6,7 @@ article is parsed once (and again only when its size or mtime changes); the
 extracted title, lead, date and thumbnail are stored here. The HTML files stay
 the source of truth, so the index can be deleted and rebuilt at any time.
 """
+
 from __future__ import annotations
 
 import sqlite3
@@ -92,7 +93,10 @@ def sync(root: Path, db_path: Path, force: bool = False) -> dict:
         files = _scan(root)
         added = updated = 0
         with closing(connect(db_path)) as db:
-            known = {(r["source"], r["filename"]): (r["size"], r["mtime"]) for r in db.execute("SELECT source, filename, size, mtime FROM articles")}
+            known = {
+                (r["source"], r["filename"]): (r["size"], r["mtime"])
+                for r in db.execute("SELECT source, filename, size, mtime FROM articles")
+            }
             for (source, filename), path in files.items():
                 try:
                     stat = path.stat()
@@ -127,8 +131,17 @@ def sync(root: Path, db_path: Path, force: bool = False) -> dict:
 
 
 def _parse(path: Path, stat) -> dict:
-    base = {"title": path.stem, "url": "", "published": "", "lead": "", "thumb_src": "",
-            "paragraph_count": 0, "size": stat.st_size, "mtime": stat.st_mtime, "error": ""}
+    base = {
+        "title": path.stem,
+        "url": "",
+        "published": "",
+        "lead": "",
+        "thumb_src": "",
+        "paragraph_count": 0,
+        "size": stat.st_size,
+        "mtime": stat.st_mtime,
+        "error": "",
+    }
     if stat.st_size > MAX_HTML_BYTES:
         return {**base, "error": "サイズ制限超過"}
     try:
@@ -139,14 +152,22 @@ def _parse(path: Path, stat) -> dict:
     if len(lead) > LEAD_CHARS:
         lead = lead[:LEAD_CHARS].rstrip() + "…"
     images = article["images"]
-    return {**base, "title": article["title"], "url": article["url"], "published": article["published"],
-            "lead": lead, "thumb_src": images[0]["src"] if images else "",
-            "paragraph_count": article["paragraph_count"]}
+    return {
+        **base,
+        "title": article["title"],
+        "url": article["url"],
+        "published": article["published"],
+        "lead": lead,
+        "thumb_src": images[0]["src"] if images else "",
+        "paragraph_count": article["paragraph_count"],
+    }
 
 
 def sources(db_path: Path) -> list[dict]:
     with closing(connect(db_path)) as db:
-        rows = db.execute("SELECT source, COUNT(*) AS n FROM articles WHERE error='' GROUP BY source ORDER BY source COLLATE NOCASE").fetchall()
+        rows = db.execute(
+            "SELECT source, COUNT(*) AS n FROM articles WHERE error='' GROUP BY source ORDER BY source COLLATE NOCASE"
+        ).fetchall()
     return [{"name": r["source"], "count": r["n"]} for r in rows]
 
 
@@ -174,8 +195,7 @@ def list_articles(db_path: Path, source: str = "", query: str = "", page: int = 
                 LIMIT ? OFFSET ?""",
             params + [per_page, (page - 1) * per_page],
         ).fetchall()
-    return {"items": [dict(r) for r in rows], "total": total, "page": page,
-            "pages": max(1, -(-total // per_page))}
+    return {"items": [dict(r) for r in rows], "total": total, "page": page, "pages": max(1, -(-total // per_page))}
 
 
 def get(db_path: Path, article_id: int) -> dict | None:

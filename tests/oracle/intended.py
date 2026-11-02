@@ -5,6 +5,7 @@ The new extractor must equal v3 applied to ``intended_input(html)``. Each entry 
   images. Expressed as "v3 on the same page with those <img> tags removed". An unclosed
   <template> (truncated file) runs to the end of the input, as an HTML parser treats it.
 """
+
 import re
 
 _TEMPLATE = re.compile(rb"<template\b.*?(?:</template\s*>|\Z)", re.S | re.I)

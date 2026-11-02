@@ -1,4 +1,5 @@
 """End of an article: the next (older) and previous (newer) article of the same outlet."""
+
 import os
 import shutil
 import sys
@@ -49,13 +50,14 @@ class ArticleNavigationTests(unittest.TestCase):
         html = self.client.get(f"/a/{order[1]}", headers={"Host": "localhost"}).get_data(as_text=True)
         self.assertIn(f'href="/a/{order[2]}" rel="next"', html)
         self.assertIn(f'href="/a/{order[0]}" rel="prev"', html)
-        self.assertNotIn('class="next-articles"', self.client.get(f"/a/{cna}", headers={"Host": "localhost"}).get_data(as_text=True))
-
-
+        self.assertNotIn(
+            'class="next-articles"', self.client.get(f"/a/{cna}", headers={"Host": "localhost"}).get_data(as_text=True)
+        )
 
 
 class OriginalLanguageTests(unittest.TestCase):
     """Original text carries its language (Traditional Chinese glyphs, Korean line breaking)."""
+
     setUp = ArticleNavigationTests.setUp
     tearDown = ArticleNavigationTests.tearDown
 
@@ -71,10 +73,10 @@ class OriginalLanguageTests(unittest.TestCase):
         self.assertIn('<html lang="ja">', page)  # the interface itself stays Japanese
 
 
-
 class LagTests(unittest.TestCase):
     def test_time_after_the_first_report(self):
         from newsreader.web.assets import lag_filter
+
         first = "2026-10-19T12:00:00Z"
         self.assertEqual(lag_filter(first, first), "")
         self.assertEqual(lag_filter("2026-10-19T12:45:00Z", first), "+45分")
@@ -93,10 +95,12 @@ class DaySeparatorTests(unittest.TestCase):
         from datetime import datetime
 
         from newsreader.web.assets import localday_filter
+
         stamp = "2026-10-19T03:00:00Z"
         local = datetime.strptime(stamp, "%Y-%m-%dT%H:%M:%SZ").replace(tzinfo=UTC).astimezone()
         self.assertTrue(localday_filter(stamp, today=local).startswith("今日 · "))
         from datetime import timedelta
+
         self.assertTrue(localday_filter(stamp, today=local + timedelta(days=1)).startswith("昨日 · "))
         label = localday_filter(stamp, today=local + timedelta(days=5))
         self.assertEqual(label, f"{local.month}月{local.day}日（{'月火水木金土日'[local.weekday()]}）")
@@ -114,6 +118,9 @@ class VersionTests(unittest.TestCase):
             reply = client.get("/api/version", headers={"Host": "localhost"})
             self.assertEqual(reply.get_json(), {"version": version})
             self.assertEqual(reply.headers["Cache-Control"], "no-store")
-            self.assertIn(f'<meta name="app-version" content="{version}">', client.get("/", headers={"Host": "localhost"}).get_data(as_text=True))
+            self.assertIn(
+                f'<meta name="app-version" content="{version}">',
+                client.get("/", headers={"Host": "localhost"}).get_data(as_text=True),
+            )
         finally:
             shutil.rmtree(tmp, ignore_errors=True)

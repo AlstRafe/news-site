@@ -1,4 +1,5 @@
 """訳文の数字チェック (D-69): static/numcheck.js, run with Node when it is installed."""
+
 import json
 import shutil
 import subprocess
@@ -23,8 +24,10 @@ CASES = [
 @unittest.skipUnless(shutil.which("node"), "Node.js is not installed")
 class NumberCheckTests(unittest.TestCase):
     def test_cases(self):
-        program = (f"const nc = require({json.dumps(str(SCRIPT))});"
-                   f"console.log(JSON.stringify({json.dumps([[a, b] for a, b, _ in CASES])}.map(([a, b]) => nc.missing(a, b))));")
+        program = (
+            f"const nc = require({json.dumps(str(SCRIPT))});"
+            f"console.log(JSON.stringify({json.dumps([[a, b] for a, b, _ in CASES])}.map(([a, b]) => nc.missing(a, b))));"
+        )
         out = json.loads(subprocess.run(["node", "-e", program], capture_output=True, text=True, check=True).stdout)
         self.assertEqual(out, [expected for _, _, expected in CASES])
 

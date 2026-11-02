@@ -1,4 +1,5 @@
 """Per-PC library folder setting and the frozen static files of a production server."""
+
 import json
 import shutil
 import sys
@@ -46,9 +47,12 @@ class LibraryDirTests(unittest.TestCase):
 
     def test_launcher_uses_the_saved_folder(self):
         import launcher
+
         settings.save_library_dir(str(self.library))
-        with mock.patch.object(launcher, "SETTINGS_PATH", settings.SETTINGS_PATH), \
-                mock.patch.dict("os.environ", {"HTML_DIRECTORY": ""}):
+        with (
+            mock.patch.object(launcher, "SETTINGS_PATH", settings.SETTINGS_PATH),
+            mock.patch.dict("os.environ", {"HTML_DIRECTORY": ""}),
+        ):
             self.assertEqual(launcher.resolve_article_directory(), self.library.resolve())
         with mock.patch.dict("os.environ", {"HTML_DIRECTORY": str(self.tmp)}):
             self.assertEqual(launcher.resolve_article_directory(), self.tmp.resolve())
@@ -78,18 +82,30 @@ class LibraryDirTests(unittest.TestCase):
 
     def test_settings_page_saves_and_keeps_other_keys(self):
         from newsreader.web import create_app
+
         app = create_app(self.library, self.tmp / "db.sqlite3", start_background=False, secret_key=b"k" * 32)
         client = app.test_client()
         page = client.get("/translation-settings", headers=H).get_data(as_text=True)
         self.assertIn(str(self.library), page)
         with client.session_transaction() as session:
             token = session["csrf"]
-        form = {"csrf": token, "provider": "azure", "deepl_endpoint": "auto", "azure_region": "",
-                "network_bind_host": "", "network_port": "", "naver_search_query": "뉴스",
-                "library_dir": str(self.library)}
-        self.assertIn("設定を保存しました", client.post("/translation-settings", headers=H, data=form).get_data(as_text=True))
+        form = {
+            "csrf": token,
+            "provider": "azure",
+            "deepl_endpoint": "auto",
+            "azure_region": "",
+            "network_bind_host": "",
+            "network_port": "",
+            "naver_search_query": "뉴스",
+            "library_dir": str(self.library),
+        }
+        self.assertIn(
+            "設定を保存しました", client.post("/translation-settings", headers=H, data=form).get_data(as_text=True)
+        )
         self.assertEqual(paths.configured_library_dir(), str(self.library))
-        bad = client.post("/translation-settings", headers=H, data={**form, "library_dir": "nowhere"}).get_data(as_text=True)
+        bad = client.post("/translation-settings", headers=H, data={**form, "library_dir": "nowhere"}).get_data(
+            as_text=True
+        )
         self.assertIn("絶対パス", bad)
         self.assertEqual(paths.configured_library_dir(), str(self.library))
         self.assertIn(str(self.library), client.get("/status", headers=H).get_data(as_text=True))
@@ -104,7 +120,7 @@ class FrozenStaticTests(unittest.TestCase):
             self.assertEqual(frozen.get("app.js").data, b"old")
             (tmp / "app.js").write_text("new version", encoding="utf-8")
             (tmp / "added.js").write_text("x", encoding="utf-8")
-            self.assertEqual(frozen.get("app.js").data, b"old")   # matches the templates it compiled
+            self.assertEqual(frozen.get("app.js").data, b"old")  # matches the templates it compiled
             self.assertIsNone(frozen.get("added.js"))
             self.assertEqual(live.get("app.js").data, b"new version")
             self.assertIsNone(frozen.get("../etc/passwd"))

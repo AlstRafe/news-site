@@ -26,17 +26,22 @@ class StyleTests(unittest.TestCase):
                 self.assertEqual(ja_polish.polish(given), expected)
 
     def test_quoted_speech_keeps_its_own_style(self):
-        self.assertEqual(ja_polish.polish("彼は「私は行きます。本当です」と述べました。"),
-                         "彼は「私は行きます。本当です」と述べた。")
+        self.assertEqual(
+            ja_polish.polish("彼は「私は行きます。本当です」と述べました。"), "彼は「私は行きます。本当です」と述べた。"
+        )
         # A quotation that runs across sentences stays untouched to its end.
-        self.assertEqual(ja_polish.polish_pieces(["彼は「明日行きます。", "必ず行きます」と話しました。"]),
-                         ["彼は「明日行きます。", "必ず行きます」と話した。"])
+        self.assertEqual(
+            ja_polish.polish_pieces(["彼は「明日行きます。", "必ず行きます」と話しました。"]),
+            ["彼は「明日行きます。", "必ず行きます」と話した。"],
+        )
 
     def test_typography(self):
-        self.assertEqual(ja_polish.polish('BBC の記者は ( 匿名 ) "重大な問題" と述べた。 その後、彼は 去った。'),
-                         "BBCの記者は（匿名）「重大な問題」と述べた。その後、彼は去った。")
+        self.assertEqual(
+            ja_polish.polish('BBC の記者は ( 匿名 ) "重大な問題" と述べた。 その後、彼は 去った。'),
+            "BBCの記者は（匿名）「重大な問題」と述べた。その後、彼は去った。",
+        )
         self.assertEqual(ja_polish.polish("Ｇ７は２０日"), "G7は20日")
-        self.assertEqual(ja_polish.polish("The (UN) said \"no\"."), "The (UN) said \"no\".", "English is left alone")
+        self.assertEqual(ja_polish.polish('The (UN) said "no".'), 'The (UN) said "no".', "English is left alone")
 
     def test_without_the_analyser_only_typography_changes(self):
         with mock.patch.object(ja_polish, "_analyser", return_value=None):
@@ -48,16 +53,25 @@ class TranslationTests(unittest.TestCase):
         source = "Police arrested her. She admitted it."
         raw = "警察は彼女を逮捕しました。 彼女はそれを認めた。"
         kept = {}
-        with mock.patch.object(sentences, "cache_get", side_effect=lambda kind, key: kept.get(key)), \
-                mock.patch.object(sentences, "cache_put", side_effect=lambda kind, key, value, **_: kept.__setitem__(key, value)):
+        with (
+            mock.patch.object(sentences, "cache_get", side_effect=lambda kind, key: kept.get(key)),
+            mock.patch.object(
+                sentences, "cache_put", side_effect=lambda kind, key, value, **_: kept.__setitem__(key, value)
+            ),
+        ):
             sentences.remember("ja", source, raw, [21, 16], [14, 12])
             text = translation.polished("ja", source, raw)
             self.assertEqual(text, "警察は彼女を逮捕した。彼女はそれを認めた。")
-            self.assertEqual(sentences.pairs("ja", source, text),
-                             [("Police arrested her.", "警察は彼女を逮捕した。"), ("She admitted it.", "彼女はそれを認めた。")])
+            self.assertEqual(
+                sentences.pairs("ja", source, text),
+                [("Police arrested her.", "警察は彼女を逮捕した。"), ("She admitted it.", "彼女はそれを認めた。")],
+            )
 
     def test_names_the_engine_gets_wrong(self):
-        self.assertEqual(translation.polished("ja", "（中央社東京20日綜合外電報導）", "（中央通信、東京、20日）"), "（中央社、東京、20日）")
+        self.assertEqual(
+            translation.polished("ja", "（中央社東京20日綜合外電報導）", "（中央通信、東京、20日）"),
+            "（中央社、東京、20日）",
+        )
         self.assertEqual(translation.polished("en", "x", "Police arrested her. "), "Police arrested her. ")
 
 
@@ -68,7 +82,10 @@ if __name__ == "__main__":
 class CnaFilingCodeTests(unittest.TestCase):
     def test_filing_code_after_the_editor_is_dropped(self):
         from newsreader.sources import cna
-        self.assertEqual(cna._without_filing_code(["本文。", "（編輯：楊惟敬）1151020"]), ["本文。", "（編輯：楊惟敬）"])
+
+        self.assertEqual(
+            cna._without_filing_code(["本文。", "（編輯：楊惟敬）1151020"]), ["本文。", "（編輯：楊惟敬）"]
+        )
         self.assertEqual(cna._without_filing_code(["人口為2345678"]), ["人口為2345678"])
 
 
@@ -92,21 +109,39 @@ class HeadlineTests(unittest.TestCase):
                 self.assertEqual(ja_polish.headline(text), expected)
 
     def test_left_alone(self):
-        for text in ("Microsoft、新しいAIモデルを発表", "北朝鮮がミサイル発射", "彼は行かなかった",
-                     "米国の利上げは近い", "「戦争は終わった」と語る", "Apple unveils new iPhone"):
+        for text in (
+            "Microsoft、新しいAIモデルを発表",
+            "北朝鮮がミサイル発射",
+            "彼は行かなかった",
+            "米国の利上げは近い",
+            "「戦争は終わった」と語る",
+            "Apple unveils new iPhone",
+        ):
             with self.subTest(text=text):
                 self.assertEqual(ja_polish.headline(text), text)
 
     def test_only_titles_are_cut_to_headline_form(self):
-        with mock.patch.object(translation, "active_provider", return_value="azure"), \
-                mock.patch.object(translation, "cache_get", return_value=None), \
-                mock.patch.object(translation, "cache_put"), \
-                mock.patch.object(translation, "_translate_batch", side_effect=lambda p, texts, t: ["警察は容疑者を逮捕した。"] * len(texts)):
+        with (
+            mock.patch.object(translation, "active_provider", return_value="azure"),
+            mock.patch.object(translation, "cache_get", return_value=None),
+            mock.patch.object(translation, "cache_put"),
+            mock.patch.object(
+                translation,
+                "_translate_batch",
+                side_effect=lambda p, texts, t: ["警察は容疑者を逮捕した。"] * len(texts),
+            ),
+        ):
             self.assertEqual(translation.translate_titles(["Police arrest suspect"], "ja"), ["警察は容疑者を逮捕"])
-            self.assertEqual(translation.translate_titles(["Police arrest suspect"], "ja", kind="lead"), ["警察は容疑者を逮捕した。"])
+            self.assertEqual(
+                translation.translate_titles(["Police arrest suspect"], "ja", kind="lead"), ["警察は容疑者を逮捕した。"]
+            )
 
     def test_kept_titles_are_read_without_sending(self):
-        with mock.patch.object(translation, "active_provider", return_value="azure"), \
-                mock.patch.object(translation, "cache_get", side_effect=lambda kind, key: "首相が辞任した" if kind == "title" else None), \
-                mock.patch.object(translation, "_translate_batch", side_effect=AssertionError("must not send")):
+        with (
+            mock.patch.object(translation, "active_provider", return_value="azure"),
+            mock.patch.object(
+                translation, "cache_get", side_effect=lambda kind, key: "首相が辞任した" if kind == "title" else None
+            ),
+            mock.patch.object(translation, "_translate_batch", side_effect=AssertionError("must not send")),
+        ):
             self.assertEqual(translation.cached_titles(["PM resigns", ""], "ja"), ["首相が辞任", ""])

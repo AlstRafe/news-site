@@ -8,6 +8,7 @@ An ``articleBody`` in the page's JSON-LD is used instead when the page gave far 
 ``site(...)`` makes an adapter module-like object (NAME, HOSTS, matches, parse) for a set of
 hosts, so adding an outlet is one line in ``sources/__init__.py`` and one feed in the collector.
 """
+
 from __future__ import annotations
 
 import json
@@ -27,7 +28,9 @@ SHARE = 0.7
 #: Lines that end or interrupt articles on many sites and are not the article.
 _BOILERPLATE = re.compile(
     r"^(?:copyright|©|\(c\)|all rights reserved|read more|related:|see also|subscribe|sign up|advertisement|"
-    r"follow us|share this|this article (?:was|is) |版權所有|著作權|더보기|무단\s?전재|저작권자|<저작권자)", re.I)
+    r"follow us|share this|this article (?:was|is) |版權所有|著作權|더보기|무단\s?전재|저작권자|<저작권자)",
+    re.I,
+)
 
 
 def _text(tag: Tag) -> str:

@@ -5,6 +5,7 @@ secret key, index, status). Modules keep their paths as module attributes; this 
 fixture points all of them at a temporary directory before any test runs, and the
 test-suite-level check at the end proves nothing was created in the project's instance/.
 """
+
 import shutil
 import sys
 import tempfile

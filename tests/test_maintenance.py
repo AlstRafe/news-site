@@ -1,5 +1,6 @@
 """Phase 8: maintenance commands — dry run by default, only inside the root, never via symlinks,
 slimming only when extraction stays identical. Everything runs on a temp copy."""
+
 import hashlib
 import os
 import shutil
@@ -18,11 +19,15 @@ from newsreader.library import index, maintenance
 from newsreader.sources import extract_article
 from newsreader.sources.slim import slim_html, slim_if_equivalent
 
-FAT = NORMAL.replace(b"<head>", b'<head><link rel="canonical" href="https://www.bbc.com/news/articles/c1">'
-                                 b"<script>" + b"var x = 1;" * 3000 + b"</script><style>p{color:red}</style>")
+FAT = NORMAL.replace(
+    b"<head>",
+    b'<head><link rel="canonical" href="https://www.bbc.com/news/articles/c1">'
+    b"<script>" + b"var x = 1;" * 3000 + b"</script><style>p{color:red}</style>",
+)
 # Text inside an inline <svg> is extracted; slimming would remove it -> must stay untouched.
 KEEP = CNA.replace(b"<p>Second CNA paragraph.</p>", b"<p>Chart<svg><text>2026</text></svg></p>").replace(
-    b"</article>", b"<script>" + b"y" * 4000 + b"</script></article>")
+    b"</article>", b"<script>" + b"y" * 4000 + b"</script></article>"
+)
 
 
 def tree_digest(root: Path) -> dict[str, str]:
@@ -30,7 +35,9 @@ def tree_digest(root: Path) -> dict[str, str]:
     for dirpath, _, filenames in os.walk(root, followlinks=False):
         for name in filenames:
             path = Path(dirpath) / name
-            out[str(path.relative_to(root))] = hashlib.sha256(path.read_bytes()).hexdigest() if not path.is_symlink() else "link"
+            out[str(path.relative_to(root))] = (
+                hashlib.sha256(path.read_bytes()).hexdigest() if not path.is_symlink() else "link"
+            )
     return out
 
 
@@ -64,6 +71,7 @@ class DryRunTests(MaintenanceTestCase):
         index.sync(self.root, db, force=True)
         before_db = tree_digest(self.tmp)
         from unittest import mock
+
         # The commands must see this index (a WAL database): even opening it read-only would
         # leave -wal/-shm files behind, which a dry run must not do.
         with mock.patch.object(index, "DEFAULT_DB_PATH", db):

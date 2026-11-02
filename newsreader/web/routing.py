@@ -5,6 +5,7 @@ templates' contract and predate the split into modules; a Blueprint would rename
 to "pages.index" etc. Each view module collects its routes here and ``create_app``
 registers them under their plain names.
 """
+
 from __future__ import annotations
 
 from flask import Flask
@@ -18,6 +19,7 @@ class Routes:
         def decorator(view):
             self._rules.append((rule, endpoint, view, methods))
             return view
+
         return decorator
 
     def get(self, rule: str, endpoint: str):

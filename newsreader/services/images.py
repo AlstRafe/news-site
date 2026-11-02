@@ -9,6 +9,7 @@ Only https URLs on the four known image hosts are fetched, redirects may not lea
 hosts, responses are size-capped and must really be images (magic bytes), so a crafted
 saved page cannot turn the app into a fetcher of arbitrary URLs.
 """
+
 from __future__ import annotations
 
 import hashlib
@@ -33,14 +34,17 @@ FAILURE_TTL_SECONDS = 10 * 60
 #: Upper bound on simultaneous downloads; the rest wait instead of piling up on the network.
 MAX_PARALLEL_FETCHES = 6
 
-IMAGE_HOSTS = frozenset({
-    "ichef.bbci.co.uk",
-    "imgnews.pstatic.net",
-    "mimgnews.pstatic.net",
-    "imgcdn.cna.com.tw",
-    # Yonhap serves article photos from img.yna.co.kr and the numbered mirrors img1–img9.
-    "img.yna.co.kr", *(f"img{n}.yna.co.kr" for n in range(1, 10)),
-})
+IMAGE_HOSTS = frozenset(
+    {
+        "ichef.bbci.co.uk",
+        "imgnews.pstatic.net",
+        "mimgnews.pstatic.net",
+        "imgcdn.cna.com.tw",
+        # Yonhap serves article photos from img.yna.co.kr and the numbered mirrors img1–img9.
+        "img.yna.co.kr",
+        *(f"img{n}.yna.co.kr" for n in range(1, 10)),
+    }
+)
 MIME_EXTENSIONS = {
     "image/jpeg": ".jpg",
     "image/png": ".png",

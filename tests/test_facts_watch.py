@@ -1,5 +1,6 @@
 """数字の見張り (D-59): recent multi-outlet groups compared in the background; the home page lists
 the ones whose outlets disagree on a count."""
+
 import json
 import shutil
 import sys
@@ -29,24 +30,59 @@ class FactsWatchTests(unittest.TestCase):
         (self.tmp / "articles").mkdir()
         self.db = self.tmp / "library.sqlite3"
         self.contents = {}
-        self.add_group("s1", [(1, "BBC", "en", "Missile strike on camp kills 50", "Missile strike on camp kills 50", 2,
-                               "More than 50 people were killed in the strike."),
-                              (2, "Yonhap", "ko", "미사일 공격…최소 20명 사망", "Missile attack... at least 20 dead", 5,
-                               "공격으로 최소 20명이 숨졌다.")])
-        self.add_group("s3", [(3, "BBC", "en", "Fire at factory, 3 dead", "Fire at factory, 3 dead", 3,
-                               "Three people died in the fire."),
-                              (4, "CNA", "zh", "工廠火災3死", "Factory fire kills 3", 4, "火災造成3人死亡。")])
+        self.add_group(
+            "s1",
+            [
+                (
+                    1,
+                    "BBC",
+                    "en",
+                    "Missile strike on camp kills 50",
+                    "Missile strike on camp kills 50",
+                    2,
+                    "More than 50 people were killed in the strike.",
+                ),
+                (
+                    2,
+                    "Yonhap",
+                    "ko",
+                    "미사일 공격…최소 20명 사망",
+                    "Missile attack... at least 20 dead",
+                    5,
+                    "공격으로 최소 20명이 숨졌다.",
+                ),
+            ],
+        )
+        self.add_group(
+            "s3",
+            [
+                (
+                    3,
+                    "BBC",
+                    "en",
+                    "Fire at factory, 3 dead",
+                    "Fire at factory, 3 dead",
+                    3,
+                    "Three people died in the fire.",
+                ),
+                (4, "CNA", "zh", "工廠火災3死", "Factory fire kills 3", 4, "火災造成3人死亡。"),
+            ],
+        )
         self.translated = []
 
         def to_english(texts):
             self.translated.append(list(texts))
-            table = {"공격으로 최소 20명이 숨졌다.": "At least 20 people were killed in the attack.",
-                     "火災造成3人死亡。": "The fire killed 3 people."}
+            table = {
+                "공격으로 최소 20명이 숨졌다.": "At least 20 people were killed in the attack.",
+                "火災造成3人死亡。": "The fire killed 3 people.",
+            }
             return [table.get(t, t) for t in texts]
 
         self.to_english = to_english
-        self.patches = [mock.patch.object(index, "get_content", lambda db, aid: self.contents.get(aid)),
-                        mock.patch.object(cache, "CACHE_PATH", self.tmp / "cache.sqlite3")]
+        self.patches = [
+            mock.patch.object(index, "get_content", lambda db, aid: self.contents.get(aid)),
+            mock.patch.object(cache, "CACHE_PATH", self.tmp / "cache.sqlite3"),
+        ]
         for patch in self.patches:
             patch.start()
 
@@ -58,10 +94,15 @@ class FactsWatchTests(unittest.TestCase):
     def add_group(self, key, rows):
         with closing(index.connect(self.db)) as db:
             for aid, source, lang, title, pivot, hours, body in rows:
-                db.execute("INSERT INTO articles(id, source, filename, title, published, paragraph_count, size, mtime)"
-                           " VALUES(?,?,?,?,?,9,1,1)", (aid, source, f"{aid}.html", title, iso(hours)))
-                db.execute("INSERT INTO story_items(article_id, title, lang, pivot, pivot_chars, pivot_at) VALUES(?,?,?,?,0,'')",
-                           (aid, title, lang, pivot))
+                db.execute(
+                    "INSERT INTO articles(id, source, filename, title, published, paragraph_count, size, mtime)"
+                    " VALUES(?,?,?,?,?,9,1,1)",
+                    (aid, source, f"{aid}.html", title, iso(hours)),
+                )
+                db.execute(
+                    "INSERT INTO story_items(article_id, title, lang, pivot, pivot_chars, pivot_at) VALUES(?,?,?,?,0,'')",
+                    (aid, title, lang, pivot),
+                )
                 db.execute("INSERT INTO story_members(article_id, story_key, score) VALUES(?,?,0.5)", (aid, key))
                 self.contents[aid] = {"paragraphs": [body]}
 
@@ -101,8 +142,12 @@ class FactsWatchTests(unittest.TestCase):
     def test_home_page_lists_the_disagreement(self):
         facts_watch.refresh(self.db, self.to_english)
         with mock.patch.object(ts, "_translate_batch", lambda provider, texts, target: texts):
-            page = create_app(self.tmp / "articles", self.db, start_background=False,
-                              secret_key=b"f" * 32).test_client().get("/", headers=H).get_data(as_text=True)
+            page = (
+                create_app(self.tmp / "articles", self.db, start_background=False, secret_key=b"f" * 32)
+                .test_client()
+                .get("/", headers=H)
+                .get_data(as_text=True)
+            )
         self.assertIn("数字が食い違うニュース", page)
         self.assertIn('href="/stories/s1#facts"', page)
         self.assertIn("少なくとも 20人", page)
@@ -125,9 +170,20 @@ class FactsWatchTests(unittest.TestCase):
     def test_article_page_says_its_group_disagrees(self):
         facts_watch.refresh(self.db)
         client = create_app(self.tmp / "articles", self.db, start_background=False, secret_key=b"f" * 32).test_client()
-        with mock.patch("newsreader.web.pages.load_article", lambda record: {"title": "t", "paragraphs": ["p"], "kind": "k",
-                                                                            "paragraph_count": 1, "images": [], "url": ""}), \
-                mock.patch.object(ts, "_translate_batch", lambda provider, texts, target: texts):
+        with (
+            mock.patch(
+                "newsreader.web.pages.load_article",
+                lambda record: {
+                    "title": "t",
+                    "paragraphs": ["p"],
+                    "kind": "k",
+                    "paragraph_count": 1,
+                    "images": [],
+                    "url": "",
+                },
+            ),
+            mock.patch.object(ts, "_translate_batch", lambda provider, texts, target: texts),
+        ):
             page = client.get("/a/1", headers=H).get_data(as_text=True)
             other = client.get("/a/3", headers=H).get_data(as_text=True)
         self.assertIn('class="article-dispute" href="/stories/s1#facts"', page)
@@ -147,7 +203,10 @@ class FactsWatchTests(unittest.TestCase):
     def test_summary_keeps_compared_counts_only(self):
         facts_watch.refresh(self.db, self.to_english)
         with closing(index.connect(self.db)) as db:
-            kinds = [k["kind"] for k in json.loads(db.execute("SELECT summary FROM story_facts WHERE story_key='s1'").fetchone()[0])]
+            kinds = [
+                k["kind"]
+                for k in json.loads(db.execute("SELECT summary FROM story_facts WHERE story_key='s1'").fetchone()[0])
+            ]
         self.assertEqual(kinds, ["dead"])
 
 

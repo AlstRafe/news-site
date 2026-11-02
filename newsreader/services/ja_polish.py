@@ -10,6 +10,7 @@ The style change needs a morphological analyser (Janome, pure Python): ``ませ�
 ``なかった``, ``書きました`` is ``書いた`` but ``起きました`` is ``起きた``. Without it only the
 typography is fixed. Every function returns its input unchanged when unsure.
 """
+
 from __future__ import annotations
 
 import functools
@@ -25,7 +26,9 @@ _HAS_JA = re.compile(r"[぀-ヿ㐀-鿿]")
 _PARENS = re.compile(r"\(([^()]*)\)")
 _QUOTES = re.compile(r"\"([^\"\n]+)\"|“([^“”\n]+)”")
 _COMMA = re.compile(rf"(?<=[{_JA}]),\s*(?=[{_JA}])")
-_WIDE_ALNUM = str.maketrans({chr(c): chr(c - 0xFEE0) for c in [*range(0xFF10, 0xFF1A), *range(0xFF21, 0xFF3B), *range(0xFF41, 0xFF5B)]})
+_WIDE_ALNUM = str.maketrans(
+    {chr(c): chr(c - 0xFEE0) for c in [*range(0xFF10, 0xFF1A), *range(0xFF21, 0xFF3B), *range(0xFF41, 0xFF5B)]}
+)
 #: Polite forms a sentence may still contain; nothing to do for the analyser without them.
 _POLITE = re.compile("ま[すしせ]|で[すし]")
 
@@ -36,8 +39,9 @@ def typography(text: str) -> str:
         return text
     text = text.translate(_WIDE_ALNUM)
     text = _PARENS.sub(lambda m: f"（{m.group(1)}）" if _HAS_JA.search(m.group(1)) else m.group(0), text)
-    text = _QUOTES.sub(lambda m: (f"「{m.group(1) or m.group(2)}」" if _HAS_JA.search(m.group(1) or m.group(2))
-                                  else m.group(0)), text)
+    text = _QUOTES.sub(
+        lambda m: f"「{m.group(1) or m.group(2)}」" if _HAS_JA.search(m.group(1) or m.group(2)) else m.group(0), text
+    )
     text = _COMMA.sub("、", text)
     text = _SPACE_AFTER_PUNCT.sub("", text)
     text = _SPACE_BETWEEN.sub("", text)
@@ -58,6 +62,7 @@ def _analyser():
             if _tokenizer is None:
                 try:
                     from janome.tokenizer import Tokenizer
+
                     _tokenizer = Tokenizer()
                 except Exception:  # noqa: BLE001 - not installed / broken: typography only
                     _tokenizer = _UNAVAILABLE
@@ -120,8 +125,12 @@ def _plain(token, before) -> str | None:
 
 
 def _is(token, pos: str, kind: str = "", surface: str = "") -> bool:
-    return (token is not None and token.part_of_speech.startswith(pos) and token.infl_type.startswith(kind)
-            and (not surface or token.surface == surface))
+    return (
+        token is not None
+        and token.part_of_speech.startswith(pos)
+        and token.infl_type.startswith(kind)
+        and (not surface or token.surface == surface)
+    )
 
 
 def _restyle(tokens: list, depth: int) -> tuple[str, int]:
@@ -164,7 +173,8 @@ def _restyle(tokens: list, depth: int) -> tuple[str, int]:
             before = at(i - 1)
             after_adjective = before is not None and (
                 before.part_of_speech.startswith("形容詞")
-                or (before.part_of_speech.startswith("助動詞") and before.base_form in ("ない", "たい", "らしい", "た")))
+                or (before.part_of_speech.startswith("助動詞") and before.base_form in ("ない", "たい", "らしい", "た"))
+            )
             if token.surface == "です":
                 if after_adjective or _is(nxt, "助詞", surface="か"):
                     i += 1
@@ -172,8 +182,12 @@ def _restyle(tokens: list, depth: int) -> tuple[str, int]:
                     out.append("だ")
                     i += 1
                 continue
-            if (token.surface == "でし" and _is(nxt, "助動詞", "特殊・タ") and not after_adjective
-                    and not _is(before, "助動詞", surface="ん")):
+            if (
+                token.surface == "でし"
+                and _is(nxt, "助動詞", "特殊・タ")
+                and not after_adjective
+                and not _is(before, "助動詞", surface="ん")
+            ):
                 out.append("だった")
                 i += 2
                 continue
@@ -237,7 +251,14 @@ def polish(text: str) -> str:
 # ---- 見出し（文の形 → 見出しの形） ---------------------------------------------------
 
 #: Passive and plain endings a headline drops after a サ変 noun: 確認した → 確認, 逮捕された → 逮捕.
-_SURU_TAIL = (("し", "た"), ("する",), ("し", "て", "いる"), ("さ", "れ", "た"), ("さ", "れる"), ("し", "て", "い", "た"))
+_SURU_TAIL = (
+    ("し", "た"),
+    ("する",),
+    ("し", "て", "いる"),
+    ("さ", "れ", "た"),
+    ("さ", "れる"),
+    ("し", "て", "い", "た"),
+)
 
 
 @functools.lru_cache(maxsize=4096)
@@ -267,13 +288,18 @@ def headline(text: str) -> str:
             break
     if keep is None:
         last, before = tokens[-1], tokens[-2]
-        verb = lambda t: (t.part_of_speech.startswith("動詞,自立") and t.base_form not in ("*", "")  # noqa: E731
-                          and t.infl_form.startswith("連用"))
-        if (last.infl_type == "特殊・ダ" and last.surface == "だ"
-                and (before.part_of_speech.startswith("名詞") or before.part_of_speech.startswith("副詞,助詞類接続"))):
+        verb = lambda t: (
+            t.part_of_speech.startswith("動詞,自立")
+            and t.base_form not in ("*", "")  # noqa: E731
+            and t.infl_form.startswith("連用")
+        )
+        if (
+            last.infl_type == "特殊・ダ"
+            and last.surface == "だ"
+            and (before.part_of_speech.startswith("名詞") or before.part_of_speech.startswith("副詞,助詞類接続"))
+        ):
             keep = "".join(surfaces[:-1])
-        elif (len(tokens) > 2 and surfaces[-2:] == ["で", "ある"]
-              and tokens[-3].part_of_speech.startswith("名詞")):
+        elif len(tokens) > 2 and surfaces[-2:] == ["で", "ある"] and tokens[-3].part_of_speech.startswith("名詞"):
             keep = "".join(surfaces[:-2])
         elif last.infl_type == "特殊・タ" and last.surface in ("た", "だ") and verb(before):
             # The base form comes from the dictionary, so sound changes need no rules: 読んだ → 読む.

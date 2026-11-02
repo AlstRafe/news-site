@@ -7,28 +7,28 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 from newsreader.library.files import list_html_files, resolve_html_file, validate_directory
 from newsreader.sources import ReaderError, extract_article
 
-VIDEO = b'''<html><head><meta name="pagetype" content="Video Item"></head><body>
+VIDEO = b"""<html><head><meta name="pagetype" content="Video Item"></head><body>
 <main id="bbc-main"><h1>Video Headline</h1>
 <div data-testid="video-page-video-section"><div class="VideoDetailsPage-styles__TextStyled-test">
 <p class="Paragraph-styles__ParagraphStyled-test">First video paragraph.</p>
 <p class="Paragraph-styles__ParagraphStyled-test">Second video paragraph.</p>
 <p class="Paragraph-styles__ParagraphStyled-test">More on this story.</p></div></div>
-<p>Related content that must NOT appear</p></main></body></html>'''
-NORMAL = b'''<html><head><meta name="pagetype" content="News Article"></head><body>
+<p>Related content that must NOT appear</p></main></body></html>"""
+NORMAL = b"""<html><head><meta name="pagetype" content="News Article"></head><body>
 <main id="bbc-main"><h1>News Headline</h1><article>
 <div data-component="layout-block"><p class="Paragraph-styles__ParagraphStyled-x">News paragraph one.</p></div>
 <div data-component="layout-block"><p class="Paragraph-styles__ParagraphStyled-x">News paragraph two.</p></div>
-</article><p>Recommendation that must NOT appear</p></main></body></html>'''
-NAVER = b'''<html><head><meta property="og:url" content="https://n.news.naver.com/article/449/0000363671"></head><body>
+</article><p>Recommendation that must NOT appear</p></main></body></html>"""
+NAVER = b"""<html><head><meta property="og:url" content="https://n.news.naver.com/article/449/0000363671"></head><body>
 <h2 id="title_area">NAVER headline</h2><div id="newsct_article"><article id="dic_area">
 First Naver paragraph.<br><br>Second Naver paragraph.
-</article><p>Recommendation that must NOT appear</p></div></body></html>'''
-CNA = b'''<html><head><link rel="canonical" href="https://www.cna.com.tw/news/aopl/example.aspx"></head><body>
+</article><p>Recommendation that must NOT appear</p></div></body></html>"""
+CNA = b"""<html><head><link rel="canonical" href="https://www.cna.com.tw/news/aopl/example.aspx"></head><body>
 <article class="article"><h1>CNA headline</h1><div class="centralContent">
 <div class="paragraph"><p>First CNA paragraph.</p></div><div class="paragraph"><p>Second CNA paragraph.</p></div>
 <div class="paragraph moreArticle"><p>Related story that must NOT appear.</p></div>
 <div class="paragraph appDownload"><p>Site notice that must NOT appear.</p></div>
-</div></article></body></html>'''
+</div></article></body></html>"""
 
 
 class ExtractorTests(unittest.TestCase):

@@ -11,6 +11,7 @@
 
 Readers (``list_stories``, ``get_story``, ``related``) only query.
 """
+
 from __future__ import annotations
 
 import logging
@@ -48,16 +49,30 @@ def _write(db, statements) -> None:
     index._write(db, statements)
 
 
-def refresh(db_path: Path, *, translate: Translator | None, enabled: bool = True,
-            daily_chars: int = 8_000, status_path: Path | None = None) -> dict:
+def refresh(
+    db_path: Path,
+    *,
+    translate: Translator | None,
+    enabled: bool = True,
+    daily_chars: int = 8_000,
+    status_path: Path | None = None,
+) -> dict:
     """Bring pivots and groups up to date. ``translate`` None = no provider key (English only)."""
     with _refresh_lock:
         started = time.perf_counter()
         result = _refresh_locked(Path(db_path), translate, enabled, daily_chars)
         result["seconds"] = round(time.perf_counter() - started, 2)
-        status.update("stories", {**result, "refreshed": status.now_iso(), "enabled": enabled,
-                                  "daily_limit": daily_chars, "key_configured": translate is not None},
-                      path=status_path or Path(db_path).parent / "status.json")
+        status.update(
+            "stories",
+            {
+                **result,
+                "refreshed": status.now_iso(),
+                "enabled": enabled,
+                "daily_limit": daily_chars,
+                "key_configured": translate is not None,
+            },
+            path=status_path or Path(db_path).parent / "status.json",
+        )
         return result
 
 
@@ -65,12 +80,18 @@ def _refresh_locked(db_path: Path, translate: Translator | None, enabled: bool, 
     error = ""
     with closing(index.connect(db_path)) as db:
         # Orphans can appear if an older version (without foreign keys) deleted articles.
-        _write(db, [("DELETE FROM story_items WHERE article_id NOT IN (SELECT id FROM articles)", ()),
-                    ("DELETE FROM story_members WHERE article_id NOT IN (SELECT id FROM articles)", ())])
+        _write(
+            db,
+            [
+                ("DELETE FROM story_items WHERE article_id NOT IN (SELECT id FROM articles)", ()),
+                ("DELETE FROM story_members WHERE article_id NOT IN (SELECT id FROM articles)", ()),
+            ],
+        )
         rows = db.execute(
             """SELECT a.id, a.title, a.published, s.title AS pivot_title, s.pivot
                FROM articles a LEFT JOIN story_items s ON s.article_id = a.id
-               WHERE a.error = '' ORDER BY a.published DESC, a.id DESC""").fetchall()
+               WHERE a.error = '' ORDER BY a.published DESC, a.id DESC"""
+        ).fetchall()
 
         # 1. pivots for new or re-titled articles: English at once, others queued for translation.
         statements, waiting = [], []
@@ -82,11 +103,21 @@ def _refresh_locked(db_path: Path, translate: Translator | None, enabled: bool, 
                 continue
             lang = core.detect_lang(row["title"])
             if lang == "en":
-                statements.append(("INSERT OR REPLACE INTO story_items(article_id, title, lang, pivot, pivot_chars, pivot_at) "
-                                   "VALUES(?,?,?,?,0,?)", (row["id"], row["title"], lang, row["title"], status.now_iso())))
+                statements.append(
+                    (
+                        "INSERT OR REPLACE INTO story_items(article_id, title, lang, pivot, pivot_chars, pivot_at) "
+                        "VALUES(?,?,?,?,0,?)",
+                        (row["id"], row["title"], lang, row["title"], status.now_iso()),
+                    )
+                )
             else:
-                statements.append(("INSERT OR REPLACE INTO story_items(article_id, title, lang, pivot, pivot_chars, pivot_at) "
-                                   "VALUES(?,?,?,NULL,0,'')", (row["id"], row["title"], lang)))
+                statements.append(
+                    (
+                        "INSERT OR REPLACE INTO story_items(article_id, title, lang, pivot, pivot_chars, pivot_at) "
+                        "VALUES(?,?,?,NULL,0,'')",
+                        (row["id"], row["title"], lang),
+                    )
+                )
                 waiting.append(row)
         _write(db, statements)
 
@@ -105,11 +136,23 @@ def _refresh_locked(db_path: Path, translate: Translator | None, enabled: bool, 
                 try:
                     pivots = translate([row["title"] for row in batch])
                     now = status.now_iso()
-                    _write(db, [("UPDATE story_items SET pivot=?, pivot_chars=?, pivot_at=? WHERE article_id=?",
-                                 (pivot or row["title"], len(row["title"]), now, row["id"]))
-                                for row, pivot in zip(batch, pivots)]
-                           + [("INSERT INTO story_usage(day, chars) VALUES(?, ?) "
-                               "ON CONFLICT(day) DO UPDATE SET chars = chars + excluded.chars", (_today(), size))])
+                    _write(
+                        db,
+                        [
+                            (
+                                "UPDATE story_items SET pivot=?, pivot_chars=?, pivot_at=? WHERE article_id=?",
+                                (pivot or row["title"], len(row["title"]), now, row["id"]),
+                            )
+                            for row, pivot in zip(batch, pivots)
+                        ]
+                        + [
+                            (
+                                "INSERT INTO story_usage(day, chars) VALUES(?, ?) "
+                                "ON CONFLICT(day) DO UPDATE SET chars = chars + excluded.chars",
+                                (_today(), size),
+                            )
+                        ],
+                    )
                     translated, used = len(batch), used + size
                 except Exception as exc:  # provider down / quota: titles wait for the next refresh
                     error = str(exc)[:200] if exc.__class__.__name__ == "TranslationError" else type(exc).__name__
@@ -118,9 +161,11 @@ def _refresh_locked(db_path: Path, translate: Translator | None, enabled: bool, 
         # 2. cluster everything that has a pivot and a time.
         items, shapes = {}, {}
         for row in db.execute(
-                """SELECT a.id, a.published, s.pivot FROM articles a JOIN story_items s ON s.article_id = a.id
+            """SELECT a.id, a.published, s.pivot FROM articles a JOIN story_items s ON s.article_id = a.id
                    WHERE a.error = '' AND s.pivot IS NOT NULL AND a.published != ''
-                   ORDER BY a.published DESC LIMIT ?""", (MAX_CLUSTER_ARTICLES,)):
+                   ORDER BY a.published DESC LIMIT ?""",
+            (MAX_CLUSTER_ARTICLES,),
+        ):
             moment = core.parse_utc(row["published"])
             feats = core.features(row["pivot"])
             if moment and feats:
@@ -129,36 +174,74 @@ def _refresh_locked(db_path: Path, translate: Translator | None, enabled: bool, 
         forbidden = {(row[0], row[1]) for row in db.execute("SELECT a, b FROM story_exclusions")}
         # Two articles in one language whose texts share almost nothing are different news, however
         # alike their headlines (D-75: 「日相高市」 tied a spy arrest, an Okinawa case and more)
-        bodies = _body_vectors(db_path, [dict(row) for row in db.execute(
-            f"SELECT id, title, published FROM articles WHERE id IN ({','.join('?' * len(items))})", tuple(items))]) \
-            if items else {}
+        bodies = (
+            _body_vectors(
+                db_path,
+                [
+                    dict(row)
+                    for row in db.execute(
+                        f"SELECT id, title, published FROM articles WHERE id IN ({','.join('?' * len(items))})",
+                        tuple(items),
+                    )
+                ],
+            )
+            if items
+            else {}
+        )
 
         def apart(a: int, b: int) -> bool:
             body = _body_cosine(bodies, a, b) if a in bodies and b in bodies else None
-            return body is not None and body < BODY_APART and min(len(bodies[a][1]), len(bodies[b][1])) >= BODY_APART_TERMS
+            return (
+                body is not None and body < BODY_APART and min(len(bodies[a][1]), len(bodies[b][1])) >= BODY_APART_TERMS
+            )
 
         clusters = core.cluster(items, shapes, forbidden, apart) if len(items) > 1 else []
-        joins = [(row[0], row[1]) for row in db.execute("SELECT a, b FROM story_joins") if row[0] in items and row[1] in items]
+        joins = [
+            (row[0], row[1])
+            for row in db.execute("SELECT a, b FROM story_joins")
+            if row[0] in items and row[1] in items
+        ]
         clusters = _apply_joins(clusters, joins, forbidden)
 
         # 3. replace the groups of the articles that took part in this run.
-        statements = [("DELETE FROM story_members WHERE article_id IN (%s)" % ",".join("?" * len(items)), tuple(items))] if items else []
+        statements = (
+            [("DELETE FROM story_members WHERE article_id IN (%s)" % ",".join("?" * len(items)), tuple(items))]
+            if items
+            else []
+        )
         for members in clusters:
             key = f"s{min(members)}"
-            statements += [("INSERT OR REPLACE INTO story_members(article_id, story_key, score) VALUES(?,?,?)",
-                            (article_id, key, round(score, 4))) for article_id, score in members.items()]
+            statements += [
+                (
+                    "INSERT OR REPLACE INTO story_members(article_id, story_key, score) VALUES(?,?,?)",
+                    (article_id, key, round(score, 4)),
+                )
+                for article_id, score in members.items()
+            ]
         # A group computed before may straddle the clustering window (newest MAX_CLUSTER_ARTICLES):
         # its newer members were just regrouped; never leave the rest as a one-article "group".
-        statements.append(("DELETE FROM story_members WHERE story_key IN (SELECT story_key FROM story_members "
-                           "GROUP BY story_key HAVING COUNT(*) < 2)", ()))
+        statements.append(
+            (
+                "DELETE FROM story_members WHERE story_key IN (SELECT story_key FROM story_members "
+                "GROUP BY story_key HAVING COUNT(*) < 2)",
+                (),
+            )
+        )
         _write(db, statements)
 
         pending = db.execute("SELECT COUNT(*) FROM story_items WHERE pivot IS NULL").fetchone()[0]
         multi = db.execute(
             """SELECT COUNT(*) FROM (SELECT m.story_key FROM story_members m JOIN articles a ON a.id = m.article_id
-               GROUP BY m.story_key HAVING COUNT(DISTINCT a.source) > 1)""").fetchone()[0]
-    return {"groups": len(clusters), "multi_outlet": multi, "pending": pending, "translated": translated,
-            "chars_today": used, "error": error}
+               GROUP BY m.story_key HAVING COUNT(DISTINCT a.source) > 1)"""
+        ).fetchone()[0]
+    return {
+        "groups": len(clusters),
+        "multi_outlet": multi,
+        "pending": pending,
+        "translated": translated,
+        "chars_today": used,
+        "error": error,
+    }
 
 
 #: The similarity recorded for an article the reader put into a group (D-72): above the
@@ -168,8 +251,9 @@ JOINED_SCORE = 0.3
 JOINED_MAX = 16
 
 
-def _apply_joins(clusters: list[dict[int, float]], joins: list[tuple[int, int]],
-                 forbidden: set[tuple[int, int]]) -> list[dict[int, float]]:
+def _apply_joins(
+    clusters: list[dict[int, float]], joins: list[tuple[int, int]], forbidden: set[tuple[int, int]]
+) -> list[dict[int, float]]:
     """Merge the groups (or lone articles) of every pair the reader said is the same news,
     unless that would put a pair the reader separated into one group."""
     owner = {article: index for index, members in enumerate(clusters) for article in members}
@@ -201,12 +285,18 @@ def join(db_path: Path, article_id: int, other_id: int) -> bool:
     with closing(index.connect(db_path)) as db:
         if db.execute("SELECT COUNT(*) FROM articles WHERE id IN (?, ?)", (a, b)).fetchone()[0] != 2:
             return False
-        _write(db, [("INSERT OR IGNORE INTO story_joins(a, b, created) VALUES(?,?,?)", (a, b, status.now_iso())),
-                    ("DELETE FROM story_exclusions WHERE a = ? AND b = ?", (a, b))])
+        _write(
+            db,
+            [
+                ("INSERT OR IGNORE INTO story_joins(a, b, created) VALUES(?,?,?)", (a, b, status.now_iso())),
+                ("DELETE FROM story_exclusions WHERE a = ? AND b = ?", (a, b)),
+            ],
+        )
     return True
 
 
 # ---- queries -----------------------------------------------------------------
+
 
 def _members(db, keys: list[str]) -> dict[str, list[dict]]:
     if not keys:
@@ -216,7 +306,9 @@ def _members(db, keys: list[str]) -> dict[str, list[dict]]:
             FROM story_members m JOIN articles a ON a.id = m.article_id
             LEFT JOIN story_items s ON s.article_id = a.id
             WHERE m.story_key IN ({",".join("?" * len(keys))}) AND a.error = ''
-            ORDER BY a.published DESC, a.id DESC""", keys).fetchall()
+            ORDER BY a.published DESC, a.id DESC""",
+        keys,
+    ).fetchall()
     grouped: dict[str, list[dict]] = {key: [] for key in keys}
     for row in rows:
         grouped[row["story_key"]].append(dict(row))
@@ -224,8 +316,15 @@ def _members(db, keys: list[str]) -> dict[str, list[dict]]:
 
 
 @index.kept_until_changed
-def list_stories(db_path: Path, scope: str = "multi", page: int = 1, per_page: int = 20,
-                 query: str = "", pivot_words: list[str] | None = None, keys: list[str] | None = None) -> dict:
+def list_stories(
+    db_path: Path,
+    scope: str = "multi",
+    page: int = 1,
+    per_page: int = 20,
+    query: str = "",
+    pivot_words: list[str] | None = None,
+    keys: list[str] | None = None,
+) -> dict:
     """Groups, newest first. scope "multi" = reported by more than one outlet; "all" = any group.
     ``query`` keeps the groups with an article that matches it (as in the article search);
     ``keys`` only those groups (数字が違う, D-67)."""
@@ -236,8 +335,10 @@ def list_stories(db_path: Path, scope: str = "multi", page: int = 1, per_page: i
         restrict, params = "", []
         if query:
             ids = index.search_ids(db, query, pivot_words)[:900]
-            restrict = (f" AND m.story_key IN (SELECT story_key FROM story_members WHERE article_id IN"
-                        f" ({','.join('?' * len(ids)) or 'NULL'}))")
+            restrict = (
+                f" AND m.story_key IN (SELECT story_key FROM story_members WHERE article_id IN"
+                f" ({','.join('?' * len(ids)) or 'NULL'}))"
+            )
             params = ids
         if keys is not None:
             restrict += f" AND m.story_key IN ({','.join('?' * len(keys)) or 'NULL'})"
@@ -246,20 +347,37 @@ def list_stories(db_path: Path, scope: str = "multi", page: int = 1, per_page: i
                    FROM story_members m JOIN articles a ON a.id = m.article_id WHERE a.error = ''{restrict}
                    GROUP BY m.story_key {having}"""
         total = db.execute(f"SELECT COUNT(*) FROM ({base})", params).fetchone()[0]
-        heads = db.execute(f"{base} ORDER BY newest DESC LIMIT ? OFFSET ?",
-                           params + [per_page, (page - 1) * per_page]).fetchall()
+        heads = db.execute(
+            f"{base} ORDER BY newest DESC LIMIT ? OFFSET ?", params + [per_page, (page - 1) * per_page]
+        ).fetchall()
         members = _members(db, [h["story_key"] for h in heads])
     stories = []
     for h in heads:
         group = members.get(h["story_key"], [])
         central = max(group, key=lambda m: (m["score"], m["published"])) if group else None
         lead_id = central["id"] if central else 0
-        stories.append({"key": h["story_key"], "newest": h["newest"], "count": h["n"], "outlets": h["outlets"],
-                        "members": group, "lead_title": central["title"] if central else "",
-                        "lead_source": central["source"] if central else "",
-                        "lead_id": lead_id, "preview": preview(group, lead_id), **_summary(group)})
-    return {"stories": stories, "total": total, "page": page, "pages": max(1, -(-total // per_page)), "scope": scope,
-            "query": query}
+        stories.append(
+            {
+                "key": h["story_key"],
+                "newest": h["newest"],
+                "count": h["n"],
+                "outlets": h["outlets"],
+                "members": group,
+                "lead_title": central["title"] if central else "",
+                "lead_source": central["source"] if central else "",
+                "lead_id": lead_id,
+                "preview": preview(group, lead_id),
+                **_summary(group),
+            }
+        )
+    return {
+        "stories": stories,
+        "total": total,
+        "page": page,
+        "pages": max(1, -(-total // per_page)),
+        "scope": scope,
+        "query": query,
+    }
 
 
 #: Headlines shown under the lead on the list page; the rest are on the group page.
@@ -287,26 +405,48 @@ def _summary(members: list[dict]) -> dict:
     for member in members:
         counts[member["source"] or "未分類"] = counts.get(member["source"] or "未分類", 0) + 1
     dated = sorted((m for m in members if m.get("published")), key=lambda m: (m["published"], m["id"]))
-    return {"outlet_counts": sorted(counts.items(), key=lambda kv: (-kv[1], kv[0].casefold())),
-            "first": dated[0] if dated else None, "oldest": dated[0]["published"] if dated else "",
-            "newest_time": dated[-1]["published"] if dated else ""}
+    return {
+        "outlet_counts": sorted(counts.items(), key=lambda kv: (-kv[1], kv[0].casefold())),
+        "first": dated[0] if dated else None,
+        "oldest": dated[0]["published"] if dated else "",
+        "newest_time": dated[-1]["published"] if dated else "",
+    }
 
 
 def exclude(db_path: Path, article_id: int, key: str) -> int:
     """The reader says ``article_id`` is not the same news as the rest of group ``key``: remember
     every such pair (never grouped again). Returns the number of new pairs; the caller re-groups."""
     with closing(index.connect(db_path)) as db:
-        others = [row[0] for row in db.execute(
-            "SELECT article_id FROM story_members WHERE story_key = ? AND article_id != ?", (key, article_id))]
-        if not others or db.execute("SELECT 1 FROM story_members WHERE story_key = ? AND article_id = ?",
-                                    (key, article_id)).fetchone() is None:
+        others = [
+            row[0]
+            for row in db.execute(
+                "SELECT article_id FROM story_members WHERE story_key = ? AND article_id != ?", (key, article_id)
+            )
+        ]
+        if (
+            not others
+            or db.execute(
+                "SELECT 1 FROM story_members WHERE story_key = ? AND article_id = ?", (key, article_id)
+            ).fetchone()
+            is None
+        ):
             return 0
         before = db.execute("SELECT COUNT(*) FROM story_exclusions").fetchone()[0]
-        _write(db, [("INSERT OR IGNORE INTO story_exclusions(a, b, created) VALUES(?,?,?)",
-                     (min(article_id, other), max(article_id, other), status.now_iso())) for other in others]
-               + [("DELETE FROM story_joins WHERE a = ? AND b = ?", (min(article_id, other), max(article_id, other)))
-                  for other in others]
-               + [("DELETE FROM story_members WHERE article_id = ?", (article_id,))])
+        _write(
+            db,
+            [
+                (
+                    "INSERT OR IGNORE INTO story_exclusions(a, b, created) VALUES(?,?,?)",
+                    (min(article_id, other), max(article_id, other), status.now_iso()),
+                )
+                for other in others
+            ]
+            + [
+                ("DELETE FROM story_joins WHERE a = ? AND b = ?", (min(article_id, other), max(article_id, other)))
+                for other in others
+            ]
+            + [("DELETE FROM story_members WHERE article_id = ?", (article_id,))],
+        )
         return db.execute("SELECT COUNT(*) FROM story_exclusions").fetchone()[0] - before
 
 
@@ -346,10 +486,18 @@ def get_story(db_path: Path, key: str) -> dict | None:
     # Heading: the most central member (highest mean similarity), ties to the newest.
     central = max(members, key=lambda m: (m["score"], m["published"]))
     timeline = sorted(members, key=lambda m: (m["published"], m["id"]))
-    return {"key": key, "members": members, "columns": sorted(columns.items(), key=lambda kv: kv[0].casefold()),
-            "newest": members[0]["published"], "lead_title": central["title"], "lead_id": central["id"],
-            "lead_source": central["source"],
-            "timeline": timeline, "languages": languages(members), **_summary(members)}
+    return {
+        "key": key,
+        "members": members,
+        "columns": sorted(columns.items(), key=lambda kv: kv[0].casefold()),
+        "newest": members[0]["published"],
+        "lead_title": central["title"],
+        "lead_id": central["id"],
+        "lead_source": central["source"],
+        "timeline": timeline,
+        "languages": languages(members),
+        **_summary(members),
+    }
 
 
 #: Headline language (story_items.lang) -> translation target code.
@@ -373,7 +521,7 @@ def languages(members: list[dict]) -> list[dict]:
 
 
 def headline_language(db_path: Path, article_id: int) -> str:
-    """"en" / "zh" / "ko" / "ja" / "other" as detected for grouping ("" when not known yet)."""
+    """ "en" / "zh" / "ko" / "ja" / "other" as detected for grouping ("" when not known yet)."""
     with closing(index.connect(db_path)) as db:
         row = db.execute("SELECT lang FROM story_items WHERE article_id = ?", (article_id,)).fetchone()
     return row[0] if row else ""
@@ -391,7 +539,9 @@ def badges(db_path: Path, article_ids: list[int]) -> dict[int, dict]:
                 JOIN (SELECT m2.story_key, COUNT(*) AS n, COUNT(DISTINCT a.source) AS outlets
                       FROM story_members m2 JOIN articles a ON a.id = m2.article_id WHERE a.error = ''
                       GROUP BY m2.story_key) g ON g.story_key = m.story_key
-                WHERE m.article_id IN ({marks}) AND g.outlets > 1""", list(article_ids)).fetchall()
+                WHERE m.article_id IN ({marks}) AND g.outlets > 1""",
+            list(article_ids),
+        ).fetchall()
     return {row[0]: {"key": row[1], "count": row[2], "outlets": row[3]} for row in rows}
 
 
@@ -415,19 +565,25 @@ def similar(db_path: Path, article_id: int, limit: int = 5) -> list[dict]:
     """Articles of other outlets whose English headlines resemble this one's, within three days,
     that are not already in its group: [{"id", "source", "title", "published", "score"}]."""
     from datetime import timedelta
+
     with closing(index.connect(db_path)) as db:
-        me = db.execute("""SELECT a.id, a.source, a.published, s.pivot, m.story_key FROM articles a
+        me = db.execute(
+            """SELECT a.id, a.source, a.published, s.pivot, m.story_key FROM articles a
                            JOIN story_items s ON s.article_id = a.id LEFT JOIN story_members m ON m.article_id = a.id
-                           WHERE a.id = ? AND s.pivot IS NOT NULL""", (article_id,)).fetchone()
+                           WHERE a.id = ? AND s.pivot IS NOT NULL""",
+            (article_id,),
+        ).fetchone()
         moment = core.parse_utc(me["published"]) if me else None
         if me is None or moment is None:
             return []
         low = (moment - timedelta(hours=SIMILAR_HOURS)).strftime("%Y-%m-%dT%H:%M:%SZ")
         high = (moment + timedelta(hours=SIMILAR_HOURS)).strftime("%Y-%m-%dT%H:%M:%SZ")
-        rows = db.execute("""SELECT a.id, a.source, a.title, a.published, s.pivot, m.story_key FROM articles a
+        rows = db.execute(
+            """SELECT a.id, a.source, a.title, a.published, s.pivot, m.story_key FROM articles a
                              JOIN story_items s ON s.article_id = a.id LEFT JOIN story_members m ON m.article_id = a.id
                              WHERE a.error = '' AND s.pivot IS NOT NULL AND a.published BETWEEN ? AND ?""",
-                          (low, high)).fetchall()
+            (low, high),
+        ).fetchall()
     items = {row["id"]: (core.features(row["pivot"]), core.parse_utc(row["published"]) or moment) for row in rows}
     if article_id not in items:
         return []
@@ -439,18 +595,31 @@ def similar(db_path: Path, article_id: int, limit: int = 5) -> list[dict]:
 
     mine = names(pivots[article_id])
     with closing(index.connect(db_path)) as db:  # pairs the reader already said are different news
-        apart = {row[0] if row[1] == article_id else row[1]
-                 for row in db.execute("SELECT a, b FROM story_exclusions WHERE a = ? OR b = ?", (article_id, article_id))}
+        apart = {
+            row[0] if row[1] == article_id else row[1]
+            for row in db.execute("SELECT a, b FROM story_exclusions WHERE a = ? OR b = ?", (article_id, article_id))
+        }
     found = []
     for row in rows:
-        if row["source"] == me["source"] or row["id"] == article_id or row["id"] in apart \
-                or (me["story_key"] and row["story_key"] == me["story_key"]):
+        if (
+            row["source"] == me["source"]
+            or row["id"] == article_id
+            or row["id"] in apart
+            or (me["story_key"] and row["story_key"] == me["story_key"])
+        ):
             continue
         score = corpus.raw(article_id, row["id"])
         # a shared name (a person, place, organisation) as well: shared common words are not enough
         if score >= SIMILAR_MIN and mine & names(row["pivot"]):
-            found.append({"id": row["id"], "source": row["source"], "title": row["title"], "published": row["published"],
-                          "score": round(score, 2)})
+            found.append(
+                {
+                    "id": row["id"],
+                    "source": row["source"],
+                    "title": row["title"],
+                    "published": row["published"],
+                    "score": round(score, 2),
+                }
+            )
     found.sort(key=lambda item: -item["score"])
     return found[:limit]
 
@@ -499,8 +668,10 @@ def _body_vectors(db_path: Path, articles: list[dict]) -> dict[int, tuple[str, d
     for lang, tf in terms.values():
         docs[lang] += 1
         df.setdefault(lang, Counter()).update(tf.keys())
-    idf = {lang: {t: math.log((docs[lang] + 1) / (count + 0.5)) for t, count in counts.items()}
-           for lang, counts in df.items()}
+    idf = {
+        lang: {t: math.log((docs[lang] + 1) / (count + 0.5)) for t, count in counts.items()}
+        for lang, counts in df.items()
+    }
     bodies = {}
     for article_id, (lang, tf) in terms.items():
         weights = {t: w * idf[lang][t] for t, w in tf.items()}
@@ -522,8 +693,11 @@ def warm_arcs(db_path: Path, hours: int = 24) -> int:
     """Work out the 続報 of the last ``hours``' multi-outlet groups ahead of time (今日のまとめ asks
     for all of them at once; after a collection the first visitor would otherwise wait)."""
     from datetime import timedelta
+
     since = (datetime.now(UTC) - timedelta(hours=hours)).strftime("%Y-%m-%dT%H:%M:%SZ")
-    keys = [g["key"] for g in list_stories(db_path, scope="multi", per_page=60)["stories"] if (g["newest"] or "") >= since]
+    keys = [
+        g["key"] for g in list_stories(db_path, scope="multi", per_page=60)["stories"] if (g["newest"] or "") >= since
+    ]
     for key in keys:
         arc(db_path, key)
     return len(keys)
@@ -534,8 +708,11 @@ def arc(db_path: Path, key: str, limit: int = ARC_LIMIT) -> list[dict]:
     (``"current": True``); [] when there is none. Each: {"key", "title", "lead_id", "lead_source",
     "count", "current", "score", "outlet_counts", "first", "oldest", "newest_time"}."""
     with closing(index.connect(db_path)) as db:
-        state = tuple(db.execute("SELECT COUNT(*), COALESCE(SUM(rowid), 0), COALESCE(SUM(LENGTH(story_key)), 0) "
-                                 "FROM story_members").fetchone())
+        state = tuple(
+            db.execute(
+                "SELECT COUNT(*), COALESCE(SUM(rowid), 0), COALESCE(SUM(LENGTH(story_key)), 0) FROM story_members"
+            ).fetchone()
+        )
     cached = _arc_cache.get((str(db_path), key))
     if cached and cached[0] == state:
         return cached[1]
@@ -548,6 +725,7 @@ def arc(db_path: Path, key: str, limit: int = ARC_LIMIT) -> list[dict]:
 
 def _arc(db_path: Path, key: str, limit: int) -> list[dict]:
     from datetime import timedelta
+
     with closing(index.connect(db_path)) as db:
         mine = _members(db, [key]).get(key, [])
         dated = [d for d in (core.parse_utc(m["published"]) for m in mine if m.get("published")) if d]
@@ -555,9 +733,14 @@ def _arc(db_path: Path, key: str, limit: int) -> list[dict]:
             return []
         low = (min(dated) - timedelta(days=ARC_DAYS)).strftime("%Y-%m-%dT%H:%M:%SZ")
         high = (max(dated) + timedelta(days=ARC_DAYS)).strftime("%Y-%m-%dT%H:%M:%SZ")
-        keys = [row[0] for row in db.execute(
-            """SELECT DISTINCT m.story_key FROM story_members m JOIN articles a ON a.id = m.article_id
-               WHERE a.error = '' AND a.published BETWEEN ? AND ?""", (low, high))]
+        keys = [
+            row[0]
+            for row in db.execute(
+                """SELECT DISTINCT m.story_key FROM story_members m JOIN articles a ON a.id = m.article_id
+               WHERE a.error = '' AND a.published BETWEEN ? AND ?""",
+                (low, high),
+            )
+        ]
         groups = _members(db, keys)
     groups[key] = mine
     everyone = [m for g in groups.values() for m in g]
@@ -586,7 +769,9 @@ def _arc(db_path: Path, key: str, limit: int) -> list[dict]:
     for pivot in pivoted.values():
         for word, found_shapes in core.shapes(pivot).items():
             seen.setdefault(word, set()).update(found_shapes)
-    proper = {w for w, f in seen.items() if "lower" not in f and f & {"name", "quoted", "initial"} and w not in core._GENERIC}
+    proper = {
+        w for w, f in seen.items() if "lower" not in f and f & {"name", "quoted", "initial"} and w not in core._GENERIC
+    }
 
     def group_names(members: list[dict]) -> set[str] | None:
         if not any(m["id"] in items for m in members):
@@ -612,8 +797,17 @@ def _arc(db_path: Path, key: str, limit: int) -> list[dict]:
     for other in [o for _, o in found[: max(1, limit - 1)]] + [key]:
         members = groups[other]
         central = max(members, key=lambda m: (m["score"], m["published"]))
-        result.append({"key": other, "title": central["title"], "lead_id": central["id"],
-                       "lead_source": central["source"], "count": len(members), "current": other == key,
-                       "score": round(scores.get(other, 0.0), 2), **_summary(members)})
+        result.append(
+            {
+                "key": other,
+                "title": central["title"],
+                "lead_id": central["id"],
+                "lead_source": central["source"],
+                "count": len(members),
+                "current": other == key,
+                "score": round(scores.get(other, 0.0), 2),
+                **_summary(members),
+            }
+        )
     result.sort(key=lambda g: (g["oldest"], g["key"]))
     return result

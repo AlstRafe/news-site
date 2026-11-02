@@ -1,4 +1,5 @@
 """Create a clean portable application archive using Python's standard library."""
+
 from __future__ import annotations
 
 import zipfile
@@ -8,12 +9,30 @@ from pathlib import Path
 APP_NAME = "NewsHtmlReader"
 PROJECT_ROOT = Path(__file__).resolve().parent
 OUTPUT_DIRECTORY = PROJECT_ROOT.parent
-EXCLUDED_DIRECTORIES = {".git", ".venv", "__pycache__", ".pytest_cache", "instance", "tests", "preset",
-                        "node_modules", ".vscode", ".ruff_cache"}
+EXCLUDED_DIRECTORIES = {
+    ".git",
+    ".venv",
+    "__pycache__",
+    ".pytest_cache",
+    "instance",
+    "tests",
+    "preset",
+    "node_modules",
+    ".vscode",
+    ".ruff_cache",
+}
 EXCLUDED_SUFFIXES = {".pyc", ".sqlite", ".sqlite3", ".db", ".log", ".zip", ".key", ".pem", ".pfx", ".p12"}
 #: The formatter's and linter's settings, for working on the code only.
-EXCLUDED_FILES = {".editorconfig", ".prettierrc.json", ".prettierignore", "eslint.config.mjs", "package.json",
-                  "package-lock.json", "ruff.toml", ".git-blame-ignore-revs"}
+EXCLUDED_FILES = {
+    ".editorconfig",
+    ".prettierrc.json",
+    ".prettierignore",
+    "eslint.config.mjs",
+    "package.json",
+    "package-lock.json",
+    "ruff.toml",
+    ".git-blame-ignore-revs",
+}
 
 
 def should_include(file_path: Path, relative_path: Path) -> bool:

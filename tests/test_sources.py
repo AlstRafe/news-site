@@ -3,6 +3,7 @@
 The real-data part runs only when NEWS_REALDATA points at an ``articles`` folder
 (``<root>/<SOURCE>/*.html``); it is read-only. Everything else uses fixtures.
 """
+
 import os
 import re
 import sys
@@ -24,19 +25,20 @@ EDGE_CASES = {
     "binary": bytes(range(256)),
     "naver-empty-body": b'<article id="dic_area"></article>',
     "cna-outer-h1": b'<h1>outer</h1><article class="article"><div class="centralContent">'
-                    b'<div class="paragraph"><p>x</p></div></div></article>',
+    b'<div class="paragraph"><p>x</p></div></div></article>',
     "bbc-and-naver": b'<meta name="pagetype" content="News Article"><article id="dic_area">n</article>'
-                     b'<article><div data-component="layout-block"><p class="ParagraphStyled">b</p></div></article>',
+    b'<article><div data-component="layout-block"><p class="ParagraphStyled">b</p></div></article>',
     "naver-and-cna": b'<article id="dic_area">n</article><article class="article"><div class="centralContent">'
-                     b'<div class="paragraph"><p>c</p></div></div></article>',
+    b'<div class="paragraph"><p>c</p></div></div></article>',
     "host-only-cna": b'<link rel="canonical" href="https://www.cna.com.tw/news/x.aspx"><p>x</p>',
     "bbc-videos-path": b'<link rel="canonical" href="https://www.bbc.com/news/videos/abc"><p>x</p>',
     "kst-time": b'<article id="dic_area">x</article><span class="_ARTICLE_DATE_TIME" data-date-time="2026-10-11 15:53:12"></span>',
     "nine-images": b'<article class="article"><div class="centralContent"><div class="paragraph"><p>x</p></div>'
-                   + b"".join(b'<img src="https://imgcdn.cna.com.tw/%d.jpg">' % i for i in range(9)) + b"</div></article>",
+    + b"".join(b'<img src="https://imgcdn.cna.com.tw/%d.jpg">' % i for i in range(9))
+    + b"</div></article>",
     "srcset": b'<meta name="pagetype" content="News Article"><main id="bbc-main"><h1>t</h1><article>'
-              b'<div data-component="layout-block"><p class="ParagraphStyled">b</p></div>'
-              b'<figure><img srcset="a.jpg 2000w, b.jpg 3000w"></figure></article></main>',
+    b'<div data-component="layout-block"><p class="ParagraphStyled">b</p></div>'
+    b'<figure><img srcset="a.jpg 2000w, b.jpg 3000w"></figure></article></main>',
 }
 MUTATIONS = {
     "no-canonical": lambda h: re.sub(rb'<link[^>]+rel="canonical"[^>]*>', b"", h),
@@ -56,13 +58,17 @@ def outcome(fn, data):
 class EquivalenceTests(unittest.TestCase):
     def assertSameAsV3(self, data, label):
         # Equal to v3 up to the documented intended differences (tests/oracle/intended.py).
-        self.assertEqual(outcome(extract_article, data), outcome(v3_extractor.extract_article, intended_input(data)), label)
+        self.assertEqual(
+            outcome(extract_article, data), outcome(v3_extractor.extract_article, intended_input(data)), label
+        )
 
     def test_template_images_are_the_only_intended_difference(self):
-        page = (b'<meta name="pagetype" content="News Article"><main id="bbc-main"><h1>T</h1><article>'
-                b'<div data-component="layout-block"><p class="ParagraphStyled">body</p></div>'
-                b'<template><figure><img src="https://ichef.bbci.co.uk/images/ic/1920x1080/x.jpg"></figure></template>'
-                b'<figure><img src="https://ichef.bbci.co.uk/news/1024/real.jpg" alt="real"></figure></article></main>')
+        page = (
+            b'<meta name="pagetype" content="News Article"><main id="bbc-main"><h1>T</h1><article>'
+            b'<div data-component="layout-block"><p class="ParagraphStyled">body</p></div>'
+            b'<template><figure><img src="https://ichef.bbci.co.uk/images/ic/1920x1080/x.jpg"></figure></template>'
+            b'<figure><img src="https://ichef.bbci.co.uk/news/1024/real.jpg" alt="real"></figure></article></main>'
+        )
         new, old = extract_article(page), v3_extractor.extract_article(page)
         self.assertEqual([i["src"] for i in new["images"]], ["https://ichef.bbci.co.uk/news/1024/real.jpg"])
         self.assertEqual(len(old["images"]), 2)  # v3 also took the never-rendered placeholder
@@ -85,8 +91,10 @@ class EquivalenceTests(unittest.TestCase):
 
 class AdapterContractTests(unittest.TestCase):
     def test_every_site_has_the_adapter_interface(self):
-        self.assertEqual([site.NAME for site in sources.SITES], ["BBC", "NAVER NEWS", "中央社 CNA", "연합뉴스 Yonhap",
-                                                                   "InfoQ", "The New Stack", "iThome", "ZDNet Korea"])
+        self.assertEqual(
+            [site.NAME for site in sources.SITES],
+            ["BBC", "NAVER NEWS", "中央社 CNA", "연합뉴스 Yonhap", "InfoQ", "The New Stack", "iThome", "ZDNet Korea"],
+        )
         for site in sources.SITES:
             self.assertTrue(callable(site.matches) and callable(site.parse), site.NAME)
             self.assertIsInstance(site.HOSTS, frozenset)
@@ -107,9 +115,14 @@ class AdapterContractTests(unittest.TestCase):
 
             @staticmethod
             def parse(page):
-                return SiteParse(kind="Example", page_type="Example", title_tag=page.soup.select_one("h1"),
-                                 paragraphs=[p.get_text(strip=True) for p in page.soup.select("p")],
-                                 image_selector="img", url_hosts=Example.HOSTS)
+                return SiteParse(
+                    kind="Example",
+                    page_type="Example",
+                    title_tag=page.soup.select_one("h1"),
+                    paragraphs=[p.get_text(strip=True) for p in page.soup.select("p")],
+                    image_selector="img",
+                    url_hosts=Example.HOSTS,
+                )
 
         html = b'<link rel="canonical" href="https://news.example/a"><h1>T</h1><p>one</p><p>two</p>'
         with self.assertRaises(ReaderError):
@@ -120,7 +133,9 @@ class AdapterContractTests(unittest.TestCase):
             article = extract_article(html)
         finally:
             sources.SITES = saved
-        self.assertEqual((article["title"], article["paragraphs"], article["url"]), ("T", ["one", "two"], "https://news.example/a"))
+        self.assertEqual(
+            (article["title"], article["paragraphs"], article["url"]), ("T", ["one", "two"], "https://news.example/a")
+        )
 
     def test_canonical_on_a_foreign_host_is_not_trusted_as_the_article_link(self):
         html = NAVER.replace(b"https://n.news.naver.com/article", b"https://evil.example/article")

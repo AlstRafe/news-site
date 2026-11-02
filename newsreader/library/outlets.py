@@ -3,6 +3,7 @@ translation. Per outlet: articles, how many of them other outlets also reported,
 no other outlet reported), how often it reported a shared news first and how late otherwise,
 and the figure disagreements it was part of. Plus which pairs of outlets cover the same news.
 """
+
 from __future__ import annotations
 
 import json
@@ -30,16 +31,21 @@ def stats(db_path: Path, *, days: int = 7, now: datetime | None = None) -> dict:
     now = (now or datetime.now(UTC)).replace(tzinfo=None)
     since = (now - timedelta(days=days)).strftime(_FORMAT)
     with closing(index.connect(db_path)) as db:
-        articles = db.execute("SELECT a.id, a.source, a.published, m.story_key, a.title FROM articles a "
-                              "LEFT JOIN story_members m ON m.article_id = a.id "
-                              "WHERE a.error = '' AND a.published >= ? AND a.source != ''", (since,)).fetchall()
-        facts = db.execute("SELECT summary FROM story_facts WHERE differs = 1 AND cohesive = 1 AND newest >= ?",
-                           (since,)).fetchall()
+        articles = db.execute(
+            "SELECT a.id, a.source, a.published, m.story_key, a.title FROM articles a "
+            "LEFT JOIN story_members m ON m.article_id = a.id "
+            "WHERE a.error = '' AND a.published >= ? AND a.source != ''",
+            (since,),
+        ).fetchall()
+        facts = db.execute(
+            "SELECT summary FROM story_facts WHERE differs = 1 AND cohesive = 1 AND newest >= ?", (since,)
+        ).fetchall()
     outlets: dict[str, dict] = {}
     groups: dict[str, list[tuple[str, datetime | None]]] = {}
     for _article_id, source, published, key, _title in articles:
-        entry = outlets.setdefault(source, {"source": source, "articles": 0, "shared": 0, "scoops": 0, "first": 0,
-                                            "later": [], "disputes": 0})
+        entry = outlets.setdefault(
+            source, {"source": source, "articles": 0, "shared": 0, "scoops": 0, "first": 0, "later": [], "disputes": 0}
+        )
         entry["articles"] += 1
         if key:
             groups.setdefault(key, []).append((source, _parse(published)))
@@ -84,5 +90,10 @@ def stats(db_path: Path, *, days: int = 7, now: datetime | None = None) -> dict:
         entry["shared_ratio"] = round(100 * entry["shared"] / entry["articles"]) if entry["articles"] else 0
         entry["races"] = entry["first"] + len(later)
         rows.append(entry)
-    return {"days": days, "since": since, "outlets": rows, "shared_news": len(shared_groups),
-            "pairs": [{"a": a, "b": b, "news": n} for (a, b), n in sorted(pairs.items(), key=lambda kv: -kv[1])]}
+    return {
+        "days": days,
+        "since": since,
+        "outlets": rows,
+        "shared_news": len(shared_groups),
+        "pairs": [{"a": a, "b": b, "news": n} for (a, b), n in sorted(pairs.items(), key=lambda kv: -kv[1])],
+    }

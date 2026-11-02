@@ -5,6 +5,7 @@ Adding a site = a module with ``NAME``, ``HOSTS``, ``matches(page)`` and
 first adapter whose ``matches`` is true parses the page (BBC, then NAVER, then
 CNA — the precedence v3 used), then Yonhap (added after v3, replaces NAVER collection).
 """
+
 from __future__ import annotations
 
 from newsreader.sources import bbc, cna, generic, naver, yonhap

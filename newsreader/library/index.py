@@ -10,6 +10,7 @@ each collection (D-04).
 Article ids are stable for the life of a file — bookmarks are ``/a/<id>`` — so
 schema changes are migrations that keep rows, never rebuilds.
 """
+
 from __future__ import annotations
 
 import copy
@@ -150,8 +151,14 @@ def _migration_6(db: sqlite3.Connection) -> None:
     _add_column(db, "articles", "genre", "TEXT NOT NULL DEFAULT ''")
 
 
-MIGRATIONS: list[Callable[[sqlite3.Connection], None]] = [_migration_1, _migration_2, _migration_3, _migration_4,
-                                                          _migration_5, _migration_6]
+MIGRATIONS: list[Callable[[sqlite3.Connection], None]] = [
+    _migration_1,
+    _migration_2,
+    _migration_3,
+    _migration_4,
+    _migration_5,
+    _migration_6,
+]
 SCHEMA_VERSION = len(MIGRATIONS)
 _schema_lock = threading.Lock()
 _wal_checked: set[str] = set()
@@ -216,8 +223,9 @@ def connect(db_path: Path) -> sqlite3.Connection:
 # --------------------------------------------------------------- content ----
 
 _CONTENT_FIELDS = ("kind", "page_type", "paragraphs", "images")
-_LIST_COLUMNS = ("id, source, filename, title, url, published, lead, thumb_src, "
-                 "paragraph_count, size, mtime, error, genre")
+_LIST_COLUMNS = (
+    "id, source, filename, title, url, published, lead, thumb_src, paragraph_count, size, mtime, error, genre"
+)
 
 
 def encode_content(article: dict) -> bytes:
@@ -258,9 +266,20 @@ def _lead(paragraphs: list[str]) -> str:
 
 def _parse_file(info: FileInfo, source: str = "") -> dict | None:
     """One row's worth of fields, or None when the file changed while being read (retry later)."""
-    base = {"title": info.path.stem, "url": "", "published": "", "lead": "", "thumb_src": "", "genre": "",
-            "paragraph_count": 0, "size": info.size, "mtime": info.mtime, "error": "", "content": None,
-            "content_key": _content_key(info.size, info.mtime_ns)}
+    base = {
+        "title": info.path.stem,
+        "url": "",
+        "published": "",
+        "lead": "",
+        "thumb_src": "",
+        "genre": "",
+        "paragraph_count": 0,
+        "size": info.size,
+        "mtime": info.mtime,
+        "error": "",
+        "content": None,
+        "content_key": _content_key(info.size, info.mtime_ns),
+    }
     if info.size > MAX_HTML_BYTES:
         return {**base, "error": "サイズ制限超過"}
     try:
@@ -278,10 +297,20 @@ def _parse_file(info: FileInfo, source: str = "") -> dict | None:
         log.warning("Could not parse %s (%s)", info.path.name, type(exc).__name__)
         return {**base, "error": f"解析できませんでした（{type(exc).__name__}）"}
     images = article["images"]
-    genre = genres.classify(source, article["url"], genres.section_of(data), article["title"], article["paragraphs"][:6])
-    return {**base, "title": article["title"], "url": article["url"], "published": article["published"], "genre": genre,
-            "lead": _lead(article["paragraphs"]), "thumb_src": images[0]["src"] if images else "",
-            "paragraph_count": article["paragraph_count"], "content": encode_content(article)}
+    genre = genres.classify(
+        source, article["url"], genres.section_of(data), article["title"], article["paragraphs"][:6]
+    )
+    return {
+        **base,
+        "title": article["title"],
+        "url": article["url"],
+        "published": article["published"],
+        "genre": genre,
+        "lead": _lead(article["paragraphs"]),
+        "thumb_src": images[0]["src"] if images else "",
+        "paragraph_count": article["paragraph_count"],
+        "content": encode_content(article),
+    }
 
 
 _UPSERT = """
@@ -346,8 +375,12 @@ def sync(root: Path, db_path: Path, force: bool = False) -> dict:
         try:
             result = _sync_locked(Path(root), Path(db_path))
         except Exception as exc:
-            _set_state(db_path, running=False, finished=time.time(), error=str(exc) if isinstance(exc, ReaderError)
-                       else f"索引の更新に失敗しました（{type(exc).__name__}）")
+            _set_state(
+                db_path,
+                running=False,
+                finished=time.time(),
+                error=str(exc) if isinstance(exc, ReaderError) else f"索引の更新に失敗しました（{type(exc).__name__}）",
+            )
             raise
         result["seconds"] = round(time.perf_counter() - started, 3)
         _last_sync[key] = now
@@ -360,9 +393,12 @@ def _sync_locked(root: Path, db_path: Path) -> dict:
         # Read the index *before* scanning: a file the collector adds in between is then
         # simply not seen yet, instead of its fresh row being mistaken for a deleted file.
         # content IS NOT NULL, not the content itself: every article's body is not read for a yes/no.
-        known = {(r["source"], r["filename"]): (r["content_key"], bool(r["has_content"]), r["error"])
-                 for r in db.execute("SELECT source, filename, content_key, content IS NOT NULL AS has_content, error "
-                                     "FROM articles")}
+        known = {
+            (r["source"], r["filename"]): (r["content_key"], bool(r["has_content"]), r["error"])
+            for r in db.execute(
+                "SELECT source, filename, content_key, content IS NOT NULL AS has_content, error FROM articles"
+            )
+        }
         files = scan_library(root)
 
         gone = [k for k in known if k not in files]
@@ -407,8 +443,16 @@ def _sync_locked(root: Path, db_path: Path) -> dict:
         _write(db, batch)
         _set_state(db_path, progress=[len(work), len(work)])
         total = db.execute("SELECT COUNT(*) FROM articles").fetchone()[0]
-    return {"added": added, "updated": updated, "removed": len(gone), "errors": errors,
-            "deferred": deferred, "total": total, "skipped": False, "warning": warning}
+    return {
+        "added": added,
+        "updated": updated,
+        "removed": len(gone),
+        "errors": errors,
+        "deferred": deferred,
+        "total": total,
+        "skipped": False,
+        "warning": warning,
+    }
 
 
 class BackgroundSync:
@@ -418,8 +462,13 @@ class BackgroundSync:
     appears after start-up (an external drive, say) is picked up without a restart.
     """
 
-    def __init__(self, root_provider: Callable[[], Path], db_path: Path, interval: float = 60.0,
-                 after_change: Callable[[dict], None] | None = None):
+    def __init__(
+        self,
+        root_provider: Callable[[], Path],
+        db_path: Path,
+        interval: float = 60.0,
+        after_change: Callable[[dict], None] | None = None,
+    ):
         self.root_provider = root_provider
         self.after_change = after_change
         self._first = True
@@ -475,8 +524,12 @@ class BackgroundSync:
             self._wake.clear()
 
 
-def start_background_sync(root_provider: Callable[[], Path], db_path: Path, interval: float = 60.0,
-                          after_change: Callable[[dict], None] | None = None) -> BackgroundSync:
+def start_background_sync(
+    root_provider: Callable[[], Path],
+    db_path: Path,
+    interval: float = 60.0,
+    after_change: Callable[[dict], None] | None = None,
+) -> BackgroundSync:
     return BackgroundSync(root_provider, db_path, interval, after_change).start()
 
 
@@ -485,8 +538,11 @@ def folders_stamp(root: Path) -> tuple:
     in one of them changes it (the folder's own time). () when the folder cannot be read."""
     try:
         with os.scandir(root) as entries:
-            found = [(entry.name, entry.stat(follow_symlinks=False).st_mtime_ns) for entry in entries
-                     if entry.is_dir(follow_symlinks=False)]
+            found = [
+                (entry.name, entry.stat(follow_symlinks=False).st_mtime_ns)
+                for entry in entries
+                if entry.is_dir(follow_symlinks=False)
+            ]
         return (os.stat(root).st_mtime_ns, tuple(sorted(found)))
     except OSError:
         return ()
@@ -542,25 +598,35 @@ def kept_until_changed(read):
 
 # --------------------------------------------------------------- queries ----
 
-def _counts(db: sqlite3.Connection, column: str, query: str, pivot_words: list[str] | None,
-            where: str = "", params: tuple = ()) -> tuple[list[str], dict[str, int]]:
+
+def _counts(
+    db: sqlite3.Connection, column: str, query: str, pivot_words: list[str] | None, where: str = "", params: tuple = ()
+) -> tuple[list[str], dict[str, int]]:
     """Every value of ``column`` (so chips never disappear) and how many articles have it,
     within a search and the extra condition."""
-    values = [r[0] for r in db.execute(f"SELECT DISTINCT {column} FROM articles WHERE error='' "
-                                       f"ORDER BY {column} COLLATE NOCASE")]
+    values = [
+        r[0]
+        for r in db.execute(f"SELECT DISTINCT {column} FROM articles WHERE error='' ORDER BY {column} COLLATE NOCASE")
+    ]
     counts: dict[str, int] = {}
     condition = f" AND {where}" if where else ""
     query = query.strip()[:100]
     if query:
         ids = search_ids(db, query, pivot_words)
         for start in range(0, len(ids), 900):
-            chunk = ids[start:start + 900]
-            for value, n in db.execute(f"SELECT {column}, COUNT(*) FROM articles WHERE id IN ({','.join('?' * len(chunk))})"
-                                       f"{condition} GROUP BY {column}", (*chunk, *params)):
+            chunk = ids[start : start + 900]
+            for value, n in db.execute(
+                f"SELECT {column}, COUNT(*) FROM articles WHERE id IN ({','.join('?' * len(chunk))})"
+                f"{condition} GROUP BY {column}",
+                (*chunk, *params),
+            ):
                 counts[value] = counts.get(value, 0) + n
     else:
-        counts = dict(db.execute(f"SELECT {column}, COUNT(*) FROM articles WHERE error=''{condition} GROUP BY {column}",
-                                 params).fetchall())
+        counts = dict(
+            db.execute(
+                f"SELECT {column}, COUNT(*) FROM articles WHERE error=''{condition} GROUP BY {column}", params
+            ).fetchall()
+        )
     return values, counts
 
 
@@ -569,16 +635,26 @@ def sources(db_path: Path, query: str = "", pivot_words: list[str] | None = None
     """Outlets with their article counts — with a search or a kind of news, how many of each
     match it (every outlet is still listed, so the chips do not jump around)."""
     with closing(connect(db_path)) as db:
-        names, counts = _counts(db, "source", query, pivot_words, "genre = ?" if genre else "",
-                                ("" if genre == genres.OTHER else genre,) if genre else ())
+        names, counts = _counts(
+            db,
+            "source",
+            query,
+            pivot_words,
+            "genre = ?" if genre else "",
+            ("" if genre == genres.OTHER else genre,) if genre else (),
+        )
     return [{"name": name, "count": counts.get(name, 0)} for name in names]
 
 
 @kept_until_changed
-def genre_counts(db_path: Path, source: str = "", query: str = "", pivot_words: list[str] | None = None) -> dict[str, int]:
+def genre_counts(
+    db_path: Path, source: str = "", query: str = "", pivot_words: list[str] | None = None
+) -> dict[str, int]:
     """How many articles of each kind of news (genres.py) — within an outlet and a search."""
     with closing(connect(db_path)) as db:
-        _, counts = _counts(db, "genre", query, pivot_words, "source = ?" if source else "", (source,) if source else ())
+        _, counts = _counts(
+            db, "genre", query, pivot_words, "source = ?" if source else "", (source,) if source else ()
+        )
     return counts
 
 
@@ -588,16 +664,25 @@ def source_stats(db_path: Path) -> list[dict]:
         rows = db.execute(
             """SELECT source, COUNT(*) AS total, SUM(error = '') AS ok, SUM(error != '') AS errors,
                       MAX(CASE WHEN error = '' THEN published END) AS newest, SUM(size) AS bytes
-               FROM articles GROUP BY source ORDER BY source COLLATE NOCASE""").fetchall()
-    return [{"name": r["source"], "total": r["total"], "ok": r["ok"] or 0, "errors": r["errors"] or 0,
-             "newest": r["newest"] or "", "bytes": r["bytes"] or 0} for r in rows]
+               FROM articles GROUP BY source ORDER BY source COLLATE NOCASE"""
+        ).fetchall()
+    return [
+        {
+            "name": r["source"],
+            "total": r["total"],
+            "ok": r["ok"] or 0,
+            "errors": r["errors"] or 0,
+            "newest": r["newest"] or "",
+            "bytes": r["bytes"] or 0,
+        }
+        for r in rows
+    ]
 
 
 def index_stats(db_path: Path) -> dict:
     """Totals for /status: rows, rows still waiting for content, and the index file size."""
     with closing(connect(db_path)) as db:
-        total, pending = db.execute(
-            "SELECT COUNT(*), SUM(content IS NULL AND error = '') FROM articles").fetchone()
+        total, pending = db.execute("SELECT COUNT(*), SUM(content IS NULL AND error = '') FROM articles").fetchone()
     size = 0
     for suffix in ("", "-wal"):
         try:
@@ -616,9 +701,11 @@ def _like(text: str) -> str:
 _LIST_ORDER = "CASE WHEN published = '' THEN 1 ELSE 0 END, published DESC, mtime DESC, id DESC"
 
 
-_SEARCH_STOP = frozenset("the and for with from into over after about than that this what when where who why how "
-                         "are was were has have had its his her their our not but says said will would can could "
-                         "new news".split())
+_SEARCH_STOP = frozenset(
+    "the and for with from into over after about than that this what when where who why how "
+    "are was were has have had its his her their our not but says said will would can could "
+    "new news".split()
+)
 
 
 def search_words(text: str) -> list[str]:
@@ -645,7 +732,8 @@ def _pivot_matches(db: sqlite3.Connection, words: list[str]) -> list[int]:
     need = len(patterns) if len(patterns) <= 2 else -(-2 * len(patterns) // 3)
     found = []
     for article_id, pivot in db.execute(
-            "SELECT article_id, pivot FROM story_items WHERE pivot IS NOT NULL ORDER BY article_id DESC"):
+        "SELECT article_id, pivot FROM story_items WHERE pivot IS NOT NULL ORDER BY article_id DESC"
+    ):
         if sum(1 for pattern in patterns if pattern.search(pivot)) >= need:
             found.append(article_id)
             if len(found) >= MAX_PIVOT_MATCHES:
@@ -656,15 +744,26 @@ def _pivot_matches(db: sqlite3.Connection, words: list[str]) -> list[int]:
 def search_ids(db: sqlite3.Connection, query: str, pivot_words: list[str] | None) -> list[int]:
     """Articles whose headline or opening contains ``query``, or whose English headline matches
     ``pivot_words`` (at most MAX_PIVOT_MATCHES of the latter)."""
-    ids = [row[0] for row in db.execute(
-        "SELECT id FROM articles WHERE error = '' AND (title LIKE ? ESCAPE '\\' OR lead LIKE ? ESCAPE '\\')",
-        (_like(query), _like(query)))]
+    ids = [
+        row[0]
+        for row in db.execute(
+            "SELECT id FROM articles WHERE error = '' AND (title LIKE ? ESCAPE '\\' OR lead LIKE ? ESCAPE '\\')",
+            (_like(query), _like(query)),
+        )
+    ]
     return list(dict.fromkeys(ids + (_pivot_matches(db, pivot_words) if pivot_words else [])))
 
 
 @kept_until_changed
-def list_articles(db_path: Path, source: str = "", query: str = "", page: int = 1, per_page: int = 24,
-                  pivot_words: list[str] | None = None, genre: str = "") -> dict:
+def list_articles(
+    db_path: Path,
+    source: str = "",
+    query: str = "",
+    page: int = 1,
+    per_page: int = 24,
+    pivot_words: list[str] | None = None,
+    genre: str = "",
+) -> dict:
     """Newest first. Articles without a parsed date fall back to file time. Never loads bodies.
 
     ``pivot_words`` (from ``search_words``) also finds articles whose English headline matches,
@@ -692,8 +791,7 @@ def list_articles(db_path: Path, source: str = "", query: str = "", page: int = 
                 LIMIT ? OFFSET ?""",
             params + [per_page, (page - 1) * per_page],
         ).fetchall()
-    return {"items": [dict(r) for r in rows], "total": total, "page": page,
-            "pages": max(1, -(-total // per_page))}
+    return {"items": [dict(r) for r in rows], "total": total, "page": page, "pages": max(1, -(-total // per_page))}
 
 
 def neighbours(db_path: Path, article_id: int) -> dict:
@@ -702,14 +800,22 @@ def neighbours(db_path: Path, article_id: int) -> dict:
         row = db.execute("SELECT source FROM articles WHERE id = ?", (article_id,)).fetchone()
         if row is None:
             return {"newer": None, "older": None}
-        ids = [r[0] for r in db.execute(
-            f"SELECT id FROM articles WHERE error = '' AND source = ? ORDER BY {_LIST_ORDER}", (row["source"],))]
+        ids = [
+            r[0]
+            for r in db.execute(
+                f"SELECT id FROM articles WHERE error = '' AND source = ? ORDER BY {_LIST_ORDER}", (row["source"],)
+            )
+        ]
         if article_id not in ids:
             return {"newer": None, "older": None}
         at = ids.index(article_id)
         wanted = {"newer": ids[at - 1] if at > 0 else None, "older": ids[at + 1] if at + 1 < len(ids) else None}
-        found = {r["id"]: dict(r) for r in db.execute(
-            f"SELECT {_LIST_COLUMNS} FROM articles WHERE id IN (?, ?)", (wanted["newer"] or 0, wanted["older"] or 0))}
+        found = {
+            r["id"]: dict(r)
+            for r in db.execute(
+                f"SELECT {_LIST_COLUMNS} FROM articles WHERE id IN (?, ?)", (wanted["newer"] or 0, wanted["older"] or 0)
+            )
+        }
     return {side: found.get(i) if i else None for side, i in wanted.items()}
 
 
@@ -727,8 +833,9 @@ def get_content(db_path: Path, article_id: int) -> dict | None:
     migrated from v3 before its first background parse, for example.
     """
     with closing(connect(db_path)) as db:
-        row = db.execute("SELECT title, url, published, content FROM articles WHERE id = ? AND error = ''",
-                         (article_id,)).fetchone()
+        row = db.execute(
+            "SELECT title, url, published, content FROM articles WHERE id = ? AND error = ''", (article_id,)
+        ).fetchone()
     if row is None or row["content"] is None:
         return None
     return decode_content(row["content"], row)
@@ -736,6 +843,7 @@ def get_content(db_path: Path, article_id: int) -> dict | None:
 
 def find_by_file(db_path: Path, source: str, filename: str) -> dict | None:
     with closing(connect(db_path)) as db:
-        row = db.execute(f"SELECT {_LIST_COLUMNS} FROM articles WHERE source = ? AND filename = ?",
-                         (source, filename)).fetchone()
+        row = db.execute(
+            f"SELECT {_LIST_COLUMNS} FROM articles WHERE source = ? AND filename = ?", (source, filename)
+        ).fetchone()
     return dict(row) if row else None

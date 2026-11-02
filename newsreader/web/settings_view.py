@@ -3,6 +3,7 @@
 API keys are written to the credential store and never echoed back or logged; the page
 only shows whether each one is set.
 """
+
 from __future__ import annotations
 
 import os
@@ -46,11 +47,13 @@ def _story_daily(raw: str) -> int:
 
 def _topics() -> list[str]:
     from newsreader.services.settings import topics
+
     return topics()
 
 
 def _glossary() -> list[dict]:
     from newsreader.services.settings import glossary
+
     return glossary()
 
 
@@ -60,8 +63,11 @@ def translation_settings():
     error = ""
     issued_token = ""
     action = request.form.get("action", "") if request.method == "POST" else ""
-    if action in ("issue_relay_token", "revoke_relay_tokens") or action.startswith("revoke_token:"):  # CSRF verified centrally
+    if action in ("issue_relay_token", "revoke_relay_tokens") or action.startswith(
+        "revoke_token:"
+    ):  # CSRF verified centrally
         from newsreader.services import relay
+
         if action.startswith("revoke_token:"):
             message = "合言葉を無効にしました。" if relay.revoke(action.split(":", 1)[1]) else ""
             error = "" if message else "その合言葉は見つかりませんでした。"
@@ -72,6 +78,7 @@ def translation_settings():
             message = f"合言葉 {relay.revoke_all()} 件を無効にしました。"
     elif action.startswith("remove_topic:"):  # 話題を追う (D-61)
         from newsreader.services.settings import save_topic, topics
+
         try:
             followed = topics()
             index = int(action.split(":", 1)[1])
@@ -82,10 +89,14 @@ def translation_settings():
             error = str(exc)
     elif action == "add_glossary" or action.startswith("remove_glossary:"):  # 訳語の指定 (D-63)
         from newsreader.services.settings import remove_glossary_entry, save_glossary_entry
+
         try:
             if action == "add_glossary":
-                save_glossary_entry(request.form.get("glossary_source", ""), request.form.get("glossary_target", ""),
-                                    request.form.get("glossary_lang", ""))
+                save_glossary_entry(
+                    request.form.get("glossary_source", ""),
+                    request.form.get("glossary_target", ""),
+                    request.form.get("glossary_lang", ""),
+                )
                 message = "訳語を登録しました。これからの翻訳で使います（訳し済みの文章は次に訳すときから）。"
             else:
                 remove_glossary_entry(int(action.split(":", 1)[1]))
@@ -121,11 +132,16 @@ def translation_settings():
                 save_start_at_logon(request.form.get("start_at_logon") == "1")
             if request.form.get("glossary_source", "").strip() and request.form.get("glossary_target", "").strip():
                 from newsreader.services.settings import save_glossary_entry  # Enter in the 訳語 fields
-                save_glossary_entry(request.form["glossary_source"], request.form["glossary_target"],
-                                    request.form.get("glossary_lang", ""))
+
+                save_glossary_entry(
+                    request.form["glossary_source"],
+                    request.form["glossary_target"],
+                    request.form.get("glossary_lang", ""),
+                )
             message = "設定を保存しました。APIキーはこのPCの資格情報ストアに保存されています。接続IPまたはポートの変更はアプリ再起動後に反映されます。"
             if action == "check_relay":
                 from newsreader.services import relay
+
                 try:
                     allowance = relay.ping()
                     left = max(0, allowance["daily_chars"] - allowance["used_today"])
@@ -135,24 +151,44 @@ def translation_settings():
         except Exception as exc:
             # Never log the exception text: it could echo a submitted key.
             current_app.logger.warning("Could not save translation settings (%s)", type(exc).__name__)
-            error = str(exc) if isinstance(exc, ValueError) else "設定を保存できませんでした。APIキーを確認し、Windows資格情報ストアが利用できる状態で再試行してください。"
+            error = (
+                str(exc)
+                if isinstance(exc, ValueError)
+                else "設定を保存できませんでした。APIキーを確認し、Windows資格情報ストアが利用できる状態で再試行してください。"
+            )
     secret_store_error = ""
     try:
         secret_status = configured_secrets()
     except SecretStoreError:
         secret_status = {name: False for name in SECRET_NAMES}
-        secret_store_error = "Windows資格情報ストアにアクセスできません。アプリを通常のWindowsユーザーとして起動し直してください。"
+        secret_store_error = (
+            "Windows資格情報ストアにアクセスできません。アプリを通常のWindowsユーザーとして起動し直してください。"
+        )
     usage = monthly_translation_usage()
     azure = usage["providers"]["azure"]["metered_chars"]
     return render_template(
-        "settings.html", settings=get_settings(), secrets=secret_status, story_settings=get_story_settings(),
-        story_range=STORY_DAILY_RANGE, library_dir=paths.configured_library_dir(), start_at_logon=start_at_logon(),
-        relay_tokens=_relay_tokens(), relay_usage=_relay_usage(), issued_token=issued_token,
-        topics=_topics(), glossary=_glossary(), glossary_prefill={key: request.args.get(key, "")[:40] for key in ("gsrc", "gdst", "glang")},
-        active_library=str(current_app.config["LIBRARY_ROOT"]), html_directory_env=bool(os.environ.get("HTML_DIRECTORY", "").strip()),
+        "settings.html",
+        settings=get_settings(),
+        secrets=secret_status,
+        story_settings=get_story_settings(),
+        story_range=STORY_DAILY_RANGE,
+        library_dir=paths.configured_library_dir(),
+        start_at_logon=start_at_logon(),
+        relay_tokens=_relay_tokens(),
+        relay_usage=_relay_usage(),
+        issued_token=issued_token,
+        topics=_topics(),
+        glossary=_glossary(),
+        glossary_prefill={key: request.args.get(key, "")[:40] for key in ("gsrc", "gdst", "glang")},
+        active_library=str(current_app.config["LIBRARY_ROOT"]),
+        html_directory_env=bool(os.environ.get("HTML_DIRECTORY", "").strip()),
         secret_store_error=secret_store_error,
-        csrf=csrf_token(), message=message, error=error,
-        usage=usage, azure_free_limit=2_000_000, azure_used=min(azure, 2_000_000),
+        csrf=csrf_token(),
+        message=message,
+        error=error,
+        usage=usage,
+        azure_free_limit=2_000_000,
+        azure_used=min(azure, 2_000_000),
         first_run=request.args.get("first_run") == "1",
         active_bind_host=os.environ.get("NEWS_BIND_HOST", DEFAULT_BIND_HOST),
         active_port=os.environ.get("NEWS_PORT", str(DEFAULT_PORT)),
@@ -161,9 +197,11 @@ def translation_settings():
 
 def _relay_tokens() -> list[dict]:
     from newsreader.services import relay
+
     return relay.tokens()
 
 
 def _relay_usage() -> dict:
     from newsreader.services import relay
+
     return relay.usage_today()

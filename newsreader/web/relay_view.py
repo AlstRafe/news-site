@@ -1,6 +1,7 @@
 """The translation relay a NewsBridge offers to other installations (D-50): token-authenticated
 JSON for programs, not pages, so there is no session and no CSRF token; the bearer token is
 the authentication. Errors never include texts, tokens or provider responses."""
+
 from __future__ import annotations
 
 from flask import jsonify, request
@@ -36,6 +37,7 @@ def _authorised():
 def _client_glossary(value) -> list[tuple[str, str]] | None:
     """A relay client's 訳語の指定: [[name, translation], ...]; None when malformed."""
     from newsreader.services.settings import _glossary_entry
+
     if value is None:
         return []
     if not isinstance(value, list) or len(value) > 200:
@@ -57,7 +59,9 @@ def relay_ping():
         return error
     entry, _payload = found
     used = relay.usage_today().get(entry["hash"][:16], 0)
-    return jsonify({"ok": True, "daily_chars": int(entry.get("daily_chars", relay.DEFAULT_DAILY_CHARS)), "used_today": used})
+    return jsonify(
+        {"ok": True, "daily_chars": int(entry.get("daily_chars", relay.DEFAULT_DAILY_CHARS)), "used_today": used}
+    )
 
 
 @routes.route("/relay/v1/translate", "relay_translate", methods=("POST",))
@@ -67,9 +71,13 @@ def relay_translate():
         return error
     entry, payload = found
     texts, target = payload.get("texts"), payload.get("target")
-    if (not isinstance(texts, list) or not 0 < len(texts) <= relay.MAX_REQUEST_TEXTS
-            or not all(isinstance(t, str) for t in texts) or sum(len(t) for t in texts) > relay.MAX_REQUEST_CHARS
-            or target not in TARGETS):
+    if (
+        not isinstance(texts, list)
+        or not 0 < len(texts) <= relay.MAX_REQUEST_TEXTS
+        or not all(isinstance(t, str) for t in texts)
+        or sum(len(t) for t in texts) > relay.MAX_REQUEST_CHARS
+        or target not in TARGETS
+    ):
         return jsonify({"error": "bad request"}), 400
     glossary = _client_glossary(payload.get("glossary"))
     if glossary is None:
@@ -84,9 +92,16 @@ def relay_translate():
     finally:
         _GLOSSARY_OVERRIDE.reset(token)
     from newsreader.services import sentences
-    return jsonify({"translations": translated,
-                    "sentences": [sentences.reported(target, text.strip()[:relay.MAX_REQUEST_CHARS], out)
-                                  for text, out in zip(texts, translated)]})
+
+    return jsonify(
+        {
+            "translations": translated,
+            "sentences": [
+                sentences.reported(target, text.strip()[: relay.MAX_REQUEST_CHARS], out)
+                for text, out in zip(texts, translated)
+            ],
+        }
+    )
 
 
 @routes.route("/relay/v1/dictionary", "relay_dictionary", methods=("POST",))

@@ -4,6 +4,7 @@ One rule, used by the web server, the settings page and (as a verified copy) lau
 ``ipaddress`` alone is not enough: it reports 0.0.0.0 — "every interface", including a
 public one — as *private*, so binding to it would have passed the v3 check.
 """
+
 from __future__ import annotations
 
 import ipaddress
@@ -23,6 +24,7 @@ def is_allowed_bind_address(address: ipaddress.IPv4Address | ipaddress.IPv6Addre
 def lan_address() -> str | None:
     """This PC's private LAN IPv4 address right now (the one Windows would route out of), or None."""
     import socket
+
     try:
         with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as probe:
             probe.connect(("192.0.2.1", 9))  # no packet is sent: this only asks the routing table
@@ -52,14 +54,18 @@ def tailscale_address() -> str | None:
         return str(address) if address.version == 4 and address in TAILSCALE else None
 
     program_files = os.environ.get("ProgramFiles", r"C:\Program Files")
-    candidates = [shutil.which("tailscale.exe"), shutil.which("tailscale"),
-                  os.path.join(program_files, "Tailscale", "tailscale.exe")]
+    candidates = [
+        shutil.which("tailscale.exe"),
+        shutil.which("tailscale"),
+        os.path.join(program_files, "Tailscale", "tailscale.exe"),
+    ]
     executable = next((item for item in candidates if item and os.path.isfile(item)), None)
     if executable:
         extra = {"creationflags": 0x08000000} if os.name == "nt" else {}  # CREATE_NO_WINDOW
         try:
-            output = subprocess.run([executable, "ip", "-4"], capture_output=True, text=True,
-                                    timeout=4, check=True, **extra).stdout
+            output = subprocess.run(
+                [executable, "ip", "-4"], capture_output=True, text=True, timeout=4, check=True, **extra
+            ).stdout
             found = next((ours(line.strip()) for line in output.splitlines() if ours(line.strip())), None)
             if found:
                 return found

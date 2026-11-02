@@ -1,4 +1,5 @@
 """News Site under /news: served on its own (app.py), and as a site of the Home Page server (newsreader.hosting)."""
+
 from __future__ import annotations
 
 import shutil
@@ -25,10 +26,10 @@ class Library(unittest.TestCase):
         self.tmp = Path(tempfile.mkdtemp())
         root = self.tmp / "articles" / "BBC"
         root.mkdir(parents=True)
-        (root / "a.html").write_bytes(b'''<html><head><meta name="pagetype" content="News Article">
+        (root / "a.html").write_bytes(b"""<html><head><meta name="pagetype" content="News Article">
 <meta property="article:published_time" content="2026-10-13T10:00:00Z"></head><body><main id="bbc-main">
 <h1>Heavy snow closes Alpine passes</h1><article><div data-component="layout-block">
-<p class="Paragraph-styles__ParagraphStyled-x">Snow.</p></div></article></main></body></html>''')
+<p class="Paragraph-styles__ParagraphStyled-x">Snow.</p></div></article></main></body></html>""")
         db = self.tmp / "library.sqlite3"
         index._last_sync.clear()
         index.sync(self.tmp / "articles", db, force=True)
@@ -41,7 +42,6 @@ class Library(unittest.TestCase):
 
 
 class PortalTests(Library):
-
     def test_on_its_own_the_front_page_is_news_site(self):
         # (on this PC the Home Page server owns "/" and lists News Site with the other sites)
         response = self.client.get("/", headers=H)
@@ -56,8 +56,11 @@ class PortalTests(Library):
         self.assertIn('"/news/a/*"', page)  # prefetch rules
         self.assertIn("/news/static/style.css", page)
         # the way back to the front page: top left as on the PC's other sites (an arrow alone on phones), and the footer
-        self.assertIn('<div class="wrap brand"><a class="portal-link" href="/" title="サイト一覧へ戻る" aria-label="サイト一覧へ戻る">'
-                      '<span aria-hidden="true">←</span><span class="portal-text">サイト一覧</span></a><a class="brand-link"', page)
+        self.assertIn(
+            '<div class="wrap brand"><a class="portal-link" href="/" title="サイト一覧へ戻る" aria-label="サイト一覧へ戻る">'
+            '<span aria-hidden="true">←</span><span class="portal-text">サイト一覧</span></a><a class="brand-link"',
+            page,
+        )
         self.assertIn('<a href="/">← サイト一覧</a>', page)
         self.assertEqual(self.client.get(f"/news/a/{self.article}", headers=H).status_code, 200)
         response = self.client.get("/news", headers=H)
@@ -65,7 +68,9 @@ class PortalTests(Library):
 
     def test_the_public_name_reads_and_translates_but_changes_nothing(self):
         funnel = {"Host": "haruxera.tail1234.ts.net"}
-        self.assertEqual(self.client.post("/relay/v1/ping", headers={**funnel, "Authorization": "Bearer nbr_x"}).status_code, 401)
+        self.assertEqual(
+            self.client.post("/relay/v1/ping", headers={**funnel, "Authorization": "Bearer nbr_x"}).status_code, 401
+        )
         self.assertEqual(self.client.get("/", headers=funnel).headers["Location"], "/news/")
         page = self.client.get("/news/", headers=funnel)
         self.assertEqual(page.status_code, 200)
@@ -76,22 +81,40 @@ class PortalTests(Library):
         for owner_page in ("/news/translation-settings", "/news/status", "/news/saved", "/news/words"):
             self.assertEqual(self.client.get(owner_page, headers=funnel).status_code, 404, owner_page)
         import re
+
         csrf = re.search(r'name="csrf-token" content="([^"]+)"', html).group(1)
-        self.assertEqual(self.client.post("/news/api/saved", json={"id": self.article, "saved": True},
-                                          headers={**funnel, "X-CSRF-Token": csrf}).status_code, 403)
+        self.assertEqual(
+            self.client.post(
+                "/news/api/saved", json={"id": self.article, "saved": True}, headers={**funnel, "X-CSRF-Token": csrf}
+            ).status_code,
+            403,
+        )
         # the owner's own address still has everything, and the visit left no 既読 mark
         self.assertEqual(self.client.get("/news/translation-settings", headers=H).status_code, 200)
         from newsreader.library import reading
-        self.assertEqual(reading.states(reading.path_for(self.tmp / "library.sqlite3"),
-                                        index.list_articles(self.tmp / "library.sqlite3")["items"]), {})
-        self.assertEqual(self.client.post("/relay/v1/ping", headers={"Host": "evil.example", "Authorization": "Bearer nbr_x"}).status_code, 403)
+
+        self.assertEqual(
+            reading.states(
+                reading.path_for(self.tmp / "library.sqlite3"),
+                index.list_articles(self.tmp / "library.sqlite3")["items"],
+            ),
+            {},
+        )
+        self.assertEqual(
+            self.client.post(
+                "/relay/v1/ping", headers={"Host": "evil.example", "Authorization": "Bearer nbr_x"}
+            ).status_code,
+            403,
+        )
 
     def test_the_public_name_is_https_and_kept_out_of_search(self):
         funnel = {"Host": "haruxera.tail1234.ts.net"}
         response = self.client.get(f"/news/a/{self.article}", headers=funnel)
         html = response.get_data(as_text=True)
         # share previews need absolute https addresses (Funnel ends TLS in front of the app)
-        self.assertIn(f'<meta property="og:url" content="https://haruxera.tail1234.ts.net/news/a/{self.article}">', html)
+        self.assertIn(
+            f'<meta property="og:url" content="https://haruxera.tail1234.ts.net/news/a/{self.article}">', html
+        )
         self.assertIn('content="https://haruxera.tail1234.ts.net/news/static/icon-512.png', html)
         self.assertEqual(response.headers["X-Robots-Tag"], "noindex")
         self.assertIn("max-age=", response.headers["Strict-Transport-Security"])
@@ -113,6 +136,7 @@ class PortalTests(Library):
     def test_a_visitors_translations_count_as_automatic(self):
         from newsreader.services import translation
         from newsreader.web import public
+
         flask_app = self.app
         with flask_app.test_request_context("/api/translate", base_url="https://haruxera.tail1234.ts.net"):
             self.assertTrue(public.is_visitor())
@@ -120,8 +144,10 @@ class PortalTests(Library):
             self.assertFalse(public.is_visitor())
         token = translation.visitor_translations.set(True)
         try:
-            with unittest.mock.patch("newsreader.services.cache.monthly_translation_usage",
-                                     return_value={"providers": {"azure": {"metered_chars": translation.AUTO_MONTHLY_CHARS}}}):
+            with unittest.mock.patch(
+                "newsreader.services.cache.monthly_translation_usage",
+                return_value={"providers": {"azure": {"metered_chars": translation.AUTO_MONTHLY_CHARS}}},
+            ):
                 with self.assertRaises(translation.TranslationError):
                     translation._check_automatic()
         finally:
@@ -132,21 +158,30 @@ class PortalTests(Library):
         self.assertEqual(response.status_code, 308)
         self.assertEqual(response.headers["Location"], f"/news/a/{self.article}?tr=ja")
         # the relay keeps its address (test builds call it with POST and a fixed URL)
-        self.assertEqual(self.client.post("/relay/v1/ping", headers=H).status_code,
-                         Client(self.app).post("/relay/v1/ping", headers=H).status_code)
+        self.assertEqual(
+            self.client.post("/relay/v1/ping", headers=H).status_code,
+            Client(self.app).post("/relay/v1/ping", headers=H).status_code,
+        )
 
 
 class HostingTests(Library):
     """What the Home Page server gets from newsreader.hosting.site, and how News Site steps aside for it."""
 
     def test_site_for_a_host(self):
-        host = {"port": 5000, "addresses": ["127.0.0.1", "100.70.1.2"], "names": ["100.70.1.2", "haruxera"],
-                "urls": ["http://127.0.0.1:5000/", "http://100.70.1.2:5000/"]}
-        with unittest.mock.patch("newsreader.web.create_app", return_value=self.app) as factory, \
-                unittest.mock.patch.object(hosting, "_hand_over_the_start") as hand_over, \
-                unittest.mock.patch.dict("os.environ", {"NEWS_ALLOWED_HOSTS": "example.lan"}):
+        host = {
+            "port": 5000,
+            "addresses": ["127.0.0.1", "100.70.1.2"],
+            "names": ["100.70.1.2", "haruxera"],
+            "urls": ["http://127.0.0.1:5000/", "http://100.70.1.2:5000/"],
+        }
+        with (
+            unittest.mock.patch("newsreader.web.create_app", return_value=self.app) as factory,
+            unittest.mock.patch.object(hosting, "_hand_over_the_start") as hand_over,
+            unittest.mock.patch.dict("os.environ", {"NEWS_ALLOWED_HOSTS": "example.lan"}),
+        ):
             made = hosting.site("/news", host)
             import os
+
             self.assertEqual(os.environ["NEWS_ALLOWED_HOSTS"], "example.lan,100.70.1.2,haruxera")
         factory.assert_called_once_with(mount="/news")
         hand_over.assert_called_once_with(host, "/news")
@@ -160,18 +195,27 @@ class HostingTests(Library):
     def test_the_front_pages_preview_puts_translated_headlines_first(self):
         stories = [{"lead_title": f"Headline {n}", "key": f"s{n}"} for n in range(1, 6)]
         kept = {"Headline 2": "見出し2", "Headline 4": "見出し4"}
-        with unittest.mock.patch("newsreader.web.pages.front_stories", return_value=stories), \
-                unittest.mock.patch("newsreader.services.translation.cached_titles",
-                                    side_effect=lambda titles, target: [kept.get(t, "") for t in titles]):
+        with (
+            unittest.mock.patch("newsreader.web.pages.front_stories", return_value=stories),
+            unittest.mock.patch(
+                "newsreader.services.translation.cached_titles",
+                side_effect=lambda titles, target: [kept.get(t, "") for t in titles],
+            ),
+        ):
             now = hosting.news_now(self.app)
         self.assertEqual(now["title"], "各社が伝えた話題")
-        self.assertEqual(now["items"], [("見出し2", "/stories/s2"), ("見出し4", "/stories/s4"), ("Headline 1", "/stories/s1")])
+        self.assertEqual(
+            now["items"], [("見出し2", "/stories/s2"), ("見出し4", "/stories/s4"), ("Headline 1", "/stories/s1")]
+        )
 
     def test_the_host_takes_over_the_start_at_logon(self):
         from newsreader.services import settings
-        with unittest.mock.patch.object(hosting, "HOSTED_PATH", self.tmp / "instance" / "hosted.json"), \
-                unittest.mock.patch.object(settings, "SETTINGS_PATH", self.tmp / "settings.json"), \
-                unittest.mock.patch.object(hosting, "_remove_logon_task") as remove:
+
+        with (
+            unittest.mock.patch.object(hosting, "HOSTED_PATH", self.tmp / "instance" / "hosted.json"),
+            unittest.mock.patch.object(settings, "SETTINGS_PATH", self.tmp / "settings.json"),
+            unittest.mock.patch.object(hosting, "_remove_logon_task") as remove,
+        ):
             hosting._hand_over_the_start({"port": 5000, "urls": ["http://127.0.0.1:5000/"]}, "/news")
             self.assertEqual(hosting.hosted(), {"by": "Home Page", "url": "http://127.0.0.1:5000/news/", "port": 5000})
             self.assertFalse(settings.start_at_logon())
@@ -181,7 +225,10 @@ class HostingTests(Library):
         import importlib.util
         import json
         import socket
-        spec = importlib.util.spec_from_file_location("launcher_under_test", Path(__file__).resolve().parents[1] / "launcher.py")
+
+        spec = importlib.util.spec_from_file_location(
+            "launcher_under_test", Path(__file__).resolve().parents[1] / "launcher.py"
+        )
         launcher = importlib.util.module_from_spec(spec)
         spec.loader.exec_module(launcher)
         record = self.tmp / "hosted.json"

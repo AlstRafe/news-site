@@ -8,6 +8,7 @@ credential store ("relay_token"); translation.py then sends texts here instead o
 
 Nothing here logs or returns texts, tokens or provider responses in errors.
 """
+
 from __future__ import annotations
 
 import hashlib
@@ -38,17 +39,21 @@ class RelayError(Exception):
 
 # ---- server: tokens ---------------------------------------------------------------
 
+
 def _digest(token: str) -> str:
     return hashlib.sha256(token.encode("utf-8")).hexdigest()
 
 
 def tokens() -> list[dict]:
     value = get_settings_raw().get("relay_tokens")
-    return [t for t in value if isinstance(t, dict) and isinstance(t.get("hash"), str)] if isinstance(value, list) else []
+    return (
+        [t for t in value if isinstance(t, dict) and isinstance(t.get("hash"), str)] if isinstance(value, list) else []
+    )
 
 
 def get_settings_raw() -> dict:
     from newsreader.services import settings as settings_module
+
     try:
         value = json.loads(settings_module.SETTINGS_PATH.read_text(encoding="utf-8"))
     except (OSError, ValueError, TypeError):
@@ -59,8 +64,12 @@ def get_settings_raw() -> dict:
 def issue_token(name: str, daily_chars: int = DEFAULT_DAILY_CHARS) -> str:
     """A new token (returned once, never stored in clear)."""
     token = "nbr_" + secrets.token_urlsafe(32)
-    entry = {"name": (name or "テスト版")[:60], "hash": _digest(token), "daily_chars": int(daily_chars),
-             "created": datetime.now().astimezone().strftime("%Y-%m-%d %H:%M")}
+    entry = {
+        "name": (name or "テスト版")[:60],
+        "hash": _digest(token),
+        "daily_chars": int(daily_chars),
+        "created": datetime.now().astimezone().strftime("%Y-%m-%d %H:%M"),
+    }
     _write_merged({"relay_tokens": tokens() + [entry]})
     return token
 
@@ -86,7 +95,7 @@ def check_token(header: str) -> dict | None:
     """The token entry for an ``Authorization: Bearer …`` header, or None."""
     if not header.startswith("Bearer "):
         return None
-    supplied = _digest(header[len("Bearer "):].strip())
+    supplied = _digest(header[len("Bearer ") :].strip())
     for entry in tokens():
         if hmac.compare_digest(entry["hash"], supplied):
             return entry
@@ -95,8 +104,10 @@ def check_token(header: str) -> dict | None:
 
 def _usage_db() -> sqlite3.Connection:
     db = sqlite3.connect(cache.CACHE_PATH, timeout=5)
-    db.execute("CREATE TABLE IF NOT EXISTS relay_usage (day TEXT NOT NULL, token TEXT NOT NULL, chars INTEGER NOT NULL,"
-               " PRIMARY KEY(day, token))")
+    db.execute(
+        "CREATE TABLE IF NOT EXISTS relay_usage (day TEXT NOT NULL, token TEXT NOT NULL, chars INTEGER NOT NULL,"
+        " PRIMARY KEY(day, token))"
+    )
     return db
 
 
@@ -108,8 +119,11 @@ def charge(entry: dict, chars: int) -> bool:
         used = (db.execute("SELECT chars FROM relay_usage WHERE day=? AND token=?", (day, key)).fetchone() or (0,))[0]
         if used + chars > int(entry.get("daily_chars", DEFAULT_DAILY_CHARS)):
             return False
-        db.execute("INSERT INTO relay_usage(day, token, chars) VALUES(?,?,?) "
-                   "ON CONFLICT(day, token) DO UPDATE SET chars = chars + excluded.chars", (day, key, chars))
+        db.execute(
+            "INSERT INTO relay_usage(day, token, chars) VALUES(?,?,?) "
+            "ON CONFLICT(day, token) DO UPDATE SET chars = chars + excluded.chars",
+            (day, key, chars),
+        )
         db.commit()
     return True
 
@@ -126,10 +140,12 @@ def usage_today() -> dict[str, int]:
 
 # ---- client ------------------------------------------------------------------------
 
+
 def _token() -> str:
     """The relay token: from the credential store, else (store unusable) the one shipped in preset/."""
     from newsreader.services.preset import shipped_token
     from newsreader.services.settings import SecretStoreError
+
     try:
         token = get_secret("relay_token") or ""
     except SecretStoreError:
@@ -149,19 +165,26 @@ def _post(path: str, body: dict) -> dict:
     if not base or not token:
         raise RelayError("翻訳の中継先が設定されていません。設定画面を確認してください。")
     request = urllib.request.Request(
-        base + path, data=json.dumps(body, ensure_ascii=False).encode("utf-8"), method="POST",
-        headers={"Content-Type": "application/json; charset=utf-8", "Authorization": f"Bearer {token}"})
+        base + path,
+        data=json.dumps(body, ensure_ascii=False).encode("utf-8"),
+        method="POST",
+        headers={"Content-Type": "application/json; charset=utf-8", "Authorization": f"Bearer {token}"},
+    )
     context = ssl.create_default_context() if base.startswith("https://") else None
     try:
         with urllib.request.urlopen(request, timeout=TIMEOUT_SECONDS, context=context) as response:
             payload = json.loads(response.read(4 * 1024 * 1024).decode("utf-8"))
     except urllib.error.HTTPError as exc:
-        messages = {401: "中継先が合言葉を受け付けませんでした（配布元に確認してください）。",
-                    429: "中継先の本日の翻訳量の上限に達しました。明日もう一度お試しください。",
-                    503: "中継先で翻訳できませんでした。時間を置いて再試行してください。"}
+        messages = {
+            401: "中継先が合言葉を受け付けませんでした（配布元に確認してください）。",
+            429: "中継先の本日の翻訳量の上限に達しました。明日もう一度お試しください。",
+            503: "中継先で翻訳できませんでした。時間を置いて再試行してください。",
+        }
         raise RelayError(messages.get(exc.code, f"中継先がエラーを返しました（HTTP {exc.code}）。")) from None
     except (urllib.error.URLError, TimeoutError, OSError, ValueError, UnicodeDecodeError):
-        raise RelayError("翻訳の中継先に接続できませんでした。配布元の NewsBridge が起動しているか確認してください。") from None
+        raise RelayError(
+            "翻訳の中継先に接続できませんでした。配布元の NewsBridge が起動しているか確認してください。"
+        ) from None
     if not isinstance(payload, dict):
         raise RelayError("中継先から予期しない応答がありました。")
     return payload
@@ -194,6 +217,7 @@ def translate(texts: list[str], target: str) -> list[str]:
 
 def _translate_batch(texts: list[str], target: str) -> list[str]:
     from newsreader.services.translation import glossary_for
+
     body = {"texts": texts, "target": target}
     entries = glossary_for(target)
     if entries:
@@ -205,6 +229,7 @@ def _translate_batch(texts: list[str], target: str) -> list[str]:
     lengths = payload.get("sentences")  # sentence lengths, from a 本体 that has them (D-57)
     if isinstance(lengths, list) and len(lengths) == len(texts):
         from newsreader.services import sentences
+
         for source, translated, found in zip(texts, out, lengths):
             if isinstance(found, dict):
                 sentences.remember(target, source, translated, found.get("src"), found.get("tr"))

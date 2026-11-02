@@ -4,6 +4,7 @@ Used by the collector (right after each collection) and by the web app's backgro
 (when files changed). A failure of the grouping step never fails the indexing step, and
 neither ever fails a collection (§12).
 """
+
 from __future__ import annotations
 
 import logging
@@ -27,8 +28,13 @@ def refresh_stories(db_path: Path, status_path: Path | None = None) -> dict | No
     except SecretStoreError:
         translate = None
     try:
-        result = stories.refresh(db_path, translate=translate, enabled=settings["stories_enabled"],
-                                 daily_chars=settings["stories_daily_chars"], status_path=status_path)
+        result = stories.refresh(
+            db_path,
+            translate=translate,
+            enabled=settings["stories_enabled"],
+            daily_chars=settings["stories_daily_chars"],
+            status_path=status_path,
+        )
     except Exception:
         log.exception("Same-news grouping failed")
         return None
@@ -41,6 +47,7 @@ def keep_warm(db_path: Path, interval: float = 60.0) -> threading.Thread:
     """In the web server: prepare what the pages ask for whenever the groups change (the
     collector regroups in its own process, so this looks rather than waits to be told). Each
     round is cheap when nothing changed (stories.arc keeps its results per state)."""
+
     def loop() -> None:
         warmed: tuple | None = None
         while True:
@@ -68,7 +75,9 @@ def refresh_facts(db_path: Path, status_path: Path | None = None) -> dict | None
     except Exception:
         log.exception("Comparing figures failed")
         return None
-    status.update("facts", {**result, "refreshed": status.now_iso()}, path=status_path or Path(db_path).parent / "status.json")
+    status.update(
+        "facts", {**result, "refreshed": status.now_iso()}, path=status_path or Path(db_path).parent / "status.json"
+    )
     return result
 
 
