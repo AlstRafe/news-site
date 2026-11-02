@@ -308,6 +308,41 @@ class CollectionEndToEndTests(unittest.TestCase):
         self.assertEqual(status.badge({"collector": collector})["tone"], "bad")
 
 
+class ExistingPagesTests(unittest.TestCase):
+    """What is saved already comes from the library index; only pages it has not read are parsed."""
+
+    def setUp(self):
+        self.tmp = Path(tempfile.mkdtemp())
+        self.root, self.db = self.tmp / "articles", self.tmp / "library.sqlite3"
+        (self.root / "BBC").mkdir(parents=True)
+        (self.root / "BBC" / "c1.html").write_bytes(BBC_ARTICLE)
+        index.sync(self.root, self.db, force=True)
+
+    def tearDown(self):
+        shutil.rmtree(self.tmp, ignore_errors=True)
+
+    def existing(self):
+        with mock.patch.object(autofetch, "_page_url", wraps=autofetch._page_url) as parsed:
+            urls = autofetch._existing_article_urls(self.root / "BBC", (), autofetch._indexed_urls(self.db, "BBC"))
+        return urls, parsed.call_count
+
+    def test_an_indexed_page_is_not_parsed_again(self):
+        self.assertEqual(self.existing(), ({"https://www.bbc.com/news/articles/c1"}, 0))
+
+    def test_a_page_the_index_has_not_read_as_it_is_now_is_parsed(self):
+        (self.root / "BBC" / "c2.html").write_bytes(BBC_ARTICLE.replace(b"articles/c1", b"articles/c2"))
+        page = self.root / "BBC" / "c1.html"
+        os.utime(page, ns=(page.stat().st_atime_ns, page.stat().st_mtime_ns + 1_000_000_000))  # changed since
+        urls, parsed = self.existing()
+        self.assertEqual(urls, {"https://www.bbc.com/news/articles/c1", "https://www.bbc.com/news/articles/c2"})
+        self.assertEqual(parsed, 2)
+
+    def test_without_an_index_every_page_is_parsed(self):
+        self.assertEqual(autofetch._indexed_urls(self.tmp / "missing.sqlite3", "BBC"), {})
+        self.assertEqual(autofetch._indexed_urls(None, "BBC"), {})
+        self.assertEqual(autofetch._existing_article_urls(self.root / "BBC"), {"https://www.bbc.com/news/articles/c1"})
+
+
 class StatusFileTests(unittest.TestCase):
     def setUp(self):
         self.tmp = Path(tempfile.mkdtemp())

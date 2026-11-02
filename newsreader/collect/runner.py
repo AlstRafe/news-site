@@ -144,6 +144,7 @@ def main() -> int:
             report=report,
             skip_memory_path=INSTANCE_DIRECTORY / "collector_skipped.json",
             limit=library_limit(),
+            db_path=library.DEFAULT_DB_PATH,
         )
         log.info("Standalone scheduled collection complete: %s", totals)
         status.update(
