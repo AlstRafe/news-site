@@ -7,9 +7,11 @@ import json
 import logging
 import os
 import re
+import sqlite3
 import threading
 import time
 import xml.etree.ElementTree as ET
+from contextlib import closing
 from logging.handlers import RotatingFileHandler
 from pathlib import Path
 from urllib.error import HTTPError, URLError
@@ -317,27 +319,64 @@ def _article_links(source: dict, feed: str = "") -> list[str]:
     return accepted
 
 
-def _existing_article_urls(directory: Path, keep: tuple[str, ...] = ()) -> set[str]:
+def _existing_article_urls(
+    directory: Path, keep: tuple[str, ...] = (), indexed: dict[str, tuple[str, str]] | None = None
+) -> set[str]:
+    """Canonical URLs of the pages saved in ``directory``. A page the library index has read as it
+    is now (``indexed``, see _indexed_urls) is taken from there; only the others are parsed. Parsing
+    every saved page of every site each hour was nearly all of the collector's 16 CPU-minutes an
+    hour on the 1/8-OCPU VM (2026-11-02; Yonhap's folder alone took ten)."""
     existing = set()
     if not directory.is_dir():
         return existing
+    indexed = indexed or {}
     for path in directory.iterdir():
         if path.is_symlink() or not path.is_file() or path.suffix.lower() not in {".html", ".htm"}:
             continue
         try:
-            with path.open("rb") as html_file:
-                soup = BeautifulSoup(html_file.read(256 * 1024), "html.parser")
-            canonical = soup.select_one('link[rel="canonical"]')
-            og_url = soup.select_one('meta[property="og:url"]')
-            url = str(canonical.get("href", "")) if canonical else ""
-            if not url and og_url:
-                url = str(og_url.get("content", ""))
-            normalized = _normalize_url(url, keep)
-            if normalized:
-                existing.add(normalized)
+            known = indexed.get(path.name)
+            stat = path.stat() if known else None
+            if known and known[0] == f"{stat.st_size}:{stat.st_mtime_ns}":
+                url = known[1]
+            else:
+                url = _page_url(path)
         except OSError:
             continue
+        normalized = _normalize_url(url, keep)
+        if normalized:
+            existing.add(normalized)
     return existing
+
+
+def _page_url(path: Path) -> str:
+    """The canonical link of a saved page, else its og:url, else ""."""
+    with path.open("rb") as html_file:
+        soup = BeautifulSoup(html_file.read(256 * 1024), "html.parser")
+    canonical = soup.select_one('link[rel="canonical"]')
+    og_url = soup.select_one('meta[property="og:url"]')
+    url = str(canonical.get("href", "")) if canonical else ""
+    if not url and og_url:
+        url = str(og_url.get("content", ""))
+    return url
+
+
+def _indexed_urls(db_path: Path | None, source: str) -> dict[str, tuple[str, str]]:
+    """filename -> ("<size>:<mtime_ns>", URL) of the pages of ``source`` (its folder name) that the
+    library index has read and found a URL in; {} without an index."""
+    if db_path is None or not Path(db_path).is_file():
+        return {}
+    from newsreader.library import index  # late: the index pulls in more than discovery needs
+
+    try:
+        with closing(index.connect(db_path)) as db:
+            rows = db.execute(
+                "SELECT filename, content_key, url FROM articles WHERE source = ? AND url != '' AND error = ''",
+                (source,),
+            ).fetchall()
+    except sqlite3.Error as exc:
+        _log.warning("Library index unreadable (%s); reading the saved pages instead", type(exc).__name__)
+        return {}
+    return {row[0]: (":".join(row[1].split(":")[:2]), row[2]) for row in rows if row[1]}
 
 
 def _filename_for(source: dict, url: str) -> str:
@@ -403,12 +442,14 @@ def fetch_cycle(
     report: dict | None = None,
     skip_memory_path: Path | None = None,
     limit: int = 0,
+    db_path: Path | None = None,
 ) -> dict[str, int]:
     """Fetch up to a few new articles per source, preserving original HTML.
 
     Returns {site: saved} exactly as before. When ``report`` is given it is filled with a
     per-site breakdown for the status page: saved / duplicates / skipped / failed, and the
-    reason when a site could not be checked at all.
+    reason when a site could not be checked at all. ``db_path``: the library index, which says
+    what is saved already without parsing every page again.
     """
     totals = {}
     remembered = SkipMemory(skip_memory_path)
@@ -425,7 +466,9 @@ def fetch_cycle(
             site["limited"] = True
             totals[source["name"]] = 0
             continue
-        existing = _existing_article_urls(directory, source.get("keep_query", ()))
+        existing = _existing_article_urls(
+            directory, source.get("keep_query", ()), _indexed_urls(db_path, source["directory"])
+        )
         try:
             links = _article_links(source)
         except (HTTPError, URLError, OSError, TimeoutError, ValueError) as exc:
