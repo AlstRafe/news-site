@@ -4,7 +4,7 @@
   "description": "Tools for the scripts and styles in newsreader/static (Prettier, ESLint). The app itself is Python: requirements.txt.",
   "scripts": {
     "format": "prettier --write .",
-    "lint": "prettier --check . && eslint ."
+    "lint": "prettier --check . && eslint --max-warnings 0 ."
   },
   "devDependencies": {
     "@eslint/js": "10.0.1",

@@ -548,7 +548,7 @@
     box.className = "senses loading";
     box.textContent = T("辞書を引いています…");
     details.prepend(box);
-    let result = null;
+    let result;
     try {
       result = await postJson(base + "/api/dictionary", { text, target });
     } catch (_) {
@@ -845,7 +845,7 @@
   // Unless the list's translated headlines are turned off (per device), the headline here is
   // translated too, from the same per-headline cache as the list (the page may arrive with it).
   async function showTitleGloss() {
-    let on = true;
+    let on;
     try {
       on = localStorage.getItem("news-html-reader-list-gloss") !== "0";
     } catch (_) {
@@ -870,7 +870,7 @@
   // translated headlines; each caption is kept on the server, so a reload costs nothing).
   async function showCaptions() {
     document.querySelectorAll(".cap-tr").forEach((node) => node.remove());
-    let on = true;
+    let on;
     try {
       on = localStorage.getItem("news-html-reader-list-gloss") !== "0";
     } catch (_) {
