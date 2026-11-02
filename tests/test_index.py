@@ -91,7 +91,13 @@ class IdleCostTests(IndexTestCase):
     def test_the_background_sync_skips_rounds_while_nothing_changed(self):
         passes = []
         real = index.sync
-        with mock.patch.object(index, "sync", side_effect=lambda *a, **k: passes.append(1) or real(*a, **k)):
+
+        def counted(*args, **kwargs):  # counted once done, so a waiter sees the pass's result
+            result = real(*args, **kwargs)
+            passes.append(1)
+            return result
+
+        with mock.patch.object(index, "sync", side_effect=counted):
             worker = index.start_background_sync(lambda: self.root, self.db, interval=0.05)
             try:
                 deadline = time.monotonic() + 5
