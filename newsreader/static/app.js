@@ -108,6 +108,10 @@
     }
   };
   applyTheme(readTheme());
+  // Changed on another site of the list in another tab (they share one localStorage): follow it here too
+  addEventListener("storage", (e) => {
+    if (e.key === "theme" || e.key === null) applyTheme(readTheme());
+  });
   if (toggle) {
     toggle.addEventListener("click", () => {
       const order = ["auto", "light", "dark"];
@@ -119,6 +123,20 @@
         /* private mode */
       }
       applyTheme(next);
+    });
+  }
+
+  // 2a. The language menu (base.html): closed by a click elsewhere or Escape (back on its button), as on
+  //     every site of the list.
+  const langMenu = document.querySelector("details.lang");
+  if (langMenu) {
+    document.addEventListener("click", (e) => {
+      if (!langMenu.contains(e.target)) langMenu.open = false;
+    });
+    langMenu.addEventListener("keydown", (e) => {
+      if (e.key !== "Escape" || !langMenu.open) return;
+      langMenu.open = false;
+      langMenu.querySelector("summary").focus();
     });
   }
 
