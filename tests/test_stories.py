@@ -255,6 +255,24 @@ class RefreshTests(StoryTestCase):
         self.assertEqual(result["pending"], 1)
         self.assertFalse(status.read(self.status)["stories"]["key_configured"])
 
+    def test_a_start_does_not_regroup_groups_that_are_current(self):
+        nothing = {"added": 0, "updated": 0, "removed": 0}
+        with mock.patch.object(pipeline, "refresh_stories", wraps=pipeline.refresh_stories) as regroup:
+            pipeline.after_sync(nothing, self.db, self.status)  # never grouped yet
+            self.assertEqual(regroup.call_count, 1)
+            self.assertEqual(status.read(self.status)["stories"]["code"], pipeline.GROUPING_CODE)
+            pipeline.after_sync(nothing, self.db, self.status)  # the next start: nothing to do
+            self.assertEqual(regroup.call_count, 1)
+            pipeline.after_sync({**nothing, "added": 1}, self.db, self.status)  # articles changed
+            self.assertEqual(regroup.call_count, 2)
+            status.update("stories", {"code": "older code"}, path=self.status)  # a deploy changed it
+            pipeline.after_sync(nothing, self.db, self.status)
+            self.assertEqual(regroup.call_count, 3)
+            later = "9999-01-01T00:00:00Z"  # indexed after the last grouping (a failed regroup)
+            status.update("library", {"synced": later}, path=self.status)
+            pipeline.after_sync(nothing, self.db, self.status)
+            self.assertEqual(regroup.call_count, 4)
+
 
 class WebTests(StoryTestCase):
     def setUp(self):

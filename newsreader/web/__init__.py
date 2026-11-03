@@ -151,7 +151,9 @@ def create_app(
             lambda: validate_directory(app.config["LIBRARY_ROOT"]),
             app.config["LIBRARY_DB"],
             sync_interval,
-            after_change=lambda result: pipeline.refresh_stories(app.config["LIBRARY_DB"], app.config["STATUS_PATH"]),
+            after_change=lambda result: pipeline.after_sync(
+                result, app.config["LIBRARY_DB"], app.config["STATUS_PATH"]
+            ),
         )
         pipeline.keep_warm(app.config["LIBRARY_DB"], sync_interval)
     return app
