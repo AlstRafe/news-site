@@ -7,14 +7,27 @@ neither ever fails a collection (§12).
 
 from __future__ import annotations
 
+import hashlib
 import logging
 import threading
 import time
 from pathlib import Path
 
-from newsreader.library import index, stories
+from newsreader.library import compare, facts_watch, index, status, stories, stories_core
 
 log = logging.getLogger("newsreader.pipeline")
+
+
+def _code_of(*modules) -> str:
+    digest = hashlib.sha256()
+    for module in modules:
+        digest.update(Path(module.__file__).read_bytes())
+    return digest.hexdigest()[:16]
+
+
+#: The code that makes the groups and their figures, read when this process loaded it: a deploy that
+#: changes it makes the web server regroup at its next start (``after_sync``).
+GROUPING_CODE = _code_of(stories, stories_core, facts_watch, compare)
 
 
 def refresh_stories(db_path: Path, status_path: Path | None = None) -> dict | None:
@@ -40,7 +53,29 @@ def refresh_stories(db_path: Path, status_path: Path | None = None) -> dict | No
         return None
     if settings["stories_enabled"]:
         refresh_facts(db_path, status_path)
+    status.update("stories", {"code": GROUPING_CODE}, path=status_path or Path(db_path).parent / "status.json")
     return result
+
+
+def groups_current(status_path: Path) -> bool:
+    """Whether the stored groups were made by this code after the last indexing pass (status.json),
+    so that regrouping now would make them again as they are."""
+    data = status.read(status_path)
+    made = data.get("stories") or {}
+    synced = (data.get("library") or {}).get("synced", "")
+    return bool(made.get("refreshed")) and made.get("code") == GROUPING_CODE and made["refreshed"] >= synced
+
+
+def after_sync(result: dict, db_path: Path, status_path: Path) -> dict | None:
+    """The web server's step after an index pass that changed articles, and after its first pass.
+
+    The first pass after a start finds nothing new as a rule (the collector indexes and regroups what
+    it saves), and regrouping then cost a small server ~40 s of its whole CPU and 300 MB of memory
+    on every deploy. So it is left out while the stored groups are current (``groups_current``)."""
+    if not (result.get("added") or result.get("updated") or result.get("removed")) and groups_current(status_path):
+        log.info("Same-news groups are current: not regrouped")
+        return None
+    return refresh_stories(db_path, status_path)
 
 
 def keep_warm(db_path: Path, interval: float = 60.0) -> threading.Thread:
@@ -68,8 +103,6 @@ def keep_warm(db_path: Path, interval: float = 60.0) -> threading.Thread:
 def refresh_facts(db_path: Path, status_path: Path | None = None) -> dict | None:
     """Compare the counts of people in new multi-outlet groups (D-59, D-65: no translation);
     never fails the caller."""
-    from newsreader.library import facts_watch, status
-
     try:
         result = facts_watch.refresh(db_path)
     except Exception:
