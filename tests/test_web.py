@@ -190,6 +190,20 @@ class SecurityTests(WebTestCase):
             self.assertEqual(self.client.get(owner_page, **marked).status_code, 404, owner_page)
         self.assertEqual(self.client.get("/translation-settings", headers=H).status_code, 200)
 
+    def test_the_owner_signed_in_under_a_public_name_has_everything(self):
+        domain = {"Host": "sites.duckdns.org"}
+        self.assertEqual(self.client.get("/", headers={**domain, "Homepage-Owner": "True"}).status_code, 403)
+        signed_in = {"headers": domain, "environ_overrides": {"homepage.visitor": False, "homepage.owner": True}}
+        page = self.client.get("/", **signed_in)
+        self.assertEqual(page.status_code, 200)
+        self.assertIn("/translation-settings", page.get_data(as_text=True))
+        for owner_page in ("/translation-settings", "/status", "/saved", "/words"):
+            self.assertEqual(self.client.get(owner_page, **signed_in).status_code, 200, owner_page)
+        # Funnel's name stays a visitor's unless Home Page says otherwise
+        funnel = {"headers": {"Host": "x.tail1.ts.net"}, "environ_overrides": {"homepage.owner": True}}
+        self.assertEqual(self.client.get("/status", **funnel).status_code, 200)
+        self.assertEqual(self.client.get("/status", headers={"Host": "x.tail1.ts.net"}).status_code, 404)
+
     def test_launcher_and_app_agree_on_bind_addresses(self):
         import ipaddress
 
