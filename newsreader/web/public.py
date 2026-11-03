@@ -7,7 +7,8 @@ Visitors read and translate, nothing more: pages that change this PC (設定, �
 owner's own lists (保存, 単語帳) are not there for them, nothing they send changes settings, lists
 or 読み比べ groups, their visits leave no 既読 marks, and every translation they cause counts as
 automatic, so it stops at the monthly allowance (translation.AUTO_MONTHLY_CHARS). The owner keeps
-using the site at its own addresses with everything.
+using the site at its own addresses with everything, and under the public name too on a device
+signed in at Home Page's /owner (``homepage.owner`` in the environ, set by Home Page alone).
 """
 
 from __future__ import annotations
@@ -19,6 +20,8 @@ from newsreader.services import translation
 FUNNEL_SUFFIX = ".ts.net"
 #: The WSGI environ key Home Page sets on a request that came in under one of its public names.
 HOST_VISITOR_KEY = "homepage.visitor"
+#: The one it sets instead on a public name's request from a device the owner signed in on.
+HOST_OWNER_KEY = "homepage.owner"
 #: What a visitor may send: translations and the read-only comparisons of a 読み比べ group.
 VISITOR_POSTS = frozenset(
     {
@@ -49,9 +52,15 @@ def marked_public(environ) -> bool:
     return environ.get(HOST_VISITOR_KEY) is True
 
 
+def marked_owner(environ) -> bool:
+    """Whether the host server said this public name's request is the owner's (signed in there)."""
+    return environ.get(HOST_OWNER_KEY) is True
+
+
 def is_visitor() -> bool:
-    """Whether this request came in under a public name (Funnel's, or one the host server marks)."""
-    if not has_request_context():
+    """Whether this request came in under a public name (Funnel's, or one the host server marks),
+    from anyone but the owner signed in there."""
+    if not has_request_context() or marked_owner(request.environ):
         return False
     return marked_public(request.environ) or is_funnel_host(request.host.rsplit(":", 1)[0].lower().rstrip("."))
 
