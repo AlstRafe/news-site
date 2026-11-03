@@ -1395,6 +1395,19 @@ h1 .story-gloss + [data-gloss-id] {
 html.intro-off .site-intro {
   display: none;
 }
+/* Phones: the intro keeps to its first paragraph (the tab bar at the bottom names 読み比べ and
+   まとめ already), so the news starts on the first screen */
+@media (max-width: 650px) {
+  .site-intro {
+    padding: 10px 0 4px;
+    margin-bottom: 14px;
+    font-size: 13px;
+    line-height: 1.65;
+  }
+  .site-intro p + p {
+    display: none;
+  }
+}
 .endnote-option {
   margin: 22px 0 6px;
 }
