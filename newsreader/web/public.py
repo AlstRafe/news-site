@@ -1,5 +1,7 @@
-"""テスト公開: the whole site under this PC's Tailscale Funnel name (``*.ts.net``), so people
-outside the tailnet can try it on the articles this PC collects.
+"""テスト公開: the whole site under its public name, so people outside the tailnet can try it on the
+articles this PC collects. The public name is the Tailscale Funnel name (``*.ts.net``), or any name
+the host server (Home Page) marks as public in the request (``homepage.visitor`` in the WSGI environ,
+which no request can set: the VM's own domain served directly).
 
 Visitors read and translate, nothing more: pages that change this PC (設定, 取得の状況) or show the
 owner's own lists (保存, 単語帳) are not there for them, nothing they send changes settings, lists
@@ -15,6 +17,8 @@ from flask import abort, g, has_request_context, jsonify, request
 from newsreader.services import translation
 
 FUNNEL_SUFFIX = ".ts.net"
+#: The WSGI environ key Home Page sets on a request that came in under one of its public names.
+HOST_VISITOR_KEY = "homepage.visitor"
 #: What a visitor may send: translations and the read-only comparisons of a 読み比べ group.
 VISITOR_POSTS = frozenset(
     {
@@ -40,11 +44,16 @@ def is_funnel_host(host: str) -> bool:
     return host.endswith(FUNNEL_SUFFIX)
 
 
+def marked_public(environ) -> bool:
+    """Whether the host server said this request came in under a public name."""
+    return environ.get(HOST_VISITOR_KEY) is True
+
+
 def is_visitor() -> bool:
-    """Whether this request came in under the public (Funnel) name."""
+    """Whether this request came in under a public name (Funnel's, or one the host server marks)."""
     if not has_request_context():
         return False
-    return is_funnel_host(request.host.rsplit(":", 1)[0].lower().rstrip("."))
+    return marked_public(request.environ) or is_funnel_host(request.host.rsplit(":", 1)[0].lower().rstrip("."))
 
 
 def init_app(app) -> None:

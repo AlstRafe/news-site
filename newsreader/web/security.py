@@ -22,7 +22,7 @@ from flask.sessions import SecureCookieSessionInterface
 
 from newsreader import paths
 from newsreader.netpolicy import is_allowed_bind_address
-from newsreader.web.public import is_funnel_host
+from newsreader.web.public import is_funnel_host, marked_public
 
 DEFAULT_BIND_HOST = "127.0.0.1"
 DEFAULT_PORT = 5000
@@ -166,9 +166,13 @@ def init_app(app: Flask, *, bind_host: str, secret_key: bytes) -> None:
     def _check_host_and_csrf():
         # Host validation complements binding to loopback or one chosen private address:
         # it blocks DNS-rebinding pages from talking to the app through the browser.
-        # The Funnel name (テスト公開, public.py) is let in too; what visitors may do is limited there.
+        # The public names (テスト公開, public.py) are let in too; what visitors may do is limited there.
         host = host_without_port(request.host)
-        if host not in app.config["TRUSTED_HOSTS_SET"] and not is_funnel_host(host):
+        if (
+            host not in app.config["TRUSTED_HOSTS_SET"]
+            and not is_funnel_host(host)
+            and not marked_public(request.environ)
+        ):
             abort(403)
         if request.method not in _SAFE_METHODS:
             # Browsers mark cross-site requests; refuse them before even looking at the token.

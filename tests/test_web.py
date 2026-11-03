@@ -177,6 +177,19 @@ class SecurityTests(WebTestCase):
             client = create_app(self.root, self.db, start_background=False, secret_key=b"k" * 32).test_client()
         self.assertEqual(client.get("/", headers={"Host": "reader.tailnet.ts.net"}).status_code, 200)
 
+    def test_a_name_the_host_server_marks_public_is_a_visitors(self):
+        domain = {"Host": "sites.duckdns.org"}
+        self.assertEqual(self.client.get("/", headers=domain).status_code, 403)  # not marked: an unknown name
+        # a request can send a header, never an environ key: only Home Page sets this
+        self.assertEqual(self.client.get("/", headers={**domain, "Homepage-Visitor": "True"}).status_code, 403)
+        marked = {"headers": domain, "environ_overrides": {"homepage.visitor": True}}
+        page = self.client.get("/", **marked)
+        self.assertEqual(page.status_code, 200)
+        self.assertNotIn("/translation-settings", page.get_data(as_text=True))
+        for owner_page in ("/translation-settings", "/status", "/saved", "/words"):
+            self.assertEqual(self.client.get(owner_page, **marked).status_code, 404, owner_page)
+        self.assertEqual(self.client.get("/translation-settings", headers=H).status_code, 200)
+
     def test_launcher_and_app_agree_on_bind_addresses(self):
         import ipaddress
 
