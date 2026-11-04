@@ -48,6 +48,7 @@ jobs:
           enable-cache: false # nothing to install but Ruff
       - run: uvx ruff@0.16.9 check .
       - run: uvx ruff@0.16.9 format --check .
+      - run: uvx taplo@0.9.3 fmt --check
       - uses: actions/setup-node@v6
         with:
           node-version: 22
