@@ -71,7 +71,12 @@ class EquivalenceTests(unittest.TestCase):
         )
         new, old = extract_article(page), v3_extractor.extract_article(page)
         self.assertEqual([i["src"] for i in new["images"]], ["https://ichef.bbci.co.uk/news/1024/real.jpg"])
-        self.assertEqual(len(old["images"]), 2)  # v3 also took the never-rendered placeholder
+        # v3 also took the never-rendered placeholder while soupsieve's selectors reached into <template> (before 4.0).
+        placeholder, real = (
+            "https://ichef.bbci.co.uk/images/ic/1920x1080/x.jpg",
+            "https://ichef.bbci.co.uk/news/1024/real.jpg",
+        )
+        self.assertIn([i["src"] for i in old["images"]], ([placeholder, real], [real]))
         self.assertEqual(new, v3_extractor.extract_article(intended_input(page)))
 
     def test_fixtures_and_edge_cases(self):
