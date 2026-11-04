@@ -105,17 +105,17 @@ python maintenance.py compact [--apply] # 索引と翻訳キャッシュを VACU
 
 ### 書式とチェック
 
-Home Page・Infra Game と同じ書式です（1 行 120 字・ダブルクォート・LF。`.editorconfig`・`.prettierrc.json`・`ruff.toml` は各リポジトリで同じファイル）。VS Code は推奨拡張（EditorConfig・Ruff・Prettier・ESLint ほか）を入れると保存時に整形します。
+Home Page・Infra Game と共通のルールです（1 行 120 字・ダブルクォート・LF ほか）。まとめは [Home Page の docs/CONVENTIONS.md](https://github.com/AlstRafe/home-page/blob/master/docs/CONVENTIONS.md)。VS Code は推奨拡張（EditorConfig・Ruff・Prettier・ESLint・Even Better TOML ほか）を入れると保存時に整形します。
 
 ```bash
-uvx ruff format .   # Python の整形（uv がなければ pip install ruff で ruff format .）
-uvx ruff check .    # Python のチェック
-npm install         # 初回だけ（newsreader/static 用の Prettier と ESLint）
-npm run format      # JS・CSS・Markdown の整形
-npm run lint        # 整形済みかの確認と ESLint（警告 0 件まで）
+uvx ruff@0.16.9 format .   # Python の整形（uv がなければ pip install ruff==0.16.9 で ruff format .）
+uvx ruff@0.16.9 check .    # Python のチェック
+npm install                # 初回だけ（Prettier・Taplo・ESLint）
+npm run format             # JS・CSS・Markdown・JSON・YAML・TOML の整形
+npm run lint               # 整形済みかの確認と ESLint（警告 0 件まで）
 ```
 
-GitHub に push すると Actions（`.github/workflows/ci.yml`）がテスト（Ubuntu と Windows）・Ruff・Prettier・ESLint を通します。VM は master を 1 分以内に配信するので、赤くなったらすぐ直してください。
+GitHub に push すると Actions（`.github/workflows/ci.yml`）がテスト（Ubuntu と Windows）・Ruff・Prettier・Taplo・ESLint を通します。VM は master を 1 分以内に配信するので、赤くなったらすぐ直してください。
 
 テンプレート（Jinja）と `newsreader/locale`・`tests/fixtures` のデータは整形しません（`.prettierignore`）。
 
