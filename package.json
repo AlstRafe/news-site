@@ -1,13 +1,14 @@
 {
   "name": "news-site",
   "private": true,
-  "description": "Tools for the scripts and styles in newsreader/static (Prettier, ESLint). The app itself is Python: requirements.txt.",
+  "description": "Tools for the scripts and styles in newsreader/static and the TOML files (Prettier, Taplo, ESLint). The app itself is Python: requirements.txt.",
   "scripts": {
-    "format": "prettier --write .",
-    "lint": "prettier --check . && eslint --max-warnings 0 ."
+    "format": "prettier --write . && taplo fmt",
+    "lint": "prettier --check . && taplo fmt --check && eslint --max-warnings 0 ."
   },
   "devDependencies": {
     "@eslint/js": "10.0.1",
+    "@taplo/cli": "0.7.0",
     "eslint": "10.14.0",
     "globals": "17.14.0",
     "prettier": "3.9.10"
