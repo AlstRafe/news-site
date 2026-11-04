@@ -110,8 +110,9 @@ Home Page・Infra Game と共通のルールです（1 行 120 字・ダブル�
 ```bash
 uvx ruff@0.16.9 format .   # Python の整形（uv がなければ pip install ruff==0.16.9 で ruff format .）
 uvx ruff@0.16.9 check .    # Python のチェック
-npm install                # 初回だけ（Prettier・Taplo・ESLint）
-npm run format             # JS・CSS・Markdown・JSON・YAML・TOML の整形
+uvx taplo@0.9.3 fmt        # TOML の整形（確かめるだけなら --check）
+npm install                # 初回だけ（Prettier・ESLint）
+npm run format             # JS・CSS・Markdown・JSON・YAML の整形
 npm run lint               # 整形済みかの確認と ESLint（警告 0 件まで）
 ```
 
