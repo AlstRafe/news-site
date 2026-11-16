@@ -24,7 +24,7 @@ from contextlib import closing
 from datetime import datetime
 
 from newsreader.services import cache
-from newsreader.services.settings import _write_merged, get_secret, get_settings
+from newsreader.services.settings import _write_merged, get_secret, get_settings, stored
 
 #: Largest request a relay client sends (characters of text); the server refuses more.
 MAX_REQUEST_CHARS = 12_000
@@ -45,20 +45,10 @@ def _digest(token: str) -> str:
 
 
 def tokens() -> list[dict]:
-    value = get_settings_raw().get("relay_tokens")
+    value = stored().get("relay_tokens")
     return (
         [t for t in value if isinstance(t, dict) and isinstance(t.get("hash"), str)] if isinstance(value, list) else []
     )
-
-
-def get_settings_raw() -> dict:
-    from newsreader.services import settings as settings_module
-
-    try:
-        value = json.loads(settings_module.SETTINGS_PATH.read_text(encoding="utf-8"))
-    except (OSError, ValueError, TypeError):
-        return {}
-    return value if isinstance(value, dict) else {}
 
 
 def issue_token(name: str, daily_chars: int = DEFAULT_DAILY_CHARS) -> str:
@@ -104,10 +94,14 @@ def check_token(header: str) -> dict | None:
 
 def _usage_db() -> sqlite3.Connection:
     db = sqlite3.connect(cache.CACHE_PATH, timeout=5)
-    db.execute(
-        "CREATE TABLE IF NOT EXISTS relay_usage (day TEXT NOT NULL, token TEXT NOT NULL, chars INTEGER NOT NULL,"
-        " PRIMARY KEY(day, token))"
-    )
+    try:
+        db.execute(
+            "CREATE TABLE IF NOT EXISTS relay_usage (day TEXT NOT NULL, token TEXT NOT NULL, chars INTEGER NOT NULL,"
+            " PRIMARY KEY(day, token))"
+        )
+    except BaseException:
+        db.close()
+        raise
     return db
 
 

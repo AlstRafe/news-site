@@ -42,6 +42,21 @@ def _json_request() -> dict:
     return payload
 
 
+def _ids_request(limit: int):
+    """(payload, ids, target) for the endpoints that take a list of article ids, or a ready error response."""
+    payload = _json_request()
+    ids, target = payload.get("ids"), payload.get("target")
+    if (
+        not isinstance(target, str)
+        or target not in TARGETS
+        or not isinstance(ids, list)
+        or not 0 < len(ids) <= limit
+        or not all(isinstance(i, int) and not isinstance(i, bool) for i in ids)
+    ):
+        return None, (jsonify({"error": "記事または翻訳先の指定が不正です。"}), 400)
+    return (payload, ids, target), None
+
+
 def _article_request():
     """(target, article) for the article-level endpoints, or a ready error response."""
     payload = _json_request()
@@ -211,16 +226,10 @@ MAX_TITLES_PER_REQUEST = 40
 @routes.post("/api/translate-titles", "translate_list_titles")
 def translate_list_titles():
     """Headline translations for the cards on a list page: {"translations": {id: text}}."""
-    payload = _json_request()
-    ids, target = payload.get("ids"), payload.get("target")
-    if (
-        not isinstance(target, str)
-        or target not in TARGETS
-        or not isinstance(ids, list)
-        or not 0 < len(ids) <= MAX_TITLES_PER_REQUEST
-        or not all(isinstance(i, int) and not isinstance(i, bool) for i in ids)
-    ):
-        return jsonify({"error": "記事または翻訳先の指定が不正です。"}), 400
+    found, error = _ids_request(MAX_TITLES_PER_REQUEST)
+    if error:
+        return error
+    payload, ids, target = found
     records = [(i, index.get(db_path(), i)) for i in dict.fromkeys(ids)]
     # A headline already in the target language is not sent (an English page has the BBC's as they are).
     from newsreader.library import stories
@@ -261,16 +270,10 @@ def compare_translate():
     """読み比べ: headlines and openings of articles in other languages, translated into the
     language of one outlet of the group: {"items": {id: {"title", "lead"}}}. Articles already in
     that language are left out. Cached per headline / opening like the other comparisons."""
-    payload = _json_request()
-    ids, target = payload.get("ids"), payload.get("target")
-    if (
-        not isinstance(target, str)
-        or target not in TARGETS
-        or not isinstance(ids, list)
-        or not 0 < len(ids) <= MAX_LEADS_PER_REQUEST
-        or not all(isinstance(i, int) and not isinstance(i, bool) for i in ids)
-    ):
-        return jsonify({"error": "記事または翻訳先の指定が不正です。"}), 400
+    found, error = _ids_request(MAX_LEADS_PER_REQUEST)
+    if error:
+        return error
+    _, ids, target = found
     from newsreader.library import stories
 
     wanted = []
@@ -295,16 +298,10 @@ def compare_translate():
 @routes.post("/api/translate-leads", "translate_story_leads")
 def translate_story_leads():
     """Opening paragraphs of the articles on a same-news page: {"leads": {id: {"original", "translation"}}}."""
-    payload = _json_request()
-    ids, target = payload.get("ids"), payload.get("target")
-    if (
-        not isinstance(target, str)
-        or target not in TARGETS
-        or not isinstance(ids, list)
-        or not 0 < len(ids) <= MAX_LEADS_PER_REQUEST
-        or not all(isinstance(i, int) and not isinstance(i, bool) for i in ids)
-    ):
-        return jsonify({"error": "記事または翻訳先の指定が不正です。"}), 400
+    found, error = _ids_request(MAX_LEADS_PER_REQUEST)
+    if error:
+        return error
+    payload, ids, target = found
     found = []
     for article_id in dict.fromkeys(ids):
         content = index.get_content(db_path(), article_id)

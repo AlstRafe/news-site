@@ -329,7 +329,7 @@ def list_stories(
     ``query`` keeps the groups with an article that matches it (as in the article search);
     ``keys`` only those groups (数字が違う, D-67)."""
     having = "HAVING COUNT(DISTINCT a.source) > 1" if scope != "all" else ""
-    page = max(1, page)
+    page = min(max(1, page), index.MAX_PAGE)
     query = query.strip()[:100]
     with closing(index.connect(db_path)) as db:
         restrict, params = "", []

@@ -187,16 +187,6 @@ def short_time(moment: datetime, lang: str | None = None) -> str:
     return moment.strftime("%m/%d %H:%M")
 
 
-def month_day(moment: datetime, lang: str | None = None) -> str:
-    """10月27日 / 10월 27일 / 27 Oct."""
-    lang = lang or current()
-    if lang == "en-GB":
-        return f"{moment.day} {_EN_MONTHS[moment.month - 1][:3]}"
-    if lang == "ko":
-        return f"{moment.month}월 {moment.day}일"
-    return f"{moment.month}月{moment.day}日"
-
-
 def minutes(count: int, lang: str | None = None) -> str:
     """A span of time, short: 45分 / 3時間10分 / 2日 (and their equivalents)."""
     lang = lang or current()

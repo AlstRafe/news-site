@@ -7,6 +7,6 @@ beside it without touching callers.
 
 from __future__ import annotations
 
-from newsreader.library import index  # noqa: F401
+from newsreader.library import index
 
 __all__ = ["index"]

@@ -39,7 +39,7 @@ CNA_FEED = b"""<?xml version="1.0"?><rss><channel>
 <item><link>https://www.cna.com.tw/news/aopl/202610180001.aspx</link></item>
 </channel></rss>"""
 
-from test_yonhap import YONHAP  # noqa: E402
+from test_yonhap import YONHAP
 
 YONHAP_FEED = b"""<?xml version="1.0" encoding="UTF-8"?><rss version="2.0"><channel>
 <item><title>Yonhap item</title><link>https://www.yna.co.kr/view/AKR20261019174900007</link></item>
@@ -363,6 +363,11 @@ class StatusFileTests(unittest.TestCase):
         self.path.write_text('{"collector": ', encoding="utf-8")  # a torn write
         os.utime(self.path, ns=(1, 1))
         self.assertEqual(status.read(self.path), good)
+
+    def test_update_replaces_a_damaged_section_instead_of_failing(self):
+        self.path.write_text(json.dumps({"collector": ["not", "an", "object"]}), encoding="utf-8")
+        self.assertEqual(status.update("collector", {"ok": True}, path=self.path), {"ok": True})
+        self.assertEqual(json.loads(self.path.read_text(encoding="utf-8")), {"collector": {"ok": True}})
 
     def test_update_merges_sections_and_leaves_no_temp_files(self):
         status.update("collector", {"ok": True}, path=self.path)

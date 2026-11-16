@@ -170,6 +170,11 @@ class BuildTests(unittest.TestCase):
     def test_portable_zip_never_ships_a_preset(self):
         self.assertFalse(make_portable_zip.should_include(ROOT / "preset" / "relay_token", Path("preset/relay_token")))
 
+    def test_portable_zip_leaves_out_the_tools_for_working_on_the_code(self):
+        for name in (".taplo.toml", ".gitattributes", ".gitignore", ".github/workflows/ci.yml", "ruff.toml"):
+            self.assertFalse(make_portable_zip.should_include(ROOT / name, Path(name)), name)
+        self.assertTrue(make_portable_zip.should_include(ROOT / "launcher.py", Path("launcher.py")))
+
 
 class PresetTests(unittest.TestCase):
     def setUp(self):

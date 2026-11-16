@@ -81,6 +81,7 @@ def add_word():
         not isinstance(word, str)
         or not word.strip()
         or len(word) > 80
+        or not isinstance(target, str)
         or target not in TARGETS
         or not isinstance(meaning, str)
         or not isinstance(sentence, str)

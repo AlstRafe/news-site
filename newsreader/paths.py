@@ -73,7 +73,7 @@ def articles_dir() -> Path:
     saved = configured_library_dir()
     # launcher.py versions before the settings-page folder passed the default articles/ in
     # HTML_DIRECTORY explicitly; that is not a choice, so a saved folder still applies.
-    if saved and (not configured or _same_path(configured, DEFAULT_ARTICLES_DIR)):
+    if saved and (not configured or same_path(configured, DEFAULT_ARTICLES_DIR)):
         configured = saved
     # A launcher started before the folder was moved keeps passing the old one on restarts: a
     # folder that no longer exists is no choice either.
@@ -85,7 +85,7 @@ def articles_dir() -> Path:
         saved
         and configured
         and os.environ.get("NEWS_SUPERVISED") == "1"
-        and not _same_path(configured, saved)
+        and not same_path(configured, saved)
         and Path(saved).expanduser().is_dir()
     ):
         configured = saved
@@ -106,7 +106,3 @@ def same_path(a: Path | str, b: Path | str) -> bool:
         )
     except (OSError, RuntimeError):
         return False
-
-
-def _same_path(text: str, path: Path) -> bool:
-    return same_path(text, path)

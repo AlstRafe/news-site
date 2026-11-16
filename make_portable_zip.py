@@ -20,9 +20,10 @@ EXCLUDED_DIRECTORIES = {
     "node_modules",
     ".vscode",
     ".ruff_cache",
+    ".github",
 }
 EXCLUDED_SUFFIXES = {".pyc", ".sqlite", ".sqlite3", ".db", ".log", ".zip", ".key", ".pem", ".pfx", ".p12"}
-#: The formatter's and linter's settings, for working on the code only.
+#: The formatter's, linter's and Git's settings, for working on the code only.
 EXCLUDED_FILES = {
     ".editorconfig",
     ".prettierrc.json",
@@ -31,6 +32,9 @@ EXCLUDED_FILES = {
     "package.json",
     "package-lock.json",
     "ruff.toml",
+    ".taplo.toml",
+    ".gitattributes",
+    ".gitignore",
     ".git-blame-ignore-revs",
 }
 

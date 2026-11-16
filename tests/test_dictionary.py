@@ -5,6 +5,7 @@ import shutil
 import sys
 import tempfile
 import unittest
+import urllib.error
 from pathlib import Path
 from unittest import mock
 
@@ -13,7 +14,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 from test_extractor import NORMAL
 
 from newsreader.library import index
-from newsreader.services import cache, settings
+from newsreader.services import cache, dictionary, settings
 from newsreader.services import translation as ts
 from newsreader.web import api, create_app
 
@@ -192,6 +193,45 @@ class ApiTests(DictionaryTestCase):
             reply = self.post("/api/dictionary", {"text": "fly", "target": "ja"})
         self.assertEqual(reply.status_code, 503)
         self.assertNotIn("test-key", reply.get_data(as_text=True))
+
+
+class OfficialDictionaryTests(unittest.TestCase):
+    """教育部 (Chinese) and 표준국어대사전 (Korean): an answer is kept, a failed connection is not."""
+
+    def setUp(self):
+        self.tmp = Path(tempfile.mkdtemp())
+        self.patch = mock.patch.object(cache, "CACHE_PATH", self.tmp / "cache.sqlite3")
+        self.patch.start()
+
+    def tearDown(self):
+        self.patch.stop()
+        shutil.rmtree(self.tmp, ignore_errors=True)
+
+    def test_chinese_lookup_offline_is_asked_again_and_an_answer_is_kept(self):
+        offline = mock.Mock(side_effect=urllib.error.URLError("offline"))
+        with mock.patch.object(dictionary, "_fetch", offline):
+            self.assertIsNone(dictionary.lookup_chinese("停火")["zhuyin"])
+            dictionary.lookup_chinese("停火")
+        self.assertEqual(offline.call_count, 2)  # nothing was kept from the failed attempt
+        answered = mock.Mock(return_value=b"<html><table><tr><td>no such word</td></tr></table></html>")
+        with mock.patch.object(dictionary, "_fetch", answered):
+            dictionary.lookup_chinese("停火")
+            dictionary.lookup_chinese("停火")
+        self.assertEqual(answered.call_count, 1)  # "not in the dictionary" is kept
+
+    def test_korean_lookup_offline_is_asked_again_and_an_answer_is_kept(self):
+        settings.set_secret("stdict_api_key", "test-key-not-real")
+        self.addCleanup(settings.delete_secret, "stdict_api_key")
+        offline = mock.Mock(side_effect=urllib.error.URLError("offline"))
+        with mock.patch.object(dictionary, "_fetch", offline):
+            self.assertEqual(dictionary.lookup_korean_hanja("휴전")["entries"], [])
+            dictionary.lookup_korean_hanja("휴전")
+        self.assertEqual(offline.call_count, 2)
+        answered = mock.Mock(return_value=json.dumps({"channel": {"item": []}}).encode("utf-8"))
+        with mock.patch.object(dictionary, "_fetch", answered):
+            dictionary.lookup_korean_hanja("휴전")
+            dictionary.lookup_korean_hanja("휴전")
+        self.assertEqual(answered.call_count, 1)
 
 
 if __name__ == "__main__":

@@ -64,7 +64,7 @@ def _analyser():
                     from janome.tokenizer import Tokenizer
 
                     _tokenizer = Tokenizer()
-                except Exception:  # noqa: BLE001 - not installed / broken: typography only
+                except Exception:  # not installed / broken: typography only
                     _tokenizer = _UNAVAILABLE
     return None if _tokenizer is _UNAVAILABLE else _tokenizer
 
@@ -137,7 +137,7 @@ def _restyle(tokens: list, depth: int) -> tuple[str, int]:
     """Tokens of one sentence in the plain style; returns the text and the quote depth after it."""
     out: list[str] = []
     i, n = 0, len(tokens)
-    at = lambda k: tokens[k] if 0 <= k < n else None  # noqa: E731
+    at = lambda k: tokens[k] if 0 <= k < n else None
     while i < n:
         token = tokens[i]
         nxt, nxt2, nxt3, nxt4 = at(i + 1), at(i + 2), at(i + 3), at(i + 4)
@@ -234,7 +234,7 @@ def polish_pieces(pieces: list[str]) -> list[str]:
             continue
         try:
             tokens = list(analyser.tokenize(piece))
-        except Exception:  # noqa: BLE001 - leave the sentence as it came
+        except Exception:  # leave the sentence as it came
             depth = _depth_after(piece, depth)
             continue
         if "".join(token.surface for token in tokens) != piece:
@@ -273,7 +273,7 @@ def headline(text: str) -> str:
         return stripped
     try:
         tokens = list(analyser.tokenize(stripped))
-    except Exception:  # noqa: BLE001 - leave it as it came
+    except Exception:  # leave it as it came
         return stripped
     if "".join(t.surface for t in tokens) != stripped or len(tokens) < 2:
         return stripped
@@ -289,9 +289,7 @@ def headline(text: str) -> str:
     if keep is None:
         last, before = tokens[-1], tokens[-2]
         verb = lambda t: (
-            t.part_of_speech.startswith("動詞,自立")
-            and t.base_form not in ("*", "")  # noqa: E731
-            and t.infl_form.startswith("連用")
+            t.part_of_speech.startswith("動詞,自立") and t.base_form not in ("*", "") and t.infl_form.startswith("連用")
         )
         if (
             last.infl_type == "特殊・ダ"

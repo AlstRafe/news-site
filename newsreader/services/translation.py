@@ -29,7 +29,6 @@ TARGETS = {
 TARGET_LABELS = {"ja": "日本語", "en": "English", "ko": "한국어", "zh-hant": "繁體中文"}
 #: BCP 47 tags for the lang attribute of translated text.
 LANG_TAGS = {"ja": "ja", "en": "en", "ko": "ko", "zh-hant": "zh-Hant"}
-#: Kept for callers of the earlier split between UI and internal targets ("en" is now a UI target).
 
 
 def target_menu(provider: str) -> dict[str, dict]:
@@ -435,7 +434,7 @@ def cached_titles(titles: list[str], target: str) -> list[str]:
         return ["" for _ in titles]
     try:
         provider = active_provider()
-    except Exception:  # noqa: BLE001 - no provider configured: nothing kept to show
+    except Exception:  # no provider configured: nothing kept to show
         return ["" for _ in titles]
     prefix = _key_prefix(provider, target)
     out: list[str] = []

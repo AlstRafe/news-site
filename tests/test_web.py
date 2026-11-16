@@ -271,6 +271,10 @@ class SecurityTests(WebTestCase):
         if os.name != "nt":
             self.assertEqual(path.stat().st_mode & 0o077, 0)
 
+    def test_a_page_number_past_any_list_is_an_empty_page_not_a_server_error(self):
+        for url in ("/?page=99999999999999999999", "/stories?page=99999999999999999999", "/?page=-3"):
+            self.assertEqual(self.client.get(url, headers=H).status_code, 200, url)
+
     def test_errors_render_friendly_pages_and_json_for_the_api(self):
         page = self.client.get("/a/99999", headers=H)
         self.assertEqual(page.status_code, 404)

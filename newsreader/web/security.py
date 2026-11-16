@@ -20,7 +20,6 @@ from pathlib import Path
 from flask import Flask, abort, request, session
 from flask.sessions import SecureCookieSessionInterface
 
-from newsreader import paths
 from newsreader.netpolicy import is_allowed_bind_address
 from newsreader.web.public import is_funnel_host, marked_owner, marked_public
 
@@ -200,7 +199,3 @@ def init_app(app: Flask, *, bind_host: str, secret_key: bytes) -> None:
         return response
 
     app.jinja_env.globals["csrf_token"] = csrf_token
-
-
-def default_secret_key_path() -> Path:
-    return paths.SECRET_KEY_PATH

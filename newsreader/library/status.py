@@ -62,7 +62,8 @@ def update(section: str, values: dict, path: Path | None = None) -> dict:
             current = {}
     except (OSError, ValueError):
         current = {}
-    merged = {**(current.get(section) or {}), **values}
+    previous = current.get(section)
+    merged = {**(previous if isinstance(previous, dict) else {}), **values}
     current[section] = merged
     try:
         path.parent.mkdir(parents=True, exist_ok=True)

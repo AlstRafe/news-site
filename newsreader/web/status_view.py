@@ -56,7 +56,7 @@ def library_collector(library_root: Path, own_status: Path) -> dict | None:
     except OSError:
         return None
     collector = status.read(candidate).get("collector")
-    if not isinstance(collector, dict) or not collector.get("finished") and not collector.get("running"):
+    if not isinstance(collector, dict) or (not collector.get("finished") and not collector.get("running")):
         return None
     recorded = collector.get("library_root")
     if recorded and not paths.same_path(Path(recorded), library_root):

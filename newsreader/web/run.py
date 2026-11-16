@@ -190,6 +190,18 @@ def _network_too(bind_host: str) -> tuple[str, ...]:
     return tuple(dict.fromkeys(item for item in found if item and item != bind_host))
 
 
+def set_logon_task(enabled: bool) -> None:
+    """Register (or remove) this copy's start-at-logon task through launcher.py, which is loaded
+    from its file (it is no module of the package: it runs before the app's dependencies exist)."""
+    import importlib.util
+    from pathlib import Path
+
+    spec = importlib.util.spec_from_file_location("newsreader_launcher", paths.PROJECT_ROOT / "launcher.py")
+    launcher = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(launcher)
+    launcher.ensure_logon_task(Path(sys.executable), enabled)
+
+
 def _keep_logon_task_current() -> None:
     """Under launcher.py (Windows), register or remove the start-at-logon task as the settings
     say, at each (re)start, so a new version applies it without starting the app by hand.
@@ -197,16 +209,10 @@ def _keep_logon_task_current() -> None:
 
     def work() -> None:
         try:
-            import importlib.util
-            from pathlib import Path
-
             from newsreader.services.settings import start_at_logon
 
-            spec = importlib.util.spec_from_file_location("newsreader_launcher", paths.PROJECT_ROOT / "launcher.py")
-            launcher = importlib.util.module_from_spec(spec)
-            spec.loader.exec_module(launcher)
-            launcher.ensure_logon_task(Path(sys.executable), start_at_logon())
-        except Exception:  # noqa: BLE001 - informational only, never stops the server
+            set_logon_task(start_at_logon())
+        except Exception:  # informational only, never stops the server
             pass
 
     threading.Thread(target=work, name="logon-task", daemon=True).start()
