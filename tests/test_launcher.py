@@ -157,10 +157,6 @@ class LogonStartTests(unittest.TestCase):
         self.assertFalse(launcher.ensure_logon_task(Path("python"), True))
 
 
-if __name__ == "__main__":
-    unittest.main()
-
-
 class StartAtLogonSettingTests(unittest.TestCase):
     def test_default_on_and_saved_off(self):
         import tempfile
@@ -179,3 +175,49 @@ class StartAtLogonSettingTests(unittest.TestCase):
             )
             settings.save_start_at_logon(True)
             self.assertTrue(settings.start_at_logon())
+
+
+class RuntimeTests(unittest.TestCase):
+    def test_a_repaired_environment_is_used_again_instead_of_building_another(self):
+        import hashlib
+        import tempfile
+
+        tmp = Path(tempfile.mkdtemp())
+        root_hash = hashlib.sha256(str(launcher.PROJECT_ROOT).casefold().encode("utf-8")).hexdigest()[:12]
+        venvs = tmp / launcher.APP_CONFIG["name"] / "venvs"
+        broken = venvs / root_hash / "Scripts" / "python.exe"
+        repaired = venvs / f"{root_hash}-repair-123" / "Scripts" / "python.exe"
+        for path in (broken, repaired):
+            path.parent.mkdir(parents=True)
+            path.write_text("")
+
+        def run(args, **kwargs):
+            return mock.Mock(returncode=0 if args[0] == str(repaired) else 1)
+
+        with (
+            mock.patch.dict(os.environ, {"LOCALAPPDATA": str(tmp)}),
+            mock.patch.object(launcher.subprocess, "run", side_effect=run),
+            mock.patch.object(launcher.venv, "EnvBuilder") as builder,
+        ):
+            self.assertEqual(launcher.find_runtime_python(), repaired)
+        builder.assert_not_called()
+
+    def test_a_damaged_logon_task_record_reads_as_none(self):
+        import json
+        import tempfile
+        import types
+
+        tmp = Path(tempfile.mkdtemp())
+        record = tmp / "server-task.json"
+        record.write_text(json.dumps(["not", "an", "object"]), encoding="utf-8")
+        fake_os = types.SimpleNamespace(name="nt", environ={}, getpid=os.getpid)
+        with (
+            mock.patch.object(launcher, "os", fake_os),
+            mock.patch.object(launcher.shutil, "which", return_value="schtasks"),
+            mock.patch.object(launcher, "LOGON_REGISTRATION_PATH", record),
+        ):
+            self.assertFalse(launcher.ensure_logon_task(tmp / "python.exe", False))  # nothing registered: no change
+
+
+if __name__ == "__main__":
+    unittest.main()

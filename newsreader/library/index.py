@@ -723,6 +723,9 @@ def search_words(text: str) -> list[str]:
 
 #: At most this many articles are found through their English headline (an SQL parameter list).
 MAX_PIVOT_MATCHES = 900
+#: Highest page number a list goes to: past it the offset would not fit SQLite's integers
+#: (``?page=99999999999999999999`` was a server error).
+MAX_PAGE = 100_000
 
 
 def _pivot_matches(db: sqlite3.Connection, words: list[str]) -> list[int]:
@@ -776,7 +779,7 @@ def list_articles(
         where.append("genre = ?")
         params.append("" if genre == genres.OTHER else genre)
     query = query.strip()[:100]
-    page = max(1, page)
+    page = min(max(1, page), MAX_PAGE)
     with closing(connect(db_path)) as db:
         if query:
             matches = _pivot_matches(db, pivot_words) if pivot_words else []

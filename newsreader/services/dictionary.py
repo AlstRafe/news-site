@@ -85,9 +85,11 @@ def lookup_chinese(text: str) -> dict:
     if isinstance(cached, dict):
         return cached
     output = {**empty, "entries": []}
+    answered = False  # kept for a week only when the dictionary answered (offline = ask again next time)
     try:
         query = urllib.parse.urlencode({"md": "1", "word": selected})
         html = _fetch(MOE_SEARCH + "?" + query, timeout=12)
+        answered = True
         soup = BeautifulSoup(html, "html.parser")
         wanted = _normalise_word(selected)
         for row in soup.select("tr"):
@@ -131,11 +133,12 @@ def lookup_chinese(text: str) -> dict:
                         ]
                     break
             except (OSError, ValueError, ssl.SSLError, urllib.error.URLError):
-                pass
+                answered = False  # the entry page did not answer: its definition is asked for again
             break
     except (OSError, ValueError, ssl.SSLError, urllib.error.URLError):
-        pass
-    cache_put("moedict", cache_key, output, ttl=7 * 24 * 3600, max_entries=1000)
+        answered = False
+    if answered:
+        cache_put("moedict", cache_key, output, ttl=7 * 24 * 3600, max_entries=1000)
     return output
 
 
@@ -253,8 +256,9 @@ def lookup_korean_hanja(text: str) -> dict:
             try:
                 found = _query_korean(term, key)
             except (OSError, ValueError, ssl.SSLError, urllib.error.URLError, TypeError):
-                found = []
-            cache_put("stdict", cache_key, found, ttl=30 * 24 * 3600, max_entries=1000)
+                found = []  # offline or refused for now: asked again next time, not kept as "no entry"
+            else:
+                cache_put("stdict", cache_key, found, ttl=30 * 24 * 3600, max_entries=1000)
         results.extend(found)
         if len(results) >= 8:
             break

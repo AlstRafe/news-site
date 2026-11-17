@@ -13,7 +13,12 @@ verb counts as cited; a name without one ("CNN was barred from the White House")
 from __future__ import annotations
 
 import re
+import threading
+from collections import OrderedDict
+from contextlib import closing
 from dataclasses import dataclass
+from datetime import UTC, datetime, timedelta
+from pathlib import Path
 
 # --- organisations ---------------------------------------------------------------
 
@@ -690,18 +695,10 @@ def compare(members: list[dict]) -> dict:
 
 # --- reading from the library ------------------------------------------------------------
 
-import threading as _threading
-from collections import OrderedDict as _OrderedDict
-from contextlib import closing as _closing
-from datetime import UTC
-from datetime import datetime as _datetime
-from datetime import timedelta as _timedelta
-from pathlib import Path as _Path
-
 #: Analyses kept in memory, keyed by (id, mtime, size): an article's text changes only when re-saved.
-_CACHE: _OrderedDict[tuple, dict] = _OrderedDict()
+_CACHE: OrderedDict[tuple, dict] = OrderedDict()
 _CACHE_SIZE = 4000
-_CACHE_LOCK = _threading.Lock()
+_CACHE_LOCK = threading.Lock()
 
 
 def _cached(row, decode) -> dict:
@@ -720,12 +717,12 @@ def _cached(row, decode) -> dict:
     return info
 
 
-def for_ids(db_path: _Path, ids: list[int]) -> dict[int, dict]:
+def for_ids(db_path: Path, ids: list[int]) -> dict[int, dict]:
     from newsreader.library import index
 
     if not ids:
         return {}
-    with _closing(index.connect(db_path)) as db:
+    with closing(index.connect(db_path)) as db:
         rows = db.execute(
             "SELECT id, source, title, url, published, mtime, size, content FROM articles "
             "WHERE error = '' AND id IN (%s)" % ",".join("?" * len(ids)),
@@ -734,7 +731,7 @@ def for_ids(db_path: _Path, ids: list[int]) -> dict[int, dict]:
     return {row["id"]: _cached(row, index.decode_content) for row in rows}
 
 
-def story(db_path: _Path, members: list[dict]) -> dict:
+def story(db_path: Path, members: list[dict]) -> dict:
     """For a group page: a line per article, each outlet's summary, and the notes of compare()."""
     infos = for_ids(db_path, [m["id"] for m in members])
     rows = [
@@ -776,13 +773,13 @@ def story(db_path: _Path, members: list[dict]) -> dict:
     }
 
 
-def profiles(db_path: _Path, days: int = 7, now: _datetime | None = None) -> dict[str, dict]:
+def profiles(db_path: Path, days: int = 7, now: datetime | None = None) -> dict[str, dict]:
     """媒体くらべ: per outlet, how its articles were reported and whom they cite most."""
     from newsreader.library import index
 
-    now = (now or _datetime.now(UTC)).replace(tzinfo=None)
-    since = (now - _timedelta(days=days)).strftime("%Y-%m-%dT%H:%M:%SZ")
-    with _closing(index.connect(db_path)) as db:
+    now = (now or datetime.now(UTC)).replace(tzinfo=None)
+    since = (now - timedelta(days=days)).strftime("%Y-%m-%dT%H:%M:%SZ")
+    with closing(index.connect(db_path)) as db:
         rows = db.execute(
             "SELECT id, source, title, url, published, mtime, size, content FROM articles "
             "WHERE error = '' AND source != '' AND published >= ?",

@@ -20,13 +20,18 @@ from newsreader.services.settings import (
     delete_secret,
     get_settings,
     get_story_settings,
+    glossary,
+    remove_glossary_entry,
+    save_glossary_entry,
     save_library_dir,
     save_settings,
     save_start_at_logon,
     save_story_settings,
+    save_topic,
     save_translation_source,
     set_secret,
     start_at_logon,
+    topics,
     validate_library_dir,
     validate_network_settings,
 )
@@ -45,16 +50,10 @@ def _story_daily(raw: str) -> int:
     return int(text)
 
 
-def _topics() -> list[str]:
-    from newsreader.services.settings import topics
-
-    return topics()
-
-
-def _glossary() -> list[dict]:
-    from newsreader.services.settings import glossary
-
-    return glossary()
+def _position(action: str) -> int:
+    """The list position in an action such as "remove_topic:2"; -1 (no such item) when it is not a number."""
+    number = action.split(":", 1)[1]
+    return int(number) if number.isdecimal() else -1
 
 
 @routes.route("/translation-settings", "translation_settings", methods=("GET", "POST"))
@@ -77,19 +76,15 @@ def translation_settings():
         else:
             message = f"合言葉 {relay.revoke_all()} 件を無効にしました。"
     elif action.startswith("remove_topic:"):  # 話題を追う (D-61)
-        from newsreader.services.settings import save_topic, topics
-
         try:
             followed = topics()
-            index = int(action.split(":", 1)[1])
+            index = _position(action)
             if 0 <= index < len(followed):
                 save_topic(followed[index], False)
                 message = f"「{followed[index]}」を追うのをやめました。"
         except ValueError as exc:
             error = str(exc)
     elif action == "add_glossary" or action.startswith("remove_glossary:"):  # 訳語の指定 (D-63)
-        from newsreader.services.settings import remove_glossary_entry, save_glossary_entry
-
         try:
             if action == "add_glossary":
                 save_glossary_entry(
@@ -99,7 +94,7 @@ def translation_settings():
                 )
                 message = "訳語を登録しました。これからの翻訳で使います（訳し済みの文章は次に訳すときから）。"
             else:
-                remove_glossary_entry(int(action.split(":", 1)[1]))
+                remove_glossary_entry(_position(action))
                 message = "訳語の指定を外しました。"
         except ValueError as exc:
             error = str(exc)
@@ -130,9 +125,8 @@ def translation_settings():
                 save_library_dir(request.form["library_dir"])
             if "start_at_logon_form" in request.form:
                 save_start_at_logon(request.form.get("start_at_logon") == "1")
+            # Enter in the 訳語 fields submits the whole form
             if request.form.get("glossary_source", "").strip() and request.form.get("glossary_target", "").strip():
-                from newsreader.services.settings import save_glossary_entry  # Enter in the 訳語 fields
-
                 save_glossary_entry(
                     request.form["glossary_source"],
                     request.form["glossary_target"],
@@ -177,8 +171,8 @@ def translation_settings():
         relay_tokens=_relay_tokens(),
         relay_usage=_relay_usage(),
         issued_token=issued_token,
-        topics=_topics(),
-        glossary=_glossary(),
+        topics=topics(),
+        glossary=glossary(),
         glossary_prefill={key: request.args.get(key, "")[:40] for key in ("gsrc", "gdst", "glang")},
         active_library=str(current_app.config["LIBRARY_ROOT"]),
         html_directory_env=bool(os.environ.get("HTML_DIRECTORY", "").strip()),

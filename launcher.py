@@ -258,12 +258,26 @@ def prepare_first_run(settings: dict[str, object], marker: Path, interactive: bo
     return answer not in {"n", "no"}
 
 
+def _modified(path: Path) -> float:
+    try:
+        return path.stat().st_mtime
+    except OSError:
+        return 0.0
+
+
 def find_runtime_python() -> Path:
     local_app_data = Path(os.environ.get("LOCALAPPDATA", Path.home() / "AppData" / "Local"))
     root_hash = hashlib.sha256(str(PROJECT_ROOT).casefold().encode("utf-8")).hexdigest()[:12]
     local_runtime = local_app_data / APP_CONFIG["name"] / "venvs" / root_hash / "Scripts" / "python.exe"
     project_runtime = PROJECT_ROOT / ".venv" / "Scripts" / "python.exe"
-    for candidate in (project_runtime, local_runtime):
+    # A copy made because the main one was broken (below) is used again, newest first: without
+    # this, every start after a broken environment built yet another one.
+    repairs = sorted(
+        local_runtime.parent.parent.parent.glob(f"{root_hash}-repair-*/Scripts/python.exe"),
+        key=_modified,
+        reverse=True,
+    )
+    for candidate in (project_runtime, local_runtime, *repairs):
         if candidate.is_file():
             version_probe = subprocess.run(
                 [str(candidate), "-c", "import sys; raise SystemExit(sys.version_info < (3, 10))"],
@@ -332,6 +346,37 @@ def persist_collector_config(library_root: Path) -> None:
         temporary.unlink(missing_ok=True)
 
 
+TASK_NAMESPACE = "http://schemas.microsoft.com/windows/2004/02/mit/task"
+
+
+def _task_element(parent, name: str, text: str | None = None, **attributes) -> ElementTree.Element:
+    """One element of a Task Scheduler definition (under ``parent``; None: the root <Task>)."""
+    tag = f"{{{TASK_NAMESPACE}}}{name}"
+    node = ElementTree.Element(tag, attributes) if parent is None else ElementTree.SubElement(parent, tag, attributes)
+    if text is not None:
+        node.text = text
+    return node
+
+
+def _task_settings(task: ElementTree.Element, *, start_when_available: str, time_limit: str) -> None:
+    """The <Settings> both tasks share: one instance at a time, on battery too, never hidden."""
+    settings = _task_element(task, "Settings")
+    for name, value in (
+        ("MultipleInstancesPolicy", "IgnoreNew"),
+        ("DisallowStartIfOnBatteries", "false"),
+        ("StopIfGoingOnBatteries", "false"),
+        ("AllowHardTerminate", "true"),
+        ("StartWhenAvailable", start_when_available),
+        ("RunOnlyIfNetworkAvailable", "false"),
+        ("WakeToRun", "false"),
+        ("Enabled", "true"),
+        ("Hidden", "false"),
+        ("ExecutionTimeLimit", time_limit),
+        ("Priority", "7"),
+    ):
+        _task_element(settings, name, value)
+
+
 def ensure_hourly_collector_task(runtime_python: Path, library_root: Path) -> bool:
     """Create/update the per-installation hourly task; return whether it changed."""
     if os.name != "nt":
@@ -371,65 +416,46 @@ def ensure_hourly_collector_task(runtime_python: Path, library_root: Path) -> bo
     if query.returncode == 0 and previous == registration:
         return False
 
-    xml_namespace = "http://schemas.microsoft.com/windows/2004/02/mit/task"
-    ElementTree.register_namespace("", xml_namespace)
-
-    def element(parent, name: str, text: str | None = None, **attributes):
-        node = ElementTree.SubElement(parent, f"{{{xml_namespace}}}{name}", attributes)
-        if text is not None:
-            node.text = text
-        return node
-
-    task = ElementTree.Element(f"{{{xml_namespace}}}Task", {"version": "1.3"})
-    registration_info = element(task, "RegistrationInfo")
-    element(
+    ElementTree.register_namespace("", TASK_NAMESPACE)
+    task = _task_element(None, "Task", version="1.3")
+    registration_info = _task_element(task, "RegistrationInfo")
+    _task_element(
         registration_info,
         "Description",
         "Collect supported news article HTML once per hour without starting the web app.",
     )
 
-    triggers = element(task, "Triggers")
-    trigger = element(triggers, "CalendarTrigger")
-    element(trigger, "Enabled", "true")
+    triggers = _task_element(task, "Triggers")
+    trigger = _task_element(triggers, "CalendarTrigger")
+    _task_element(trigger, "Enabled", "true")
     start_boundary = (datetime.now() + timedelta(minutes=2)).replace(second=0, microsecond=0).isoformat()
-    element(trigger, "StartBoundary", start_boundary)
-    repetition = element(trigger, "Repetition")
-    element(repetition, "Interval", "PT1H")
-    element(repetition, "Duration", "P1D")
-    element(repetition, "StopAtDurationEnd", "false")
-    schedule = element(trigger, "ScheduleByDay")
-    element(schedule, "DaysInterval", "1")
+    _task_element(trigger, "StartBoundary", start_boundary)
+    repetition = _task_element(trigger, "Repetition")
+    _task_element(repetition, "Interval", "PT1H")
+    _task_element(repetition, "Duration", "P1D")
+    _task_element(repetition, "StopAtDurationEnd", "false")
+    schedule = _task_element(trigger, "ScheduleByDay")
+    _task_element(schedule, "DaysInterval", "1")
 
-    principals = element(task, "Principals")
-    principal = element(principals, "Principal", id="CollectorUser")
+    principals = _task_element(task, "Principals")
+    principal = _task_element(principals, "Principal", id="CollectorUser")
     user_name = os.environ.get("USERNAME", "")
     domain_name = os.environ.get("USERDOMAIN", "")
     account = f"{domain_name}\\{user_name}" if domain_name else user_name
     if not account:
         print("Warning: could not determine the current Windows user; collection task was not registered.")
         return False
-    element(principal, "UserId", account)
-    element(principal, "LogonType", "InteractiveToken")
-    element(principal, "RunLevel", "LeastPrivilege")
+    _task_element(principal, "UserId", account)
+    _task_element(principal, "LogonType", "InteractiveToken")
+    _task_element(principal, "RunLevel", "LeastPrivilege")
 
-    task_settings = element(task, "Settings")
-    element(task_settings, "MultipleInstancesPolicy", "IgnoreNew")
-    element(task_settings, "DisallowStartIfOnBatteries", "false")
-    element(task_settings, "StopIfGoingOnBatteries", "false")
-    element(task_settings, "AllowHardTerminate", "true")
-    element(task_settings, "StartWhenAvailable", "true")
-    element(task_settings, "RunOnlyIfNetworkAvailable", "false")
-    element(task_settings, "WakeToRun", "false")
-    element(task_settings, "Enabled", "true")
-    element(task_settings, "Hidden", "false")
-    element(task_settings, "ExecutionTimeLimit", "PT1H")
-    element(task_settings, "Priority", "7")
+    _task_settings(task, start_when_available="true", time_limit="PT1H")
 
-    actions = element(task, "Actions", Context="CollectorUser")
-    execute = element(actions, "Exec")
-    element(execute, "Command", str(collector_python))
-    element(execute, "Arguments", f'"{collector_script}" --once')
-    element(execute, "WorkingDirectory", str(PROJECT_ROOT))
+    actions = _task_element(task, "Actions", Context="CollectorUser")
+    execute = _task_element(actions, "Exec")
+    _task_element(execute, "Command", str(collector_python))
+    _task_element(execute, "Arguments", f'"{collector_script}" --once')
+    _task_element(execute, "WorkingDirectory", str(PROJECT_ROOT))
 
     temporary_xml = INSTANCE_DIRECTORY / f"collector-task-{os.getpid()}.xml"
     try:
@@ -464,48 +490,26 @@ def ensure_hourly_collector_task(runtime_python: Path, library_root: Path) -> bo
 
 def logon_task_xml(command: Path, arguments: str, account: str) -> ElementTree.ElementTree:
     """Task Scheduler definition: start the reader (no window) 30 s after this user logs on."""
-    xml_namespace = "http://schemas.microsoft.com/windows/2004/02/mit/task"
-    ElementTree.register_namespace("", xml_namespace)
-
-    def element(parent, name: str, text: str | None = None, **attributes):
-        node = ElementTree.SubElement(parent, f"{{{xml_namespace}}}{name}", attributes)
-        if text is not None:
-            node.text = text
-        return node
-
-    task = ElementTree.Element(f"{{{xml_namespace}}}Task", {"version": "1.3"})
-    element(
-        element(task, "RegistrationInfo"),
+    ElementTree.register_namespace("", TASK_NAMESPACE)
+    task = _task_element(None, "Task", version="1.3")
+    _task_element(
+        _task_element(task, "RegistrationInfo"),
         "Description",
         "Start the news reader in the background when this user logs on (phone access after a restart).",
     )
-    trigger = element(element(task, "Triggers"), "LogonTrigger")
-    element(trigger, "Enabled", "true")
-    element(trigger, "UserId", account)
-    element(trigger, "Delay", "PT30S")
-    principal = element(element(task, "Principals"), "Principal", id="ReaderUser")
-    element(principal, "UserId", account)
-    element(principal, "LogonType", "InteractiveToken")
-    element(principal, "RunLevel", "LeastPrivilege")
-    settings = element(task, "Settings")
-    for name, value in (
-        ("MultipleInstancesPolicy", "IgnoreNew"),
-        ("DisallowStartIfOnBatteries", "false"),
-        ("StopIfGoingOnBatteries", "false"),
-        ("AllowHardTerminate", "true"),
-        ("StartWhenAvailable", "false"),
-        ("RunOnlyIfNetworkAvailable", "false"),
-        ("WakeToRun", "false"),
-        ("Enabled", "true"),
-        ("Hidden", "false"),
-        ("ExecutionTimeLimit", "PT0S"),
-        ("Priority", "7"),
-    ):
-        element(settings, name, value)
-    execute = element(element(task, "Actions", Context="ReaderUser"), "Exec")
-    element(execute, "Command", str(command))
-    element(execute, "Arguments", arguments)
-    element(execute, "WorkingDirectory", str(PROJECT_ROOT))
+    trigger = _task_element(_task_element(task, "Triggers"), "LogonTrigger")
+    _task_element(trigger, "Enabled", "true")
+    _task_element(trigger, "UserId", account)
+    _task_element(trigger, "Delay", "PT30S")
+    principal = _task_element(_task_element(task, "Principals"), "Principal", id="ReaderUser")
+    _task_element(principal, "UserId", account)
+    _task_element(principal, "LogonType", "InteractiveToken")
+    _task_element(principal, "RunLevel", "LeastPrivilege")
+    _task_settings(task, start_when_available="false", time_limit="PT0S")
+    execute = _task_element(_task_element(task, "Actions", Context="ReaderUser"), "Exec")
+    _task_element(execute, "Command", str(command))
+    _task_element(execute, "Arguments", arguments)
+    _task_element(execute, "WorkingDirectory", str(PROJECT_ROOT))
     return ElementTree.ElementTree(task)
 
 
@@ -519,6 +523,8 @@ def ensure_logon_task(runtime_python: Path, enabled: bool) -> bool:
     try:
         previous = json.loads(LOGON_REGISTRATION_PATH.read_text(encoding="utf-8"))
     except (OSError, ValueError, TypeError):
+        previous = {}
+    if not isinstance(previous, dict):  # a damaged record: as if none
         previous = {}
     if previous.get("task_name") == LEGACY_LOGON_TASK_NAME:
         # registered by this copy under the old shared name: remove it (only when it is ours)

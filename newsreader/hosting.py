@@ -95,16 +95,11 @@ def _remove_logon_task() -> None:
     """launcher.py's start-at-logon task, if it registered one (Windows)."""
     if os.name != "nt":
         return
-    import importlib.util
-    import sys
-    from pathlib import Path
+    from newsreader.web.run import set_logon_task
 
     try:
-        spec = importlib.util.spec_from_file_location("newsreader_launcher", paths.PROJECT_ROOT / "launcher.py")
-        launcher = importlib.util.module_from_spec(spec)
-        spec.loader.exec_module(launcher)
-        launcher.ensure_logon_task(Path(sys.executable), False)
-    except Exception as exc:  # noqa: BLE001 - the site is served either way
+        set_logon_task(False)
+    except Exception as exc:  # the site is served either way
         print(f"News Site のログオン時の自動起動を外せませんでした: {exc!r}", flush=True)
 
 
@@ -138,7 +133,7 @@ def news_now(news_app, lang: str = i18n.DEFAULT) -> dict:
         kept = translation.cached_titles([title for title, _, _ in rows], target)
         badge = status.badge(status_data(), collects=collects_hourly())
         title = i18n.text("各社が伝えた話題" if stories else "新着記事")
-    readable = lambda row, said: bool(said) or LANG_TARGETS.get(branding.source_language(row[2]), "") == target  # noqa: E731
+    readable = lambda row, said: bool(said) or LANG_TARGETS.get(branding.source_language(row[2]), "") == target
     shown = sorted(zip(rows, kept), key=lambda pair: not readable(*pair))[:PREVIEW]  # stable: newest first within each
     return {
         "title": title,

@@ -49,6 +49,14 @@ class RelayTestCase(unittest.TestCase):
 
 
 class ServerTests(RelayTestCase):
+    def test_a_target_that_is_no_text_is_a_bad_request(self):
+        token = relay.issue_token("テスト版", daily_chars=1000)
+        for path, body in (
+            ("/relay/v1/translate", {"texts": ["hello"], "target": ["ja"]}),
+            ("/relay/v1/dictionary", {"text": "hello", "target": {"ja": 1}}),
+        ):
+            self.assertEqual(self.post(path, body, token).status_code, 400, path)
+
     def test_only_a_digest_of_the_token_is_kept(self):
         token = relay.issue_token("テスト版", daily_chars=1000)
         stored = (self.tmp / "settings.json").read_text(encoding="utf-8")

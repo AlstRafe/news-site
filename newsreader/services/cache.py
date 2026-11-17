@@ -5,6 +5,7 @@ from __future__ import annotations
 import json
 import sqlite3
 import time
+from contextlib import closing
 from datetime import datetime
 
 from newsreader import paths
@@ -14,14 +15,22 @@ CACHE_PATH = paths.DEFAULT_TRANSLATION_CACHE
 
 
 def _connect() -> sqlite3.Connection:
+    """A connection with the tables made. Callers close it: ``with closing(_connect()) as db, db:``
+    (a connection's own ``with`` only commits; it never closes)."""
     CACHE_PATH.parent.mkdir(parents=True, exist_ok=True)
     db = sqlite3.connect(CACHE_PATH, timeout=5)
-    db.execute(
-        "CREATE TABLE IF NOT EXISTS cache (kind TEXT NOT NULL, cache_key TEXT NOT NULL, value TEXT NOT NULL, expires REAL, updated REAL NOT NULL, PRIMARY KEY(kind, cache_key))"
-    )
-    db.execute(
-        "CREATE TABLE IF NOT EXISTS translation_usage (id INTEGER PRIMARY KEY, provider TEXT NOT NULL, target TEXT NOT NULL, source_chars INTEGER NOT NULL, metered_chars INTEGER NOT NULL, created REAL NOT NULL)"
-    )
+    try:
+        db.execute(
+            "CREATE TABLE IF NOT EXISTS cache (kind TEXT NOT NULL, cache_key TEXT NOT NULL, value TEXT NOT NULL,"
+            " expires REAL, updated REAL NOT NULL, PRIMARY KEY(kind, cache_key))"
+        )
+        db.execute(
+            "CREATE TABLE IF NOT EXISTS translation_usage (id INTEGER PRIMARY KEY, provider TEXT NOT NULL,"
+            " target TEXT NOT NULL, source_chars INTEGER NOT NULL, metered_chars INTEGER NOT NULL, created REAL NOT NULL)"
+        )
+    except BaseException:
+        db.close()
+        raise
     return db
 
 
@@ -31,7 +40,7 @@ def record_translation_usage(provider: str, target: str, source_chars: int, mete
         return
     now = time.time()
     try:
-        with _connect() as db:
+        with closing(_connect()) as db, db:
             db.execute(
                 "INSERT INTO translation_usage(provider,target,source_chars,metered_chars,created) VALUES(?,?,?,?,?)",
                 (
@@ -52,7 +61,7 @@ def monthly_translation_usage() -> dict:
     now = datetime.now().astimezone()
     start = now.replace(day=1, hour=0, minute=0, second=0, microsecond=0).timestamp()
     try:
-        with _connect() as db:
+        with closing(_connect()) as db, db:
             rows = db.execute(
                 "SELECT provider, SUM(source_chars), SUM(metered_chars), COUNT(*) FROM translation_usage WHERE created >= ? GROUP BY provider",
                 (start,),
@@ -72,7 +81,7 @@ def monthly_translation_usage() -> dict:
 
 def get(kind: str, key: str):
     try:
-        with _connect() as db:
+        with closing(_connect()) as db, db:
             row = db.execute("SELECT value, expires FROM cache WHERE kind=? AND cache_key=?", (kind, key)).fetchone()
             if not row:
                 return None
@@ -88,7 +97,7 @@ def put(kind: str, key: str, value, ttl: int | None = None, max_entries: int = 5
     try:
         now = time.time()
         expires = now + ttl if ttl else None
-        with _connect() as db:
+        with closing(_connect()) as db, db:
             db.execute(
                 "INSERT OR REPLACE INTO cache(kind, cache_key, value, expires, updated) VALUES(?,?,?,?,?)",
                 (kind, key, json.dumps(value, ensure_ascii=False), expires, now),

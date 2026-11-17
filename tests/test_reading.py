@@ -88,6 +88,10 @@ class ReadingTests(unittest.TestCase):
         self.assertEqual(
             self.client.post("/api/words", headers=self.hdr, json={"word": "x", "target": "xx"}).status_code, 400
         )
+        # a target that is no string at all is refused too (it was a server error)
+        self.assertEqual(
+            self.client.post("/api/words", headers=self.hdr, json={"word": "x", "target": ["ja"]}).status_code, 400
+        )
 
     def test_word_book(self):
         body = {

@@ -76,6 +76,7 @@ def relay_translate():
         or not 0 < len(texts) <= relay.MAX_REQUEST_TEXTS
         or not all(isinstance(t, str) for t in texts)
         or sum(len(t) for t in texts) > relay.MAX_REQUEST_CHARS
+        or not isinstance(target, str)
         or target not in TARGETS
     ):
         return jsonify({"error": "bad request"}), 400
@@ -111,7 +112,7 @@ def relay_dictionary():
         return error
     entry, payload = found
     text, target = payload.get("text"), payload.get("target")
-    if not isinstance(text, str) or target not in TARGETS:
+    if not isinstance(text, str) or not isinstance(target, str) or target not in TARGETS:
         return jsonify({"error": "bad request"}), 400
     if not dictionary_available(text, target):
         return jsonify({"senses": []})

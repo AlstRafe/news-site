@@ -36,14 +36,20 @@ class SecretStoreError(Exception):
     """The operating system's credential vault could not be accessed."""
 
 
-def get_settings() -> dict[str, str]:
+def stored() -> dict:
+    """settings.json as saved; {} when it is missing, unreadable or not an object."""
     try:
         value = json.loads(SETTINGS_PATH.read_text(encoding="utf-8"))
     except (OSError, ValueError, TypeError):
-        value = {}
-    region = value.get("azure_region") if isinstance(value, dict) else None
-    bind_host = value.get("network_bind_host") if isinstance(value, dict) else None
-    port = value.get("network_port") if isinstance(value, dict) else None
+        return {}
+    return value if isinstance(value, dict) else {}
+
+
+def get_settings() -> dict[str, str]:
+    value = stored()
+    region = value.get("azure_region")
+    bind_host = value.get("network_bind_host")
+    port = value.get("network_port")
     try:
         bind_host = validate_bind_host(bind_host if isinstance(bind_host, str) else "")
     except ValueError:
@@ -57,10 +63,8 @@ def get_settings() -> dict[str, str]:
         "network_bind_host": bind_host,
         "network_port": port,
         # "own": this PC's Azure key; "relay": ask another NewsBridge to translate (relay.py, D-50).
-        "translation_source": "relay"
-        if isinstance(value, dict) and value.get("translation_source") == "relay"
-        else "own",
-        "relay_url": relay_url(value.get("relay_url") if isinstance(value, dict) else ""),
+        "translation_source": "relay" if value.get("translation_source") == "relay" else "own",
+        "relay_url": relay_url(value.get("relay_url")),
     }
 
 
@@ -122,11 +126,7 @@ def save_settings(azure_region: str = "", network_bind_host: str = "", network_p
 
 
 def get_story_settings() -> dict:
-    try:
-        value = json.loads(SETTINGS_PATH.read_text(encoding="utf-8"))
-    except (OSError, ValueError, TypeError):
-        value = {}
-    value = value if isinstance(value, dict) else {}
+    value = stored()
     enabled = value.get("stories_enabled", STORY_DEFAULTS["stories_enabled"])
     daily = value.get("stories_daily_chars", STORY_DEFAULTS["stories_daily_chars"])
     low, high = STORY_DAILY_RANGE
@@ -154,30 +154,19 @@ def save_library_dir(value: str) -> None:
 
 def start_at_logon() -> bool:
     """launcher.py registers the start-at-logon task unless this is switched off (default on)."""
-    try:
-        value = json.loads(SETTINGS_PATH.read_text(encoding="utf-8"))
-    except (OSError, ValueError, TypeError):
-        return True
-    return not (isinstance(value, dict) and value.get("start_at_logon") is False)
+    return stored().get("start_at_logon") is not False
 
 
 def library_limit() -> int:
     """Most articles the collector keeps adding up to (settings "library_limit"); 0 = no limit.
     Test builds ship with a few sample articles and a small limit (D-53)."""
-    try:
-        value = json.loads(SETTINGS_PATH.read_text(encoding="utf-8")).get("library_limit", 0)
-    except (OSError, ValueError, TypeError, AttributeError):
-        return 0
+    value = stored().get("library_limit", 0)
     return value if isinstance(value, int) and not isinstance(value, bool) and value > 0 else 0
 
 
 def collects_hourly() -> bool:
     """launcher.py registers the hourly collection task unless "collect_hourly" is false (test builds)."""
-    try:
-        value = json.loads(SETTINGS_PATH.read_text(encoding="utf-8"))
-    except (OSError, ValueError, TypeError):
-        return True
-    return not (isinstance(value, dict) and value.get("collect_hourly") is False)
+    return stored().get("collect_hourly") is not False
 
 
 #: 話題を追う (D-61): searches kept to show on the home page.
@@ -186,10 +175,7 @@ MAX_TOPIC_CHARS = 60
 
 
 def topics() -> list[str]:
-    try:
-        value = json.loads(SETTINGS_PATH.read_text(encoding="utf-8")).get("topics", [])
-    except (OSError, ValueError, TypeError, AttributeError):
-        return []
+    value = stored().get("topics", [])
     if not isinstance(value, list):
         return []
     return [t for t in value if isinstance(t, str) and 0 < len(t.strip()) <= MAX_TOPIC_CHARS][:MAX_TOPICS]
@@ -229,10 +215,7 @@ def _glossary_entry(source, target, lang) -> dict | None:
 
 
 def glossary() -> list[dict]:
-    try:
-        value = json.loads(SETTINGS_PATH.read_text(encoding="utf-8")).get("glossary", [])
-    except (OSError, ValueError, TypeError, AttributeError):
-        return []
+    value = stored().get("glossary", [])
     entries = (
         [_glossary_entry(e.get("source"), e.get("target"), e.get("lang")) for e in value if isinstance(e, dict)]
         if isinstance(value, list)
@@ -264,10 +247,7 @@ def remove_glossary_entry(index: int) -> list[dict]:
 
 def build_channel() -> str:
     """ "alpha" / "beta" for a test build made by make_alpha_zip.py, else ""."""
-    try:
-        value = json.loads(SETTINGS_PATH.read_text(encoding="utf-8")).get("build_channel", "")
-    except (OSError, ValueError, TypeError, AttributeError):
-        return ""
+    value = stored().get("build_channel", "")
     return value if value in ("alpha", "beta") else ""
 
 
@@ -285,11 +265,7 @@ def save_story_settings(enabled: bool, daily_chars: int) -> None:
 def _write_merged(values: dict) -> None:
     """Read-modify-write settings.json atomically, keeping every key this call does not set
     (other forms' settings, keys written by launcher.py, keys from newer versions)."""
-    try:
-        current = json.loads(SETTINGS_PATH.read_text(encoding="utf-8"))
-        current = current if isinstance(current, dict) else {}
-    except (OSError, ValueError, TypeError):
-        current = {}
+    current = stored()
     SETTINGS_PATH.parent.mkdir(parents=True, exist_ok=True)
     payload = json.dumps({**current, **values}, ensure_ascii=False)
     fd, temporary = tempfile.mkstemp(prefix="settings-", suffix=".tmp", dir=SETTINGS_PATH.parent)

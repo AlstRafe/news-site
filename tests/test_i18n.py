@@ -26,7 +26,7 @@ sys.path.insert(0, str(ROOT))
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 PACKAGE = ROOT / "newsreader"
 
-from newsreader import i18n  # noqa: E402
+from newsreader import i18n
 
 JP = re.compile(r"[぀-ヿ㐀-鿿]")
 KANA = re.compile(r"[ぁ-ゖァ-ヺ]")
@@ -196,7 +196,7 @@ class TranslationTests(unittest.TestCase):
         self.assertEqual(i18n.from_browser("de;q=0.9,ko;q=0.8"), "ko")
 
 
-from test_stories import NOBEL_ZH, NOBEL_ZH_EN, FakeTranslator, StoryTestCase  # noqa: E402
+from test_stories import NOBEL_ZH, NOBEL_ZH_EN, FakeTranslator, StoryTestCase
 
 H = {"Host": "localhost"}
 VISITOR = {"Host": "haruxera.tail1234.ts.net"}

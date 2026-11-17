@@ -143,13 +143,3 @@ def words(path: Path) -> list[dict]:
         return []
     with closing(_connect(path)) as db:
         return [dict(row) for row in db.execute("SELECT * FROM words ORDER BY added DESC, id DESC")]
-
-
-def has_word(path: Path, word: str, target: str) -> bool:
-    if not Path(path).exists():
-        return False
-    with closing(_connect(path)) as db:
-        return (
-            db.execute("SELECT 1 FROM words WHERE word = ? AND target = ?", (word.strip(), target)).fetchone()
-            is not None
-        )

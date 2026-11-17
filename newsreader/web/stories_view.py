@@ -98,8 +98,6 @@ def stories_page():
     )
     result["scope"] = scope
     result["english_query"] = english
-    from newsreader.library import facts_watch
-
     disputes = facts_watch.disputed(db_path(), [story["key"] for story in result["stories"]])
     for story in result["stories"]:
         story["disputes"] = disputes.get(story["key"], [])
@@ -176,7 +174,7 @@ def digest_page():
                     names, translation.translate_titles([n["name"] for n in names], target, kind="name", max_chars=60)
                 ):
                     name["ja"] = ja if ja and ja.casefold() != name["name"].casefold() else ""
-    except Exception:  # noqa: BLE001 - no key, quota, network: the English names are still right
+    except Exception:  # no key, quota, network: the English names are still right
         pass
     response = current_app.make_response(
         render_template("digest.html", groups=groups, stats=stats, hours=hours, names=names)

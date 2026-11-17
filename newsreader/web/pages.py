@@ -302,7 +302,7 @@ def show_article(article_id: int):
         saved = reading.states(marks_db, [record]).get(article_id, {}).get("saved", False)
         try:
             reading.mark_read(marks_db, record)
-        except Exception:  # noqa: BLE001 - a read mark is a convenience; the page is shown regardless
+        except Exception:  # a read mark is a convenience; the page is shown regardless
             pass
     response = current_app.make_response(
         render_template(

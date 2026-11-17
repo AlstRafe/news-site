@@ -593,7 +593,7 @@
     }
     if (!range || !reader.contains(range.startContainer) || range.startContainer.nodeType !== Node.TEXT_NODE) return "";
     const nodeText = range.startContainer.textContent || "";
-    let offset = Math.min(range.startOffset, Math.max(0, nodeText.length - 1));
+    const offset = Math.min(range.startOffset, Math.max(0, nodeText.length - 1));
     const korean = /[\uac00-\ud7a3]/.test(nodeText);
     const chinese = /[\u3400-\u4dbf\u4e00-\u9fff\uf900-\ufaff]/.test(nodeText);
     const locale = korean ? "ko" : chinese ? "zh-TW" : "en-GB";
@@ -1031,7 +1031,6 @@
         (status.textContent ? `（${status.textContent}）` : "");
   }
   if (biFloat && "IntersectionObserver" in window) {
-    const controls = document.getElementById("translation-controls");
     let barVisible = true;
     let textVisible = false;
     const update = () => {
