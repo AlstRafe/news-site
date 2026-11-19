@@ -1,7 +1,11 @@
 {% extends "base.html" %}
 {% block head %}<title>{{ _('保存した記事') }} | {{ app_name }}</title>{% endblock %}
 {% block content %}
-<nav class="chips my-tabs" aria-label="{{ _('自分の記録') }}"><a class="chip active" aria-current="page" href="{{ url_for('saved_page') }}">{{ _('保存した記事') }}<span>{{ items|length }}</span></a><a class="chip" href="{{ url_for('words_page') }}">{{ _('単語帳') }}</a></nav>
+{% if local %}<div class="list-head"><h1>{{ _('保存した記事') }}</h1><span class="count" id="local-saved-count"></span></div>
+<p class="hint my-note">{{ _('記事の「後で読む」で保存した記事です。この端末のブラウザーに保存しているので、ほかの端末やブラウザーには出ません。') }}</p>
+<div class="card-grid" id="local-saved" aria-busy="true"></div>
+<p class="empty" id="local-saved-empty" hidden>{{ _('まだ保存した記事はありません。記事のページで「後で読む」を押すと、ここに並びます。') }}</p>
+{% else %}<nav class="chips my-tabs" aria-label="{{ _('自分の記録') }}"><a class="chip active" aria-current="page" href="{{ url_for('saved_page') }}">{{ _('保存した記事') }}<span>{{ items|length }}</span></a><a class="chip" href="{{ url_for('words_page') }}">{{ _('単語帳') }}</a></nav>
 <div class="list-head"><h1>{{ _('保存した記事') }}</h1><span class="count">{{ _('{count} 件', count=items|length) }}</span></div>
 <p class="hint my-note">{{ _('記事の「後で読む」で保存した記事です。このパソコンのサーバーに保存するので、PC で保存した記事もスマホで読めます。') }}</p>
 {% if items %}<div class="card-grid">{% for item in items %}{% if item.id %}
@@ -11,4 +15,5 @@
 {% if item.ja %}<p class="card-gloss" lang="{{ gloss_tag }}">{{ item.ja }}</p>{% endif %}<h2{{ item.source|lang_attr }}>{{ item.title }}</h2></div></a>
 {% else %}<div class="card gone"><div class="card-body"><div class="card-meta"><span class="badge">{{ item.source|outlet }}</span><span>{{ _('記事ファイルがありません') }}</span></div><h2>{{ item.title }}</h2></div></div>{% endif %}{% endfor %}</div>
 {% else %}<p class="empty">{{ _('まだ保存した記事はありません。記事のページで「後で読む」を押すと、ここに並びます。') }}</p>{% endif %}
+{% endif %}
 {% endblock %}

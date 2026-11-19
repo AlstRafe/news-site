@@ -393,14 +393,6 @@ h2 {
   box-shadow: 0 6px 23px var(--shadow-20212406);
   margin: 20px 0;
 }
-.panel-head {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-}
-.panel-head h2 {
-  margin-bottom: 16px;
-}
 .count {
   color: var(--fg-777777);
   font-size: 12px;
@@ -410,10 +402,6 @@ label {
   font-size: 13px;
   font-weight: 600;
   margin-bottom: 10px;
-}
-.form-row {
-  display: flex;
-  gap: 10px;
 }
 input {
   min-width: 0;
@@ -459,60 +447,6 @@ button.secondary:hover {
   border-radius: 8px;
   padding: 15px;
   margin: 20px 0;
-}
-.file {
-  display: flex;
-  align-items: center;
-  gap: 14px;
-  text-decoration: none;
-  color: inherit;
-  padding: 16px 5px;
-  border-top: 1px solid var(--line-eeeeee);
-}
-.file:not(.muted):hover {
-  background: var(--bg-fbf5f5);
-}
-.folder-back {
-  display: inline-block;
-  margin-bottom: 14px;
-}
-.foldericon {
-  background: var(--bg-e9eef8);
-  color: var(--fg-365b91);
-}
-.fileicon {
-  display: grid;
-  place-items: center;
-  background: var(--bg-faebeb);
-  color: var(--fg-a21a21);
-  font-size: 10px;
-  font-weight: 850;
-  border-radius: 8px;
-  min-width: 49px;
-  height: 43px;
-}
-.filename {
-  flex: 1;
-  min-width: 0;
-}
-.filename strong {
-  display: block;
-  font-size: 14px;
-  line-height: 1.5;
-  overflow-wrap: anywhere;
-}
-.filename small {
-  display: block;
-  color: var(--fg-8a8e96);
-  font-size: 11px;
-  margin-top: 3px;
-}
-.file.muted {
-  opacity: 0.5;
-}
-.chevron {
-  font-size: 25px;
-  color: var(--fg-adb0b6);
 }
 .empty {
   padding: 8px 0 15px;
@@ -605,9 +539,6 @@ button.secondary:hover {
   }
   .panel {
     padding: 18px;
-  }
-  .form-row {
-    flex-direction: column;
   }
   button {
     width: 100%;
@@ -891,9 +822,6 @@ button.secondary:hover {
   height: 100%;
   background: var(--bg-438b55);
   border-radius: inherit;
-}
-.deepl-meter span {
-  background: var(--bg-5867ba);
 }
 .result-actions {
   display: flex;
@@ -1447,11 +1375,6 @@ html {
   height: 18px;
   display: none;
 }
-:root:not([data-theme]) .theme-toggle .icon-auto,
-:root[data-theme="light"] .theme-toggle .icon-light,
-:root[data-theme="dark"] .theme-toggle .icon-dark {
-  display: block;
-}
 /* Phase 7: same news across outlets (stories list, outlet columns, related block on articles). */
 .stories-note {
   margin: 0 0 18px;
@@ -1486,20 +1409,6 @@ html {
   padding: 16px 18px;
   margin: 0 0 14px;
 }
-.story-head {
-  display: flex;
-  justify-content: space-between;
-  gap: 10px;
-  text-decoration: none;
-  font-size: 12px;
-  color: var(--fg-777777);
-  margin-bottom: 8px;
-}
-.story-count {
-  font-weight: 800;
-  color: var(--fg-a31b23);
-  letter-spacing: 0.3px;
-}
 .story-members {
   list-style: none;
   margin: 0;
@@ -1533,13 +1442,6 @@ html {
 .story-title {
   font-size: 15px;
   font-weight: 650;
-  line-height: 1.5;
-  overflow-wrap: anywhere;
-}
-.story-pivot {
-  grid-column: 2;
-  font-size: 12px;
-  color: var(--fg-878b93);
   line-height: 1.5;
   overflow-wrap: anywhere;
 }
@@ -1924,11 +1826,6 @@ html {
 }
 .translation-controls #translation-status:empty {
   display: none;
-}
-.tc-note {
-  flex-basis: 100%;
-  margin: 0;
-  font-size: 11px;
 }
 .more-images {
   margin-top: 30px;
@@ -2821,16 +2718,6 @@ body.tr-sheet-open .bi-float {
   text-decoration: none;
   color: var(--fg-a41b22);
 }
-.highlight-row {
-  display: grid;
-  grid-auto-flow: column;
-  grid-auto-columns: minmax(240px, 1fr);
-  gap: 12px;
-  overflow-x: auto;
-  scroll-snap-type: x mandatory;
-  padding-bottom: 6px;
-  overscroll-behavior-x: contain;
-}
 .highlight {
   scroll-snap-align: start;
   display: flex;
@@ -2864,14 +2751,7 @@ body.tr-sheet-open .bi-float {
 .highlight .badge {
   font-size: 10px;
 }
-@media (max-width: 650px) {
-  .highlight-row {
-    grid-auto-columns: 78%;
-    margin: 0 -16px;
-    padding: 0 16px 6px;
-    scroll-padding: 0 16px;
-  }
-}
+
 /* Keyboard focus is always visible; motion is dropped for readers who ask for less */
 :where(a, button, input, select, textarea, summary, [tabindex]):focus-visible {
   outline: 2px solid var(--line-b51d24);

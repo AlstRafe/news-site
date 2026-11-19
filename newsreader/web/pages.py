@@ -13,6 +13,7 @@ from pathlib import Path
 from flask import abort, current_app, jsonify, redirect, render_template, request, send_file, url_for
 
 from newsreader import i18n, paths
+from newsreader.branding import APP_NAME, APP_TAGLINE, source_language
 from newsreader.library import index
 from newsreader.library.files import resolve_html_file, validate_directory
 from newsreader.services import images as image_service
@@ -161,20 +162,25 @@ def front_stories(db: Path) -> list[dict]:
     return found
 
 
-@routes.get("/", "index")
-def index_page():
-    source = request.args.get("source", "")[:100]
+def _list_filters() -> tuple[str, str, str]:
+    """The article list's own filters from the address: outlet, kind of news and search words."""
     from newsreader.library import genres
 
     genre = request.args.get("genre", "")
     genre = genre if genre in genres.LABELS or genre == genres.OTHER else ""
-    query = request.args.get("q", "")
+    return request.args.get("source", "")[:100], genre, request.args.get("q", "").strip()[:100]
+
+
+@routes.get("/", "index")
+def index_page():
+    from newsreader.library import genres
+
+    source, genre, query = _list_filters()
     try:
         page = int(request.args.get("page", "1"))
     except ValueError:
         page = 1
     db = db_path()
-    query = query.strip()[:100]
     english = query_in_english(query) if re.search(r"[^\x00-\x7f]", query) else ""
     pivot_words = index.search_words(english or query)
     result = index.list_articles(
@@ -244,6 +250,18 @@ def index_page():
     )
     response.headers["Cache-Control"] = CACHE_LIST
     return response
+
+
+#: Words (English) or characters (Chinese, Korean) a reader gets through in a minute.
+_READ_PER_MINUTE = {"en": 220, "zh": 400, "ko": 500}
+
+
+def reading_minutes(paragraphs: list[str], language: str) -> int:
+    """About how many minutes the original text takes to read (at least 1): counted in words for
+    English, in characters for Chinese and Korean (and for an outlet of unknown language)."""
+    text = " ".join(paragraphs)
+    amount = len(text.split()) if language == "en" else len(re.sub(r"\s", "", text))
+    return max(1, round(amount / _READ_PER_MINUTE.get(language, 400)))
 
 
 def page_target() -> str:
@@ -318,9 +336,76 @@ def show_article(article_id: int):
             prov_links=prov_links,
             similar=stories.similar(db_path(), article_id),
             title_ja=_kept_title(record.get("title") or ""),
+            minutes=reading_minutes(article.get("paragraphs") or [], source_language(record.get("source"))),
         )
     )
     response.headers["Cache-Control"] = CACHE_PAGE
+    return response
+
+
+#: Entries in the Atom feed (/feed.xml): the newest of the list it follows.
+FEED_ENTRIES = 30
+_ATOM = "http://www.w3.org/2005/Atom"
+
+
+@routes.get("/feed.xml", "atom_feed")
+def atom_feed():
+    """The newest articles of the list as an Atom feed, for a feed reader (Feedly, Inoreader, ...):
+    the same filters as the list (?source=, ?genre=, ?q=). Each entry links to its page here and
+    carries the original headline, the headline in the reader's language when it was already
+    translated (nothing is translated for the feed) and the article's opening."""
+    from xml.etree import ElementTree as ET
+
+    from newsreader.library import genres
+    from newsreader.services import translation
+
+    source, genre, query = _list_filters()
+    db = db_path()
+    english = query_in_english(query) if re.search(r"[^\x00-\x7f]", query) else ""
+    items = index.list_articles(
+        db,
+        source=source,
+        query=query,
+        page=1,
+        per_page=FEED_ENTRIES,
+        pivot_words=index.search_words(english or query),
+        genre=genre,
+    )["items"]
+    kept = translation.cached_titles([item["title"] for item in items], page_target())
+    filters = {"source": source or None, "genre": genre or None, "q": query or None}
+    named = [i18n.text(source) if source else "", i18n.text(genres.LABELS.get(genre, "その他")) if genre else ""]
+    named.append(i18n.text("「{q}」の検索結果", q=query) if query else "")
+    now = datetime.now(UTC).strftime("%Y-%m-%dT%H:%M:%SZ")
+
+    feed = ET.Element("feed", {"xmlns": _ATOM, "xml:lang": i18n.current()})
+    ET.SubElement(feed, "title").text = " · ".join([APP_NAME, *(n for n in named if n)])
+    ET.SubElement(feed, "subtitle").text = i18n.text(APP_TAGLINE)
+    ET.SubElement(feed, "id").text = url_for("index", _external=True, **filters)
+    ET.SubElement(
+        feed, "link", {"rel": "alternate", "type": "text/html", "href": url_for("index", _external=True, **filters)}
+    )
+    ET.SubElement(feed, "link", {"rel": "self", "href": url_for("atom_feed", _external=True, **filters)})
+    ET.SubElement(feed, "updated").text = max((item.get("published") or "" for item in items), default="") or now
+    ET.SubElement(feed, "icon").text = url_for("static", filename="icon-192.png", _external=True)
+    for item, translated in zip(items, kept):
+        entry = ET.SubElement(feed, "entry")
+        link = url_for("show_article", article_id=item["id"], _external=True)
+        title = item.get("title") or ""
+        ET.SubElement(entry, "title").text = f"{translated} ({title})" if translated and translated != title else title
+        ET.SubElement(entry, "id").text = link
+        ET.SubElement(entry, "link", {"rel": "alternate", "type": "text/html", "href": link})
+        ET.SubElement(entry, "updated").text = item.get("published") or now
+        if item.get("published"):
+            ET.SubElement(entry, "published").text = item["published"]
+        ET.SubElement(ET.SubElement(entry, "author"), "name").text = i18n.text(item.get("source") or "未分類")
+        if item.get("genre") in genres.LABELS:
+            ET.SubElement(entry, "category", {"term": item["genre"], "label": i18n.text(genres.LABELS[item["genre"]])})
+        if item.get("lead"):
+            ET.SubElement(entry, "summary").text = item["lead"]
+    body = b'<?xml version="1.0" encoding="utf-8"?>\n' + ET.tostring(feed, encoding="utf-8", xml_declaration=False)
+    response = current_app.make_response(body)
+    response.headers["Content-Type"] = "application/atom+xml; charset=utf-8"
+    response.headers["Cache-Control"] = "public, max-age=600"
     return response
 
 

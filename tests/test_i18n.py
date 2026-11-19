@@ -282,7 +282,7 @@ class PageTests(StoryTestCase):
                 self.client.set_cookie("lang", lang, domain=headers["Host"])
             for path in self.pages():
                 for headers in (H, VISITOR):
-                    if headers is VISITOR and path in ("/saved", "/words"):
+                    if headers is VISITOR and path == "/words":
                         continue
                     with self.subTest(lang=lang, path=path, visitor=headers is VISITOR):
                         html = self.client.get(path, headers=headers).get_data(as_text=True)

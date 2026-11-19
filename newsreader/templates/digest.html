@@ -1,8 +1,7 @@
 {% extends "base.html" %}
 {% block head %}<title>{{ _('今日のまとめ') }} | {{ app_name }}</title>{% endblock %}
 {% block main_class %} digest-page{% endblock %}
-{% block content %}<a class="back" href="{{ url_for('stories_page') }}">{{ _('読み比べへ') }}</a>
-<div class="list-head"><h1>{{ _('今日のまとめ') }}</h1><span class="count">{{ _('直近 {n} 時間', n=hours) }}</span>{% if groups %}<button type="button" class="gloss-toggle" id="gloss-toggle" aria-pressed="false" title="{{ _('見出しの下に訳を表示（一度訳した見出しは保存して再送信しません）') }}">{{ _('見出しを訳す') }}</button>{% endif %}</div>
+{% block content %}<div class="list-head"><h1>{{ _('今日のまとめ') }}</h1><span class="count">{{ _('直近 {n} 時間', n=hours) }}</span>{% if groups %}<button type="button" class="gloss-toggle" id="gloss-toggle" aria-pressed="false" title="{{ _('見出しの下に訳を表示（一度訳した見出しは保存して再送信しません）') }}">{{ _('見出しを訳す') }}</button>{% endif %}</div>
 <nav class="chips" aria-label="{{ _('期間') }}">{% for h in (24, 48, 72) %}<a class="chip{% if hours == h %} active{% endif %}" href="{{ url_for('digest_page', hours=h) }}">{{ _('{n} 時間', n=h) }}</a>{% endfor %}</nav>
 {% if names %}<section class="digest-names" aria-labelledby="names-head"><h2 id="names-head">{{ _('よく出た名前') }}</h2>
 <ul class="name-chips">{% for n in names %}<li><a href="{{ url_for('index', q=n.name) }}" title="{{ _('{name}・{outlets} の見出し {count} 本', name=n.name, outlets=n.outlets|map('outlet')|join(_('・')), count=n.articles) }}">{% if n.ja %}<span lang="{{ gloss_tag }}">{{ n.ja }}</span>{% else %}<span lang="en">{{ n.name }}</span>{% endif %}<small>{{ n.articles }}</small><span class="name-outlets" aria-hidden="true">{% for o in n.outlets %}<i data-lang="{{ o|src_lang }}"></i>{% endfor %}</span></a></li>{% endfor %}</ul>

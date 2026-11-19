@@ -4,6 +4,7 @@ import shutil
 import sys
 import tempfile
 import unittest
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
@@ -138,18 +139,23 @@ class GroupTests(unittest.TestCase):
 
 class PageTests(unittest.TestCase):
     def setUp(self):
+        # Published two days ago, whenever the tests run: 媒体くらべ only counts the last days.
+        day = datetime.now(UTC) - timedelta(days=2)
+        bbc_time, cna_time = (f"{(day + timedelta(hours=h)):%Y-%m-%dT%H:%M:%SZ}" for h in (0, 2))
         self.tmp = Path(tempfile.mkdtemp())
         self.root = self.tmp / "articles"
         for site in ("BBC", "CNA"):
             (self.root / site).mkdir(parents=True)
-        (self.root / "BBC" / "a.html").write_bytes(b"""<html><head><meta name="pagetype" content="News Article">
-<meta property="article:published_time" content="2026-10-19T10:00:00Z"></head><body>
+        (self.root / "BBC" / "a.html").write_bytes(
+            f"""<html><head><meta name="pagetype" content="News Article">
+<meta property="article:published_time" content="{bbc_time}"></head><body>
 <main id="bbc-main"><h1>Paris curfew as France riots spread</h1><article>
 <div data-component="layout-block"><p class="Paragraph-styles__ParagraphStyled-x">Officials told the BBC a curfew begins tonight, AFP news agency reported.</p></div>
-</article></main></body></html>""")
+</article></main></body></html>""".encode()
+        )
         (self.root / "CNA" / "z.html").write_bytes(
-            """<html><head><link rel="canonical" href="https://www.cna.com.tw/news/aopl/x.aspx">
-<meta property="article:published_time" content="2026-10-19T12:00:00Z"></head><body>
+            f"""<html><head><link rel="canonical" href="https://www.cna.com.tw/news/aopl/x.aspx">
+<meta property="article:published_time" content="{cna_time}"></head><body>
 <article class="article"><h1>法國暴動擴大 巴黎宵禁</h1><div class="centralContent">
 <div class="paragraph"><p>（中央社巴黎19日綜合外電報導）法國暴動擴大。</p><p>法新社報導，巴黎實施宵禁。英國廣播公司（BBC）稍早報導，衝突持續。</p></div></div></article></body></html>""".encode()
         )

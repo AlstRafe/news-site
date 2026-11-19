@@ -22,6 +22,7 @@
 <div class="segmented" role="group" aria-label="{{ _('並べ方') }}"><button type="button" class="seg" data-view="outlets" aria-pressed="true">{{ _('媒体ごと') }}</button><button type="button" class="seg" data-view="timeline" aria-pressed="false">{{ _('時系列') }}</button></div>
 <button type="button" class="secondary" id="translate-leads">{{ _('書き出しを訳して比べる') }}</button>
 <button type="button" class="gloss-toggle" id="story-gloss-toggle" aria-pressed="true">{{ _('訳を隠す') }}</button>
+<button type="button" class="text-button share-button" data-share>{{ _('共有') }}</button>
 </div>
 {% if story.languages|length > 1 %}<div class="align-langs" role="group" aria-label="{{ _('ほかの媒体の言語にそろえて比べる') }}"><span class="align-label">{{ _('言語をそろえる') }}</span>{% for l in story.languages %}<button type="button" class="chip-button" data-align="{{ l.target }}" aria-pressed="false" title="{{ _('{outlets} と同じ{language}に、ほかの記事の見出しと書き出しを訳します', outlets=l.outlets|map('outlet')|join(_('・')), language=translation_targets[l.target].label) }}">{{ translation_targets[l.target].label }}<small>{{ l.outlets|map('outlet')|join(_('・')) }}</small></button>{% endfor %}</div>{% endif %}
 <p class="gloss-error hint" id="story-gloss-error" role="status" hidden></p>
