@@ -423,8 +423,8 @@ def web_manifest():
             "start_url": url_for("index"),
             "scope": url_for("index"),
             "display": "standalone",
-            "background_color": "#f6f4ef",
-            "theme_color": "#f6f4ef",
+            "background_color": "#edf0f2",
+            "theme_color": "#edf0f2",
             "icons": [
                 {"src": url_for("static", filename=f"icon-{n}.png"), "sizes": f"{n}x{n}", "type": "image/png"}
                 for n in (192, 512)

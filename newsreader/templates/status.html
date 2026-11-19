@@ -41,7 +41,7 @@
 {% if story_joins %}<p class="hint">「同じニュース」でまとめた組: {{ story_joins }} 組 <button type="button" class="link-button" data-action="stories-clear-exclusions" data-clear-url="/api/stories/joins/clear">すべて取り消して集計し直す</button><span class="refresh-state" role="status" aria-live="polite"></span></p>{% endif %}
 </section>
 <section class="panel"><h2>翻訳の利用量（{{ usage.month }}）</h2>
-<dl class="facts"><dt>Azure</dt><dd>{{ "{:,}".format(usage.providers.azure.metered_chars) }} 文字 · {{ usage.providers.azure.requests }} 回{% if usage.providers.azure.metered_chars >= auto_limit %}（自動の翻訳は今月の目安に達したため停止中）{% endif %}</dd>
+<dl class="facts"><dt>Azure</dt><dd>{{ "{:,}".format(usage.providers.azure.metered_chars) }} 文字 · {{ usage.providers.azure.requests }} 回{% if usage.providers.azure.metered_chars >= auto_limit %}（自動の翻訳は今月の目安に達したため停止中）{% endif %}</dd></dl></section>
 <section class="panel"><h2>アプリ</h2>
 <dl class="facts"><dt>バージョン</dt><dd>{{ version }}</dd><dt>起動</dt><dd>{{ started }}</dd>
 <dt>自動起動</dt><dd>{% if logon_task %}ログオン時に起動（Windows タスク登録済み）{% else %}未登録（Windows 以外、または設定でオフ）{% endif %}</dd><dt>Python</dt><dd>{{ python }}</dd></dl></section>
