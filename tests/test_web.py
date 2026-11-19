@@ -186,8 +186,13 @@ class SecurityTests(WebTestCase):
         page = self.client.get("/", **marked)
         self.assertEqual(page.status_code, 200)
         self.assertNotIn("/translation-settings", page.get_data(as_text=True))
-        for owner_page in ("/translation-settings", "/status", "/saved", "/words"):
+        for owner_page in ("/translation-settings", "/status", "/words"):
             self.assertEqual(self.client.get(owner_page, **marked).status_code, 404, owner_page)
+        # 保存: the visitor's own list, kept in their browser; nothing of the owner's is on it
+        self.client.post("/api/saved", headers={**H, "X-CSRF-Token": self.csrf()}, json={"id": self.cna, "saved": True})
+        saved = self.client.get("/saved", **marked).get_data(as_text=True)
+        self.assertIn('id="local-saved"', saved)
+        self.assertNotIn(f'href="/a/{self.cna}"', saved)
         self.assertEqual(self.client.get("/translation-settings", headers=H).status_code, 200)
 
     def test_the_owner_signed_in_under_a_public_name_has_everything(self):

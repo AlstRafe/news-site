@@ -76,9 +76,10 @@ class PortalTests(Library):
         self.assertEqual(page.status_code, 200)
         html = page.get_data(as_text=True)
         self.assertNotIn("/news/translation-settings", html)
-        self.assertNotIn("/news/saved", html)
+        self.assertNotIn("/news/words", html)
+        self.assertIn('href="/news/saved"', html)  # 保存 is theirs too, kept in their browser
         self.assertEqual(self.client.get(f"/news/a/{self.article}", headers=funnel).status_code, 200)
-        for owner_page in ("/news/translation-settings", "/news/status", "/news/saved", "/news/words"):
+        for owner_page in ("/news/translation-settings", "/news/status", "/news/words"):
             self.assertEqual(self.client.get(owner_page, headers=funnel).status_code, 404, owner_page)
         import re
 

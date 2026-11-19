@@ -4,8 +4,9 @@ the host server (Home Page) marks as public in the request (``homepage.visitor``
 which no request can set: the VM's own domain served directly).
 
 Visitors read and translate, nothing more: pages that change this PC (設定, 取得の状況) or show the
-owner's own lists (保存, 単語帳) are not there for them, nothing they send changes settings, lists
-or 読み比べ groups, their visits leave no 既読 marks, and every translation they cause counts as
+owner's own lists (単語帳) are not there for them, nothing they send changes settings, lists
+or 読み比べ groups, their visits leave no 既読 marks here (後で読む and 既読 stay in their own browser,
+and their 保存 page shows that list), and every translation they cause counts as
 automatic, so it stops at the monthly allowance (translation.AUTO_MONTHLY_CHARS). The owner keeps
 using the site at its own addresses with everything, and under the public name too on a device
 signed in at Home Page's /owner (``homepage.owner`` in the environ, set by Home Page alone).
@@ -38,8 +39,8 @@ VISITOR_POSTS = frozenset(
         "story_words",
     }
 )
-#: The owner's pages.
-OWNER_PAGES = frozenset({"translation_settings", "status_page", "saved_page", "words_page"})
+#: The owner's pages (保存 is there for visitors too, with the list their browser keeps).
+OWNER_PAGES = frozenset({"translation_settings", "status_page", "words_page"})
 _SAFE_METHODS = frozenset({"GET", "HEAD", "OPTIONS"})
 
 

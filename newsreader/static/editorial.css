@@ -425,8 +425,7 @@ textarea {
 .outlet-card,
 .alert,
 .related,
-.story-item,
-.settings-section {
+.story-item {
   background: transparent;
   border: 0;
   border-top: 1px solid var(--rule);
@@ -461,8 +460,7 @@ textarea {
   background: transparent !important;
 }
 .card:hover strong,
-.card:hover h3,
-.card:hover .card-title {
+.card:hover h3 {
   text-decoration: underline;
   text-underline-offset: 4px;
 }
@@ -489,7 +487,6 @@ textarea {
 }
 .card strong,
 .card h3,
-.card .card-title,
 .highlight strong,
 .story-item strong,
 .digest-title {
@@ -1500,4 +1497,119 @@ html.intro-off .site-intro {
     min-width: min(9.5em, 100%);
     max-width: 100%;
   }
+}
+
+/* 本文へ移動: the first stop of the Tab key, out of sight until it has the focus. */
+.skip-link {
+  position: absolute;
+  left: 12px;
+  top: -60px;
+  z-index: 100;
+  padding: 10px 14px;
+  background: var(--ink);
+  color: var(--paper);
+  font-weight: 700;
+  text-decoration: none;
+}
+.skip-link:focus {
+  top: 12px;
+}
+main:focus {
+  outline: none;
+}
+/* Without a picture the top story keeps its time under its headline (not at the foot of the row). */
+.front-lead {
+  align-self: start;
+}
+/* A card whose picture is missing takes the whole width on a phone (the text starts at the left edge). */
+@media (max-width: 650px) {
+  .card-body {
+    flex: 1;
+    min-width: 0;
+  }
+}
+/* The words searched for, in the results */
+mark.hit {
+  background: color-mix(in srgb, var(--accent) 16%, transparent);
+  color: inherit;
+  border-radius: 2px;
+  padding: 0 1px;
+}
+/* RSS of the list shown, and the footer's links that are buttons */
+.feed-here {
+  margin-left: auto;
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--soft);
+  text-decoration: none;
+  letter-spacing: 0.06em;
+  display: inline-flex;
+  align-items: center;
+  min-height: 32px;
+}
+.list-head .feed-here ~ .follow-topic,
+.list-head .feed-here ~ .gloss-toggle {
+  margin-left: 12px;
+}
+.feed-here:hover {
+  color: var(--accent);
+}
+.foot-links .keys-link {
+  padding: 0;
+  font: inherit;
+  font-weight: 600;
+  color: var(--ink-2);
+  text-decoration: none;
+  width: auto;
+}
+.foot-links .keys-link:hover {
+  background: none;
+  text-decoration: underline;
+}
+@media (hover: none) {
+  .foot-links .keys-link {
+    display: none; /* no keyboard on a phone */
+  }
+}
+/* 共有 on a comparison: beside the way it is laid out, before the translation buttons on the right */
+.story-tools .share-button {
+  order: 1;
+  margin-left: 6px;
+}
+/* キーボード操作 (the "?" key) */
+.keys-dialog {
+  border: 1px solid var(--rule-strong);
+  background: var(--paper);
+  color: var(--ink);
+  padding: 20px 24px 14px;
+  max-width: min(420px, calc(100vw - 32px));
+}
+.keys-dialog::backdrop {
+  background: rgb(0 0 0 / 0.35);
+}
+.keys-dialog h2 {
+  font-size: 17px;
+  margin: 0 0 12px;
+}
+.keys-dialog dl {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 8px 16px;
+  margin: 0 0 12px;
+  font-size: 14px;
+}
+.keys-dialog dt {
+  white-space: nowrap;
+}
+.keys-dialog dd {
+  margin: 0;
+}
+.keys-dialog kbd {
+  display: inline-block;
+  min-width: 1.6em;
+  padding: 1px 6px;
+  border: 1px solid var(--rule);
+  border-bottom-width: 2px;
+  font: 600 12px/1.6 var(--sans);
+  text-align: center;
 }

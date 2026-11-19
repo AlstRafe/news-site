@@ -1,4 +1,4 @@
-// Article page: 後で読む, 読み上げ and 文字の大きさ.
+// Article page: 後で読む (and a visitor's 既読), 読み上げ and 文字の大きさ.
 (() => {
   "use strict";
   const T = NR.t; // a text in the page's language (i18n.js)
@@ -17,15 +17,48 @@
     return payload;
   };
 
-  // 後で読む: kept on the server, so what is saved on the PC is on the phone's 保存 page too.
+  // 後で読む: the owner's list is kept on the server, so what is saved on the PC is on the phone's 保存
+  // page too. A visitor's (data-local) is kept in their browser, newest first, with the articles
+  // they have opened (既読, shown on the lists by app.js).
   const save = document.getElementById("save-article");
+  const show = (on) => {
+    save.setAttribute("aria-pressed", String(on));
+    save.textContent = on ? T("保存済み") : T("後で読む");
+  };
+  const LIMIT = { "newsbridge-saved": 200, "newsbridge-read": 1000 };
+  const ids = (key) => {
+    try {
+      const list = JSON.parse(localStorage.getItem(key) || "[]");
+      return Array.isArray(list) ? list.filter(Number.isInteger) : [];
+    } catch (_) {
+      return [];
+    }
+  };
+  const keep = (key, list) => {
+    try {
+      localStorage.setItem(key, JSON.stringify(list.slice(0, LIMIT[key])));
+      return true;
+    } catch (_) {
+      return false; // storage off (private mode, blocked): nothing is kept
+    }
+  };
+  const id = Number(save?.dataset.id);
+  if (save?.dataset.local) {
+    show(ids("newsbridge-saved").includes(id));
+    keep("newsbridge-read", [id, ...ids("newsbridge-read").filter((n) => n !== id)]);
+  }
   save?.addEventListener("click", async () => {
     const on = save.getAttribute("aria-pressed") !== "true";
+    if (save.dataset.local) {
+      const others = ids("newsbridge-saved").filter((n) => n !== id);
+      if (keep("newsbridge-saved", on ? [id, ...others] : others)) show(on);
+      else save.textContent = T("このブラウザーでは保存できません");
+      return;
+    }
     save.disabled = true;
     try {
-      const payload = await post("/api/saved", { id: Number(save.dataset.id), saved: on });
-      save.setAttribute("aria-pressed", String(payload.saved));
-      save.textContent = payload.saved ? T("保存済み") : T("後で読む");
+      const payload = await post("/api/saved", { id, saved: on });
+      show(payload.saved);
     } catch (error) {
       save.textContent = error.message;
     } finally {

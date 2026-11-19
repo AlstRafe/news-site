@@ -1,7 +1,7 @@
 {% extends "base.html" %}
 {% block head %}<title>{{ _('媒体くらべ') }} | {{ app_name }}</title>{% endblock %}
 {% block main_class %} outlets-page{% endblock %}
-{% block content %}<a class="back" href="{{ url_for('stories_page') }}">{{ _('読み比べへ') }}</a>
+{% block content %}<a class="back" href="{{ url_for('digest_page') }}">{{ _('今日のまとめへ') }}</a>
 <div class="list-head"><h1>{{ _('媒体くらべ') }}</h1><span class="count">{{ _('直近 {n} 日', n=stats.days) }}</span></div>
 <nav class="chips" aria-label="{{ _('期間') }}">{% for d in (1, 7, 30) %}<a class="chip{% if stats.days == d %} active{% endif %}" href="{{ url_for('outlets_page', days=d) }}">{{ _('{n} 日', n=d) }}</a>{% endfor %}</nav>
 {% if not stats.outlets %}<p class="empty">{{ _('この期間の記事はまだありません。') }}</p>{% else %}

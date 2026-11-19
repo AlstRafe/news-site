@@ -1,13 +1,19 @@
-"""保存（後で読む）, 既読 and 単語帳: the reader's own marks, kept across the PC and the phone."""
+"""保存（後で読む）, 既読 and 単語帳: the reader's own marks, kept across the PC and the phone.
+
+A visitor of the public site keeps 後で読む and 既読 in their own browser instead (app.js,
+reading.js): their /saved lists those ids through /api/articles, and nothing of theirs reaches
+this PC's lists."""
 
 from __future__ import annotations
 
-from flask import abort, current_app, jsonify, render_template, request
+from flask import abort, current_app, jsonify, render_template, request, url_for
 
 from newsreader.library import index, reading
 from newsreader.services import images as image_service
 from newsreader.services.translation import TARGETS
-from newsreader.web.pages import db_path, image_url
+from newsreader.web import public
+from newsreader.web.assets import localtime_short_filter
+from newsreader.web.pages import db_path, image_url, page_target
 from newsreader.web.routing import Routes
 
 routes = Routes()
@@ -44,8 +50,51 @@ def save_article():
     return jsonify({"saved": on})
 
 
+#: The most ids /api/articles answers at once (a visitor's 後で読む list is kept to the same size).
+MAX_CARDS = 200
+
+
+@routes.get("/api/articles", "article_cards")
+def article_cards():
+    """``?ids=3,1,2`` -> {"items": [card, ...]} in the order asked, ids no longer in the library left
+    out: what a list card shows (headline, outlet, time, picture, the headline in the page's language
+    when already translated), for the 後で読む list a visitor's browser keeps."""
+    from newsreader import i18n
+    from newsreader.branding import LANG_TAGS, source_language
+    from newsreader.services import translation
+
+    ids = list(dict.fromkeys(int(part) for part in request.args.get("ids", "").split(",") if part.isdigit()))
+    records = [r for r in (index.get(db_path(), i) for i in ids[:MAX_CARDS]) if r is not None]
+    kept = translation.cached_titles([r.get("title") or "" for r in records], page_target())
+    items = []
+    for record, ja in zip(records, kept):
+        thumb = record.get("thumb_src", "")
+        language = source_language(record.get("source"))
+        items.append(
+            {
+                "id": record["id"],
+                "url": url_for("show_article", article_id=record["id"]),
+                "title": record.get("title") or "",
+                "source": record.get("source") or "",
+                "outlet": i18n.text(record.get("source") or "未分類"),
+                "lang": language,
+                "lang_tag": LANG_TAGS.get(language, ""),
+                "time": localtime_short_filter(record.get("published") or ""),
+                "thumb": image_url(record["id"], 0, thumb) if image_service.allowed_image_url(thumb) else "",
+                "ja": ja,
+            }
+        )
+    response = jsonify({"items": items})
+    response.headers["Cache-Control"] = "no-cache"
+    return response
+
+
 @routes.get("/saved", "saved_page")
 def saved_page():
+    if public.is_visitor():  # their list is in their browser: the page fills itself (app.js)
+        response = current_app.make_response(render_template("saved.html", items=[], local=True))
+        response.headers["Cache-Control"] = "no-cache"
+        return response
     items = []
     for mark in reading.saved(reader_db()):
         record = index.find_by_file(db_path(), mark["source"], mark["filename"])
@@ -62,7 +111,6 @@ def saved_page():
             }
         )
     from newsreader.services import translation
-    from newsreader.web.pages import page_target
 
     for item, ja in zip(items, translation.cached_titles([i.get("title") or "" for i in items], page_target())):
         item["ja"] = ja
