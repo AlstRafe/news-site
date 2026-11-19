@@ -1,64 +1,146 @@
 /* Editorial layer (loaded after style.css): a newspaper's page rather than an app template.
-   Paper and ink, mincho headlines, thin rules instead of boxes and shadows, square corners,
-   outlets named in small text with a language mark instead of coloured pills, no placeholder
-   pictures. Colours are tokens so the light and dark themes stay in step with style.css. */
+   Printed in two colours like every site of the PC (「藍刷り」: indigo ink and 山吹 on a cool paper, Home Page
+   docs/CONVENTIONS.md 「デザインの共通トークン」), with NewsBridge's own vermilion (朱) for its small marks.
+   Mincho headlines set large and tight, rules instead of boxes and shadows (a double rule under the
+   masthead, a heavy rule over every section, column rules between columns), square corners, outlets
+   named as small spaced kickers after a bar of their language's colour, numbered lists, no placeholder
+   pictures. Calm on the eyes: no pure white or black, every text at WCAG AA or better in both themes,
+   nothing moves. Colours are tokens so the light and dark themes stay in step with style.css. */
 :root {
-  --paper: #f6f4ef;
-  --sheet: #fbfaf7;
-  --ink: #1d1c1a;
-  --ink-2: #3b3935;
-  --soft: #6e6a63;
-  --rule: #d9d5cc;
-  --rule-strong: #1d1c1a;
-  --accent: #a3231d;
-  --accent-ink: #ffffff;
+  --paper: #edf0f2;
+  --sheet: #f8f9fa;
+  --ink: #19223a;
+  --ink-2: #2e3a55;
+  --soft: #4c5770;
+  --rule: #c9d0da;
+  --rule-strong: #19223a;
+  --link: #2a4a8f;
+  --mark: #e8b04a;
+  --on-mark: #19223a;
+  --fill: var(--ink);
+  --on-fill: var(--paper);
+  --fill-hover: var(--mark);
+  --on-fill-hover: var(--on-mark);
+  --accent: #b5341f;
+  --accent-ink: #edf0f2;
   --mark-en: #2f5d8a;
   --mark-zh: #2f7a55;
   --mark-ko: #8a4b2f;
-  --mark-ja: #a3231d;
+  --mark-ja: #b5341f;
+  --numerals: Georgia, "Times New Roman", serif;
   --serif: "Hiragino Mincho ProN", "Yu Mincho", "YuMincho", "Noto Serif JP", "Noto Serif CJK JP", serif;
   --sans: "Hiragino Sans", "Hiragino Kaku Gothic ProN", "Yu Gothic UI", "Meiryo", system-ui, sans-serif;
 }
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme="light"]) {
-    --paper: #161513;
-    --sheet: #1c1b18;
-    --ink: #ebe7df;
-    --ink-2: #cfcac0;
-    --soft: #9c978d;
-    --rule: #36342f;
-    --rule-strong: #ebe7df;
-    --accent: #e06a60;
-    --accent-ink: #161513;
+    --paper: #141822;
+    --sheet: #1b2030;
+    --ink: #e3e6ec;
+    --ink-2: #c9cdd6;
+    --soft: #a4adbd;
+    --rule: #2d3446;
+    --rule-strong: #e3e6ec;
+    --link: #9db4ec;
+    --mark: #d8ab52;
+    --on-mark: #141822;
+    --fill: var(--mark);
+    --on-fill: var(--on-mark);
+    --fill-hover: var(--ink);
+    --on-fill-hover: var(--paper);
+    --accent: #e8826d;
+    --accent-ink: #141822;
     --mark-en: #7fa8d1;
     --mark-zh: #79b893;
     --mark-ko: #d19a7c;
-    --mark-ja: #e06a60;
+    --mark-ja: #e8826d;
   }
 }
 :root[data-theme="dark"] {
-  --paper: #161513;
-  --sheet: #1c1b18;
-  --ink: #ebe7df;
-  --ink-2: #cfcac0;
-  --soft: #9c978d;
-  --rule: #36342f;
-  --rule-strong: #ebe7df;
-  --accent: #e06a60;
-  --accent-ink: #161513;
+  --paper: #141822;
+  --sheet: #1b2030;
+  --ink: #e3e6ec;
+  --ink-2: #c9cdd6;
+  --soft: #a4adbd;
+  --rule: #2d3446;
+  --rule-strong: #e3e6ec;
+  --link: #9db4ec;
+  --mark: #d8ab52;
+  --on-mark: #141822;
+  --fill: var(--mark);
+  --on-fill: var(--on-mark);
+  --fill-hover: var(--ink);
+  --on-fill-hover: var(--paper);
+  --accent: #e8826d;
+  --accent-ink: #141822;
   --mark-en: #7fa8d1;
   --mark-zh: #79b893;
   --mark-ko: #d19a7c;
-  --mark-ja: #e06a60;
+  --mark-ja: #e8826d;
 }
-/* style.css's faint greys read at 3 to 4:1 on paper; light pages take the soft ink instead (4.5:1 or better).
-   The dark theme's own values already pass and win on specificity. */
-:root {
+/* style.css's own colours take this layer's in both themes (":root:root" outranks style.css's dark-theme
+   selectors): its greys become the indigo inks (its faint ones read at 3 to 4:1), its white and blue-black
+   boxes the sheet, its red links the link blue, its red fills the ink (the 山吹 in the dark theme, where a light fill would
+   glare), its yellow highlights the 山吹. */
+:root:root {
+  --bg-ffffff: var(--sheet);
+  --bg-f7f8fa: var(--paper);
+  --bg-f8f9fb: var(--paper);
+  --bg-f0f1f3: var(--sheet);
+  --bg-f1f2f5: var(--sheet);
+  --bg-eef0f3: var(--sheet);
+  --bg-eceef2: var(--sheet);
+  --bg-e7e9ed: var(--rule);
+  --bg-dfe2e7: var(--rule);
+  --line-d2d6de: var(--rule);
+  --line-d9dce3: var(--rule);
+  --line-e0e3e9: var(--rule);
+  --line-e3e6ec: var(--rule);
+  --line-e6e7ec: var(--rule);
+  --line-e6e7ed: var(--rule);
+  --line-e8e9ed: var(--rule);
+  --line-eceef2: var(--rule);
+  --line-eeeeee: var(--rule);
+  --fg-202124: var(--ink);
+  --fg-303238: var(--ink-2);
+  --fg-3b3e45: var(--ink-2);
+  --fg-3c4048: var(--ink-2);
+  --fg-4b4f57: var(--soft);
+  --fg-555555: var(--soft);
+  --fg-5b5f68: var(--soft);
+  --fg-5d616a: var(--soft);
+  --fg-5e6167: var(--soft);
+  --fg-60636c: var(--soft);
+  --fg-666666: var(--soft);
+  --fg-696d76: var(--soft);
+  --fg-6a6e77: var(--soft);
+  --fg-6b6f78: var(--soft);
   --fg-777777: var(--soft);
   --fg-868b94: var(--soft);
   --fg-878b93: var(--soft);
   --fg-8a8e96: var(--soft);
   --fg-92949a: var(--soft);
+  --fg-a41b22: var(--link);
+  --fg-a31b23: var(--accent);
+  --fg-a21a21: var(--accent);
+  --fg-a3202a: var(--accent);
+  --fg-8d1820: var(--accent);
+  --bg-b51d24: var(--fill);
+  --bg-89181d: var(--fill-hover);
+  --bg-5b5f68: var(--fill);
+  --fg-ffffff: var(--on-fill);
+  --fg-ffd9db: var(--on-fill);
+  --line-b51d24: var(--ink);
+  --bg-ffe08a: color-mix(in srgb, var(--mark) 50%, var(--paper));
+  --line-e4a900: var(--mark);
+  --sent-pair-bg: color-mix(in srgb, var(--mark) 40%, var(--paper));
+  --sent-pair-line: var(--mark);
+}
+/* style.css's few coloured texts that the cooler paper takes under 4.5:1 (light only; the dark values pass) */
+:root {
+  --fg-2f7d46: #2a6e3e;
+  --fg-438b55: #2f6e40;
+  --fg-5a7a50: #4a6b41;
+  --fg-9a6b00: #855c00;
 }
 
 /* paper, ink, type */
@@ -82,13 +164,44 @@ h2,
 .story-page h1 {
   font-family: var(--serif);
   letter-spacing: 0.02em;
-  font-weight: 700;
+  font-weight: 600;
 }
 h1 {
   line-height: 1.35;
 }
+/* Headlines: proportional CJK punctuation, balanced lines, Japanese broken between phrases */
+h1,
+h2,
+h3,
+.card-gloss,
+.title-tr,
+.story-gloss,
+.digest-title {
+  font-feature-settings: "palt";
+  text-wrap: balance;
+}
+html:lang(ja) :is(h1, h2, h3, .card-gloss, .title-tr, .story-gloss, .digest-title) {
+  word-break: auto-phrase;
+}
+p {
+  text-wrap: pretty;
+}
+.story-time,
+.card-meta,
+.count,
+.chip .n,
+.genre-row a span {
+  font-variant-numeric: tabular-nums;
+}
 a {
   color: inherit;
+}
+::selection {
+  background: color-mix(in srgb, var(--mark) 45%, transparent);
+}
+:focus-visible {
+  outline: 2px solid var(--link);
+  outline-offset: 2px;
 }
 .hint,
 .count,
@@ -96,38 +209,90 @@ a {
 .story-time {
   color: var(--soft);
 }
+.eyebrow,
+.step {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--soft) !important;
+  font-size: 11.5px;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+.eyebrow::before,
+.step::before {
+  content: "";
+  flex: none;
+  width: 1.2rem;
+  height: 3px;
+  background: var(--accent);
+}
+.back {
+  color: var(--link);
+}
+.read-progress span {
+  background: var(--accent) !important;
+}
 
-/* masthead */
+/* masthead: the name in large Mincho over a newspaper's double rule (heavy, a gap, thin), as wide as
+   the text column */
 .topbar {
   background: var(--paper);
+  border-bottom: 0;
+}
+.topbar::after {
+  content: "";
+  display: block;
+  box-sizing: content-box;
+  width: min(100% - 44px, 916px);
+  height: 2px;
+  margin: 0 auto;
+  border-top: 3px solid var(--rule-strong);
   border-bottom: 1px solid var(--rule-strong);
 }
 .brand {
-  min-height: 64px;
+  min-height: 72px;
 }
 .brand .mark {
   display: none;
 }
 .brand-link > span:last-child {
   font-family: var(--serif);
-  font-size: 22px;
+  font-size: 26px;
   font-weight: 700;
-  letter-spacing: 0.03em;
+  letter-spacing: 0.02em;
+  line-height: 1.15;
+}
+.brand-link > span:last-child::before {
+  content: "";
+  display: inline-block;
+  width: 0.42em;
+  height: 0.42em;
+  margin: 0 0.36em 0.08em 0;
+  background: var(--accent);
 }
 .brand small {
   font-family: var(--sans);
-  letter-spacing: 0.08em;
+  letter-spacing: 0.14em;
   color: var(--soft);
 }
 .topnav a.nav-text {
   color: var(--ink);
   font-weight: 600;
+  letter-spacing: 0.04em;
   text-decoration: none;
   padding-bottom: 3px;
   border-bottom: 2px solid transparent;
+  transition:
+    border-color 120ms linear,
+    color 120ms linear;
 }
-.topnav a.nav-text:hover,
+.topnav a.nav-text:hover {
+  border-bottom-color: var(--rule);
+}
 .topnav a.nav-text[aria-current="page"] {
+  color: var(--link);
   border-bottom-color: var(--accent);
 }
 /* Under the Home Page server: the way back to the site list, top left as on every site of the PC
@@ -203,7 +368,7 @@ a {
   color: var(--ink);
 }
 .lang summary:focus-visible {
-  outline: 2px solid var(--accent);
+  outline: 2px solid var(--link);
   outline-offset: 2px;
 }
 .lang svg {
@@ -224,6 +389,7 @@ a {
   list-style: none;
   background: var(--sheet);
   border: 1px solid var(--rule-strong);
+  box-shadow: 4px 4px 0 var(--mark) !important; /* the print offset of a menu */
 }
 .topnav .lang a {
   display: flex;
@@ -238,12 +404,13 @@ a {
   text-decoration: none;
 }
 .topnav .lang a:hover {
-  background: var(--paper);
+  background: var(--mark);
+  color: var(--on-mark);
   text-decoration: none;
 }
 .topnav .lang a[aria-current] {
   font-weight: 700;
-  color: var(--accent);
+  color: var(--link);
 }
 .lang a[aria-current]::after {
   content: "✓";
@@ -318,15 +485,20 @@ html:lang(en) {
   border-radius: 50% !important;
 }
 
-/* controls: square, quiet */
+/* controls: ink fills and ink borders with 2px corners; under the pointer they take the 山吹 */
 button,
 .button {
-  background: var(--ink);
-  color: var(--paper);
+  background: var(--fill);
+  color: var(--on-fill);
   font-weight: 600;
+  border-radius: 2px !important;
+  transition:
+    background-color 120ms linear,
+    color 120ms linear;
 }
 button:hover {
-  background: var(--ink-2);
+  background: var(--fill-hover);
+  color: var(--on-fill-hover);
 }
 button.secondary,
 .secondary,
@@ -340,12 +512,17 @@ button.secondary,
 button.secondary:hover,
 .gloss-toggle:hover,
 .chip-button:hover {
-  background: var(--sheet);
+  background: var(--mark);
+  color: var(--on-mark);
 }
 .text-button {
   border: 0;
   text-decoration: underline;
   text-underline-offset: 3px;
+}
+.text-button:hover {
+  background: none;
+  color: var(--link);
 }
 input,
 select,
@@ -353,7 +530,14 @@ textarea {
   background: var(--sheet);
   color: var(--ink);
   border: 1px solid var(--rule-strong) !important;
+  border-radius: 2px !important;
   font-family: var(--sans);
+}
+input:focus-visible,
+select:focus-visible,
+textarea:focus-visible {
+  outline: 2px solid var(--link);
+  outline-offset: 2px;
 }
 .searchbar input {
   font-family: var(--sans);
@@ -387,7 +571,8 @@ textarea {
   padding: 0 0 0 9px !important;
   position: relative;
   font-weight: 700;
-  letter-spacing: 0.06em;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
 }
 .badge::before {
   content: "";
@@ -460,9 +645,12 @@ textarea {
   background: transparent !important;
 }
 .card:hover strong,
-.card:hover h3 {
+.card:hover h3,
+.card:hover .card-gloss {
   text-decoration: underline;
-  text-underline-offset: 4px;
+  text-decoration-color: var(--accent);
+  text-decoration-thickness: 1px;
+  text-underline-offset: 5px;
 }
 .card-thumb {
   background: none !important;
@@ -495,13 +683,27 @@ textarea {
   letter-spacing: 0.01em;
 }
 .day-sep {
+  display: flex;
+  align-items: center;
+  gap: 14px;
   font-family: var(--serif);
   color: var(--ink);
   border: 0 !important;
   padding-bottom: 2px;
 }
+.day-sep::after {
+  content: "";
+  flex: 1;
+  border-top: 1px solid var(--rule-strong);
+}
+/* Every section starts under a heavy rule, as on a printed page */
+.list-head {
+  border-top: 3px solid var(--rule-strong);
+  padding-top: 12px;
+}
 .list-head h1 {
-  font-size: 28px;
+  font-size: 30px;
+  letter-spacing: 0.03em;
 }
 .highlights-head h2,
 .insights-head h2,
@@ -559,8 +761,8 @@ textarea {
 .segmented .seg[aria-pressed="true"],
 .gloss-toggle[aria-pressed="true"],
 .chip-button[aria-pressed="true"] {
-  background: var(--ink) !important;
-  color: var(--paper) !important;
+  background: var(--fill) !important;
+  color: var(--on-fill) !important;
 }
 .word-chips .word-chip,
 .word-chips.only .word-chip,
@@ -708,8 +910,16 @@ textarea {
   width: auto;
   max-width: 100%;
 }
+.article-images figcaption::before {
+  content: "";
+  display: inline-block;
+  width: 7px;
+  height: 7px;
+  margin: 0 7px 1px 0;
+  background: var(--accent);
+}
 .article-images figcaption {
-  padding: 7px 0 0 !important;
+  padding: 8px 0 0 !important;
   font-size: 12px;
   line-height: 1.6;
   color: var(--soft);
@@ -782,11 +992,14 @@ textarea {
   margin: 6px 0 30px;
 }
 .front .highlights-head {
-  border-bottom: 1px solid var(--rule-strong);
+  border-top: 3px solid var(--rule-strong);
+  border-bottom: 1px solid var(--rule);
+  padding-top: 10px;
   margin-bottom: 0;
 }
 .front .highlights-head h2 {
   margin: 0 0 8px;
+  font-size: 19px;
 }
 .front-grid {
   display: grid;
@@ -822,9 +1035,10 @@ textarea {
   display: block;
 }
 .front-lead .card-gloss {
-  font-size: 24px !important;
-  line-height: 1.45 !important;
-  -webkit-line-clamp: 4 !important;
+  font-size: clamp(23px, 3.3vw, 31px) !important;
+  line-height: 1.38 !important;
+  letter-spacing: 0.01em;
+  -webkit-line-clamp: 5 !important;
 }
 .front-lead .card-gloss + strong {
   font-size: 13px !important;
@@ -833,10 +1047,24 @@ textarea {
   font-size: 22px;
   line-height: 1.45;
 }
+/* the next stories are numbered, the numbers set large in the vermilion */
 .front-more {
   list-style: none;
   margin: 0;
   padding: 0;
+  counter-reset: front;
+}
+.front-more li {
+  counter-increment: front;
+  display: grid;
+  grid-template-columns: 2.1em minmax(0, 1fr);
+  column-gap: 6px;
+}
+.front-more li::before {
+  content: counter(front, decimal-leading-zero);
+  padding-top: 13px;
+  font: italic 400 25px/1 var(--numerals);
+  color: var(--mark);
 }
 .front-more li + li {
   border-top: 1px solid var(--rule);
@@ -850,6 +1078,9 @@ textarea {
   }
   .front-grid .front-more {
     padding-top: 2px;
+    padding-left: 26px;
+    margin-left: -6px;
+    border-left: 1px solid var(--rule);
   }
 }
 @media (max-width: 879px) {
@@ -877,11 +1108,12 @@ textarea {
 
 /* 記事の題: the Japanese headline is set as the title, the original under it in smaller type. */
 .article .title-tr {
-  font-size: clamp(23px, 4.4vw, 32px);
-  line-height: 1.45;
+  font-size: clamp(25px, 4.6vw, 36px);
+  line-height: 1.36;
+  letter-spacing: 0.01em;
   color: var(--ink);
   font-weight: 700;
-  margin: 6px 0 6px;
+  margin: 8px 0 8px;
 }
 .article .title-tr:not([hidden]) + h1 {
   font-family: var(--sans);
@@ -897,7 +1129,7 @@ textarea {
 }
 .gloss-off .article .title-tr.kept + h1 {
   font-family: var(--serif);
-  font-size: clamp(23px, 4.4vw, 32px);
+  font-size: clamp(25px, 4.6vw, 36px);
   font-weight: 700;
   color: var(--ink);
 }
@@ -927,18 +1159,28 @@ textarea {
 /* 奥付: what the site is, where the articles come from, and whose they are — the colophon. */
 .site-foot {
   margin-top: 0;
-  border-top: 1px solid var(--rule-strong);
-  padding: 22px 0 30px;
+  border-top: 0;
+  padding: 0 0 30px;
   color: var(--soft);
   font-size: 12px;
   line-height: 1.8;
+}
+.site-foot::before {
+  content: "";
+  display: block;
+  box-sizing: content-box;
+  width: min(100% - 44px, 916px);
+  height: 2px;
+  margin: 0 auto 22px;
+  border-top: 1px solid var(--rule-strong);
+  border-bottom: 3px solid var(--rule-strong);
 }
 .site-foot p {
   margin: 0 0 10px;
 }
 .foot-name {
   font-family: var(--serif);
-  font-size: 17px;
+  font-size: 21px;
   font-weight: 700;
   color: var(--ink);
   letter-spacing: 0.03em;
@@ -1027,6 +1269,25 @@ h1 .story-gloss + [data-gloss-id] {
   .card-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
     gap: 0 40px !important;
+    position: relative;
+  }
+  /* the column rule between the two columns; the date lines cross it on the paper colour */
+  .card-grid::before {
+    content: "";
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    left: 50%;
+    border-left: 1px solid var(--rule);
+  }
+  .card-grid .day-sep,
+  .card-grid .new-since {
+    position: relative;
+    background: var(--paper);
+  }
+  .card-grid .day-sep {
+    margin-top: 0 !important;
+    padding-top: 10px;
   }
   .card {
     flex-direction: row-reverse !important;
@@ -1105,6 +1366,25 @@ h1 .story-gloss + [data-gloss-id] {
   color: var(--soft);
 }
 
+/* 媒体ごと: each outlet's own headline with its time at the right, the translation under it (not squeezed
+   into a third column between them) */
+.outlet-scoops li {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  column-gap: 10px;
+  align-items: baseline;
+}
+.outlet-scoops .story-time {
+  grid-column: 2;
+  grid-row: 1;
+}
+.outlet-scoops .card-gloss {
+  grid-column: 1/-1;
+  margin: 2px 0 0;
+  font-size: 12px;
+  color: var(--soft);
+}
+
 /* 記事の周り: the provenance line wraps as text, the previous/next articles are ruled entries. */
 .source-link {
   flex-wrap: wrap !important;
@@ -1130,6 +1410,38 @@ h1 .story-gloss + [data-gloss-id] {
   font-family: var(--serif);
 }
 
+/* 読み比べ: one outlet to a column, the columns divided by column rules, as on a printed page. Every
+   column has its rule and gutter on the left and its gutter on the right; the container reaches out by a
+   gutter on both sides and is clipped there, so the text lines up with the page and the outer rules and
+   gutters do not show. */
+.story-columns {
+  align-items: stretch !important;
+  gap: 0 !important;
+  margin-left: -19px !important;
+  margin-right: -18px !important;
+  clip-path: inset(0 18px 0 19px);
+}
+.story-column {
+  border-left: 1px solid var(--rule) !important;
+  border-top: 0 !important;
+  padding: 0 18px 18px !important;
+}
+.story-column > h2 {
+  border-top: 2px solid var(--rule-strong);
+  padding-top: 12px;
+}
+/* one column on a phone: no rules or gutters at the sides (the page's own margin is narrower than a gutter) */
+@media (max-width: 650px) {
+  .story-columns {
+    margin-left: 0 !important;
+    margin-right: 0 !important;
+    clip-path: none;
+  }
+  .story-column {
+    border-left: 0 !important;
+    padding: 0 0 18px !important;
+  }
+}
 /* 読み比べ: sections ruled like the rest of the paper, not panels. */
 .story-page .insights,
 .story-page .story-chart,
@@ -1199,12 +1511,16 @@ h1 .story-gloss + [data-gloss-id] {
   gap: 2px 16px;
   font-size: 13px;
 }
+/* the date line between two rules, as under a printed headline */
 .article-meta {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
   justify-content: space-between;
   gap: 0 12px;
+  border-top: 1px solid var(--rule-strong);
+  border-bottom: 1px solid var(--rule);
+  padding: 6px 0;
 }
 .article-meta .text-size {
   margin-left: auto;
@@ -1272,6 +1588,19 @@ h1 .story-gloss + [data-gloss-id] {
 .reading p.speaking {
   border-left: 3px solid var(--accent);
   padding-left: 12px;
+}
+/* 書き出し: the first letter of the text the reader reads first (the translation when it is shown)
+   drops over three lines in the vermilion */
+.reading:not(.bilingual) > .reading-head + p::first-letter,
+.reading.bilingual > .reading-head + p + .bi-tr::first-letter,
+.reading.bilingual.tr-only > .reading-head + p + .bi-tr::first-letter {
+  float: left;
+  margin: 0.08em 0.12em 0 0;
+  font-family: var(--serif);
+  font-size: 3.15em;
+  font-weight: 700;
+  line-height: 0.92;
+  color: var(--accent);
 }
 
 /* 既読・保存済み in the list: read articles step back; marks in small words in the date line. */
@@ -1463,8 +1792,8 @@ html.intro-off .site-intro {
   border-left: 0 !important;
 }
 .tc-buttons button[aria-pressed="true"] {
-  background: var(--ink) !important;
-  color: var(--paper) !important;
+  background: var(--fill) !important;
+  color: var(--on-fill) !important;
 }
 /* 訳文だけ: an original with a translation under it steps aside, and the translation reads as the text */
 .reading.bilingual.tr-only > p:not(.bi-tr):has(+ .bi-tr) {
@@ -1506,8 +1835,8 @@ html.intro-off .site-intro {
   top: -60px;
   z-index: 100;
   padding: 10px 14px;
-  background: var(--ink);
-  color: var(--paper);
+  background: var(--fill);
+  color: var(--on-fill);
   font-weight: 700;
   text-decoration: none;
 }
@@ -1612,4 +1941,41 @@ mark.hit {
   border-bottom-width: 2px;
   font: 600 12px/1.6 var(--sans);
   text-align: center;
+}
+/* nothing moves for a reader who asked for less motion */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    transition-duration: 0.01ms !important;
+    animation-duration: 0.01ms !important;
+  }
+}
+/* 網点: a patch of halftone dots in the 山吹, fading out, in the colophon's empty corner on wide screens
+   (the same decoration as the site list; never under text) */
+@media (min-width: 900px) {
+  .site-foot {
+    position: relative;
+  }
+  .site-foot::after {
+    content: "";
+    position: absolute;
+    top: 30px;
+    right: max(22px, calc((100% - 916px) / 2));
+    width: 240px;
+    height: 132px;
+    pointer-events: none;
+    background: radial-gradient(circle, var(--mark) 1.4px, transparent 1.9px) 0 0 / 11px 11px;
+    -webkit-mask-image: linear-gradient(to left, #000 10%, transparent);
+    mask-image: linear-gradient(to left, #000 10%, transparent);
+    opacity: 0.55;
+  }
+  :root[data-theme="dark"] .site-foot::after {
+    opacity: 0.3;
+  }
+}
+@media (min-width: 900px) and (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) .site-foot::after {
+    opacity: 0.3;
+  }
 }

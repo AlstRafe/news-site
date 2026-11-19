@@ -94,7 +94,7 @@
     // Phone browsers colour their toolbar from theme-color; follow a forced choice there too.
     document.querySelectorAll('meta[name="theme-color"]').forEach((meta) => {
       const forDark = theme === "auto" ? meta.media.includes("dark") : theme === "dark";
-      meta.content = forDark ? "#161513" : "#f6f4ef"; // the page's paper (base.html, editorial.css)
+      meta.content = forDark ? "#141822" : "#edf0f2"; // the page's paper (base.html, editorial.css)
     });
     if (toggle) {
       const label = THEMES[theme] || THEMES.auto;
