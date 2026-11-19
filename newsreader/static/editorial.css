@@ -17,6 +17,10 @@
   --link: #2a4a8f;
   --mark: #e8b04a;
   --on-mark: #19223a;
+  --fill: var(--ink);
+  --on-fill: var(--paper);
+  --fill-hover: var(--mark);
+  --on-fill-hover: var(--on-mark);
   --accent: #b5341f;
   --accent-ink: #edf0f2;
   --mark-en: #2f5d8a;
@@ -39,6 +43,10 @@
     --link: #9db4ec;
     --mark: #d8ab52;
     --on-mark: #141822;
+    --fill: var(--mark);
+    --on-fill: var(--on-mark);
+    --fill-hover: var(--ink);
+    --on-fill-hover: var(--paper);
     --accent: #e8826d;
     --accent-ink: #141822;
     --mark-en: #7fa8d1;
@@ -58,6 +66,10 @@
   --link: #9db4ec;
   --mark: #d8ab52;
   --on-mark: #141822;
+  --fill: var(--mark);
+  --on-fill: var(--on-mark);
+  --fill-hover: var(--ink);
+  --on-fill-hover: var(--paper);
   --accent: #e8826d;
   --accent-ink: #141822;
   --mark-en: #7fa8d1;
@@ -67,7 +79,8 @@
 }
 /* style.css's own colours take this layer's in both themes (":root:root" outranks style.css's dark-theme
    selectors): its greys become the indigo inks (its faint ones read at 3 to 4:1), its white and blue-black
-   boxes the sheet, its red links the link blue, its red fills the ink, its yellow highlights the 山吹. */
+   boxes the sheet, its red links the link blue, its red fills the ink (the 山吹 in the dark theme, where a light fill would
+   glare), its yellow highlights the 山吹. */
 :root:root {
   --bg-ffffff: var(--sheet);
   --bg-f7f8fa: var(--paper);
@@ -111,8 +124,11 @@
   --fg-a21a21: var(--accent);
   --fg-a3202a: var(--accent);
   --fg-8d1820: var(--accent);
-  --bg-b51d24: var(--ink);
-  --bg-89181d: var(--ink-2);
+  --bg-b51d24: var(--fill);
+  --bg-89181d: var(--fill-hover);
+  --bg-5b5f68: var(--fill);
+  --fg-ffffff: var(--on-fill);
+  --fg-ffd9db: var(--on-fill);
   --line-b51d24: var(--ink);
   --bg-ffe08a: color-mix(in srgb, var(--mark) 50%, var(--paper));
   --line-e4a900: var(--mark);
@@ -148,7 +164,7 @@ h2,
 .story-page h1 {
   font-family: var(--serif);
   letter-spacing: 0.02em;
-  font-weight: 700;
+  font-weight: 600;
 }
 h1 {
   line-height: 1.35;
@@ -201,7 +217,7 @@ a {
   color: var(--soft) !important;
   font-size: 11.5px;
   font-weight: 700;
-  letter-spacing: 0.14em;
+  letter-spacing: 0.12em;
   text-transform: uppercase;
 }
 .eyebrow::before,
@@ -472,8 +488,8 @@ html:lang(en) {
 /* controls: ink fills and ink borders with 2px corners; under the pointer they take the 山吹 */
 button,
 .button {
-  background: var(--ink);
-  color: var(--paper);
+  background: var(--fill);
+  color: var(--on-fill);
   font-weight: 600;
   border-radius: 2px !important;
   transition:
@@ -481,8 +497,8 @@ button,
     color 120ms linear;
 }
 button:hover {
-  background: var(--mark);
-  color: var(--on-mark);
+  background: var(--fill-hover);
+  color: var(--on-fill-hover);
 }
 button.secondary,
 .secondary,
@@ -745,8 +761,8 @@ textarea:focus-visible {
 .segmented .seg[aria-pressed="true"],
 .gloss-toggle[aria-pressed="true"],
 .chip-button[aria-pressed="true"] {
-  background: var(--ink) !important;
-  color: var(--paper) !important;
+  background: var(--fill) !important;
+  color: var(--on-fill) !important;
 }
 .word-chips .word-chip,
 .word-chips.only .word-chip,
@@ -1414,6 +1430,18 @@ h1 .story-gloss + [data-gloss-id] {
   border-top: 2px solid var(--rule-strong);
   padding-top: 12px;
 }
+/* one column on a phone: no rules or gutters at the sides (the page's own margin is narrower than a gutter) */
+@media (max-width: 650px) {
+  .story-columns {
+    margin-left: 0 !important;
+    margin-right: 0 !important;
+    clip-path: none;
+  }
+  .story-column {
+    border-left: 0 !important;
+    padding: 0 0 18px !important;
+  }
+}
 /* 読み比べ: sections ruled like the rest of the paper, not panels. */
 .story-page .insights,
 .story-page .story-chart,
@@ -1764,8 +1792,8 @@ html.intro-off .site-intro {
   border-left: 0 !important;
 }
 .tc-buttons button[aria-pressed="true"] {
-  background: var(--ink) !important;
-  color: var(--paper) !important;
+  background: var(--fill) !important;
+  color: var(--on-fill) !important;
 }
 /* 訳文だけ: an original with a translation under it steps aside, and the translation reads as the text */
 .reading.bilingual.tr-only > p:not(.bi-tr):has(+ .bi-tr) {
@@ -1807,8 +1835,8 @@ html.intro-off .site-intro {
   top: -60px;
   z-index: 100;
   padding: 10px 14px;
-  background: var(--ink);
-  color: var(--paper);
+  background: var(--fill);
+  color: var(--on-fill);
   font-weight: 700;
   text-decoration: none;
 }
@@ -1937,17 +1965,17 @@ mark.hit {
     width: 240px;
     height: 132px;
     pointer-events: none;
-    background: radial-gradient(circle, var(--mark) 1.3px, transparent 1.7px) 0 0 / 10px 10px;
+    background: radial-gradient(circle, var(--mark) 1.4px, transparent 1.9px) 0 0 / 11px 11px;
     -webkit-mask-image: linear-gradient(to left, #000 10%, transparent);
     mask-image: linear-gradient(to left, #000 10%, transparent);
     opacity: 0.55;
   }
   :root[data-theme="dark"] .site-foot::after {
-    opacity: 0.35;
+    opacity: 0.3;
   }
 }
 @media (min-width: 900px) and (prefers-color-scheme: dark) {
   :root:not([data-theme="light"]) .site-foot::after {
-    opacity: 0.35;
+    opacity: 0.3;
   }
 }
