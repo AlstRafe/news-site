@@ -7,9 +7,11 @@ effects: no secret key file, no thread, no database until ``create_app`` is call
 from __future__ import annotations
 
 import json
+import re
 from pathlib import Path
 
 from flask import Flask
+from markupsafe import Markup
 
 from newsreader import paths
 
@@ -20,10 +22,20 @@ THEME_BOOT = (
     'if(t==="light"||t==="dark")document.documentElement.setAttribute("data-theme",t);'
     # Translated headlines are printed with the page; someone who turned them off never sees them flash.
     'if(localStorage.getItem("news-html-reader-list-gloss")==="0")document.documentElement.classList.add("gloss-off");'
-    'var z=localStorage.getItem("news-html-reader-text-size");if(z==="s"||z==="l")document.documentElement.setAttribute("data-text-size",z);'
-    'if(localStorage.getItem("news-html-reader-intro")==="0")document.documentElement.classList.add("intro-off")'
+    'var z=localStorage.getItem("news-html-reader-text-size");if(z==="s"||z==="l")document.documentElement.setAttribute("data-text-size",z)'
     "}catch(e){}})();"
 )
+
+
+def phrases(text: str) -> Markup:
+    """A big headline with each phrase (up to its 、 。 , . and the like) in its own span, so the phrases can come
+    in one after another (product.css) and a line breaks between phrases rather than inside one."""
+    parts = re.findall(r"(.+?(?:[。．.,、，!！?？]|$))(\s*)", text.strip())
+    return (
+        Markup("")
+        .join(Markup('<span class="w">%s</span>%s') % (word, " " if gap else "") for word, gap in parts if word)
+        .rstrip()
+    )
 
 
 def _speculation_rules(mount: str = "", eagerness: str = "moderate") -> str:
@@ -121,7 +133,7 @@ def create_app(
     app.add_template_filter(branding.lang_attr, "lang_attr")
     # Texts kept in Japanese by the library (labels, outlet names, figures), in the page's language:
     # an outlet's name stays the key (filters, links, data-lang); only what is shown changes.
-    from markupsafe import Markup, escape
+    from markupsafe import escape
 
     from newsreader import i18n
     from newsreader.library import compare
@@ -130,6 +142,7 @@ def create_app(
     app.add_template_filter(lambda ja: i18n.text(ja) if ja else ja, "tr")
     app.add_template_filter(lambda text: compare.say_fact(text, i18n.current()), "fact")
     app.add_template_filter(lambda value: Markup("<strong>%s</strong>") % escape(value), "strong")
+    app.add_template_filter(phrases, "phrases")
     from newsreader.library.provenance import dateline_label
 
     app.add_template_filter(dateline_label, "dateline_label")
