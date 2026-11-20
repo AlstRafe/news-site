@@ -94,7 +94,7 @@
     // Phone browsers colour their toolbar from theme-color; follow a forced choice there too.
     document.querySelectorAll('meta[name="theme-color"]').forEach((meta) => {
       const forDark = theme === "auto" ? meta.media.includes("dark") : theme === "dark";
-      meta.content = forDark ? "#141822" : "#edf0f2"; // the page's paper (base.html, editorial.css)
+      meta.content = forDark ? "#0f0f10" : "#fbfbfa"; // the page's ground (base.html, product.css)
     });
     if (toggle) {
       const label = THEMES[theme] || THEMES.auto;
@@ -317,16 +317,6 @@
     glossToggle.addEventListener("click", () => set(glossToggle.getAttribute("aria-pressed") !== "true"));
     set(readLocal(GLOSS_KEY) !== "0");
   }
-
-  // 3b'. このサイトについて (public visitors): closed once, gone for good on this device.
-  document.querySelector("[data-intro-close]")?.addEventListener("click", () => {
-    document.documentElement.classList.add("intro-off");
-    try {
-      localStorage.setItem("news-html-reader-intro", "0");
-    } catch (_) {
-      /* optional */
-    }
-  });
 
   // 3c. 前回からの新着: on the plain list (first page, no filter), a line under the articles that
   //     came in since this device last looked at it. "Last looked" is the newest article shown,
