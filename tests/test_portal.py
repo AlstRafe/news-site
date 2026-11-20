@@ -55,13 +55,16 @@ class PortalTests(Library):
         self.assertIn(f'href="/news/a/{self.article}"', page)
         self.assertIn('"/news/a/*"', page)  # prefetch rules
         self.assertIn("/news/static/style.css", page)
-        # the way back to the front page: top left as on the PC's other sites (an arrow alone on phones), and the footer
-        self.assertIn(
-            '<div class="wrap brand"><a class="portal-link" href="/" title="サイト一覧へ戻る" aria-label="サイト一覧へ戻る">'
-            '<span aria-hidden="true">←</span><span class="portal-text">サイト一覧</span></a><a class="brand-link"',
-            page,
-        )
+        # the way back to the site list, always in reach as on the PC's other sites (Home Page CONVENTIONS): the
+        # header's first link (the header stays at the top), on phones the bottom tab bar's first tab; and the footer
+        arrow = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M19 12H5M11 5.5 4.5 12l6.5 6.5"/></svg>'
+        back = f'href="/" title="サイト一覧へ戻る" aria-label="サイト一覧へ戻る">{arrow}<span>サイト一覧</span></a>'
+        self.assertIn(f'<div class="wrap brand"><a class="portal-link" {back}<a class="brand-link"', page)
+        self.assertIn(f'<nav class="tabbar with-home" aria-label="メインメニュー（下）"><a class="tab-home" {back}', page)
         self.assertIn('<a href="/">← サイト一覧</a>', page)
+        css = self.client.get("/news/static/editorial.css", headers=H).get_data(as_text=True)
+        self.assertRegex(css, r"@media \(min-width: 651px\) \{\n  \.topbar \{\n    position: sticky;\n    top: 0;")
+        self.assertRegex(css, r"@media \(max-width: 650px\) \{\n  \.portal-link \{\n    display: none;")
         self.assertEqual(self.client.get(f"/news/a/{self.article}", headers=H).status_code, 200)
         response = self.client.get("/news", headers=H)
         self.assertEqual((response.status_code, response.headers["Location"]), (302, "/news/"))
@@ -133,6 +136,15 @@ class PortalTests(Library):
     def test_error_pages_have_a_heading(self):
         page = self.client.get("/news/a/999999", headers=H).get_data(as_text=True)
         self.assertIn("<h1>ページが見つかりません</h1>", page)
+        self.assertIn('<a class="tab-home" href="/"', page)  # the way back is on every page, error pages too
+
+    def test_without_the_site_list_there_is_no_way_back_to_it(self):
+        # (served at the root by itself: a distributed build, a test server)
+        app = create_app(self.tmp / "articles", self.tmp / "library.sqlite3", start_background=False, secret_key=b"k" * 32)
+        page = Client(app).get("/", headers=H).get_data(as_text=True)
+        self.assertNotIn("portal-link", page)
+        self.assertNotIn("tab-home", page)
+        self.assertIn('<nav class="tabbar" aria-label="メインメニュー（下）"><a href="/"', page)
 
     def test_a_visitors_translations_count_as_automatic(self):
         from newsreader.services import translation

@@ -295,49 +295,120 @@ a {
   color: var(--link);
   border-bottom-color: var(--accent);
 }
-/* Under the Home Page server: the way back to the site list, top left as on every site of the PC
-   (an arrow alone on phones) */
+/* Under the Home Page server: the way back to the site list, always in reach (Home Page docs/CONVENTIONS.md
+   「サイト一覧へ戻る道」). Wider than a phone: the header's first link, and the header stays at the top while
+   the page scrolls. Phones: the first tab of the bottom tab bar (.tab-home), under the thumb, and the header
+   scrolls away to leave the screen to the text. The words are always shown, never an arrow alone. */
+@media (min-width: 651px) {
+  .topbar {
+    position: sticky;
+    top: 0;
+    z-index: 16;
+  }
+  /* jumps to an anchor (the skip link, J/K, #top) stop below the header, not under it */
+  html {
+    scroll-padding-top: 90px;
+  }
+  /* the name keeps its line (and its tagline one line under it); when the owner's longer menu does not fit
+     beside it (English), the menu takes a second line */
+  .brand-link {
+    flex: none;
+  }
+  .brand small {
+    white-space: nowrap;
+  }
+  .topnav {
+    flex-wrap: wrap;
+    justify-content: flex-end;
+    gap: 0 16px;
+  }
+}
 .portal-link {
   display: flex;
+  flex: none;
   align-items: center;
   gap: 6px;
-  min-height: 32px;
+  min-height: 44px;
   padding: 0 14px 0 0;
   border-right: 1px solid var(--rule);
-  color: var(--soft);
-  font-size: 12.5px;
+  color: var(--ink);
+  font-size: 13.5px;
   font-weight: 600;
+  letter-spacing: 0.04em;
   text-decoration: none;
   white-space: nowrap;
+  transition: color 120ms linear;
+}
+.portal-link svg,
+.tab-home svg {
+  flex: none;
+  width: 17px;
+  height: 17px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
 }
 .portal-link:hover {
-  color: var(--ink);
+  color: var(--link);
+}
+@media (prefers-reduced-motion: no-preference) {
+  .portal-link svg {
+    transition: transform 160ms cubic-bezier(0.16, 1, 0.3, 1);
+  }
+  .portal-link:hover svg {
+    transform: translateX(-3px);
+  }
 }
 @media (max-width: 650px) {
-  .portal-text {
+  .portal-link {
     display: none;
   }
-  .portal-link {
-    min-height: 40px;
-    padding-right: 10px;
-    font-size: 17px;
+  /* the way back takes a narrow first column of its own (its words fit in one line in every language but
+     Korean, which breaks at the space); the site's tabs share the rest */
+  .tabbar.with-home {
+    grid-template-columns: 64px !important;
+    grid-auto-columns: minmax(0, 1fr);
+    padding-inline: 2px;
+  }
+  .tabbar.with-home a {
+    padding: 0 1px;
+    letter-spacing: 0.02em;
+  }
+  .tabbar a.tab-home {
+    gap: 2px;
+    padding: 0 3px;
+    border-right: 1px solid var(--rule);
+    color: var(--ink) !important;
+    font-size: 10.5px !important;
+    letter-spacing: 0;
+    line-height: 1.15;
+    text-align: center;
   }
 }
-/* Between phone and desktop widths the masthead fits in every language (English words are longer): the
-   way back and the language menu as their icons alone, as on phones, no tagline, and the menu goes onto
-   a second line rather than off the screen when it still does not fit */
+/* the narrowest phones with the owner's sixth tab: smaller words, so each keeps its line */
+@media (max-width: 380px) {
+  .tabbar.with-home a:not(.tab-home) {
+    font-size: 12px !important;
+    letter-spacing: 0;
+  }
+}
+@media (max-width: 340px) {
+  .tabbar.with-home a:not(.tab-home) {
+    font-size: 11px !important;
+  }
+}
+/* Between phone and desktop widths the masthead fits in every language (English words are longer): no
+   tagline, a little less room between the menu's words */
 @media (min-width: 651px) and (max-width: 1000px) {
-  .portal-text,
   .brand small {
     display: none;
   }
   .portal-link {
     padding-right: 12px;
-    font-size: 16px;
   }
   .topnav {
-    flex-wrap: wrap;
-    justify-content: flex-end;
     gap: 0 12px;
   }
 }
