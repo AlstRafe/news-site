@@ -60,7 +60,9 @@ class PortalTests(Library):
         arrow = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M19 12H5M11 5.5 4.5 12l6.5 6.5"/></svg>'
         back = f'href="/" title="サイト一覧へ戻る" aria-label="サイト一覧へ戻る">{arrow}<span>サイト一覧</span></a>'
         self.assertIn(f'<div class="wrap brand"><a class="portal-link" {back}<a class="brand-link"', page)
-        self.assertIn(f'<nav class="tabbar with-home" aria-label="メインメニュー（下）"><a class="tab-home" {back}', page)
+        self.assertIn(
+            f'<nav class="tabbar with-home" aria-label="メインメニュー（下）"><a class="tab-home" {back}', page
+        )
         self.assertIn('<a href="/">← サイト一覧</a>', page)
         css = self.client.get("/news/static/editorial.css", headers=H).get_data(as_text=True)
         self.assertRegex(css, r"@media \(min-width: 651px\) \{\n  \.topbar \{\n    position: sticky;\n    top: 0;")
@@ -140,7 +142,9 @@ class PortalTests(Library):
 
     def test_without_the_site_list_there_is_no_way_back_to_it(self):
         # (served at the root by itself: a distributed build, a test server)
-        app = create_app(self.tmp / "articles", self.tmp / "library.sqlite3", start_background=False, secret_key=b"k" * 32)
+        app = create_app(
+            self.tmp / "articles", self.tmp / "library.sqlite3", start_background=False, secret_key=b"k" * 32
+        )
         page = Client(app).get("/", headers=H).get_data(as_text=True)
         self.assertNotIn("portal-link", page)
         self.assertNotIn("tab-home", page)
