@@ -16,4 +16,13 @@
       said = said[values && (values.count ?? values.n) === 1 ? "one" : "other"] || ja;
     return values ? String(said).replace(/\{(\w+)\}/g, (hole, key) => (own(values, key) ? values[key] : hole)) : said;
   };
+  // NR.phrased(node, pieces, text): a headline from the server put on the page with <wbr> between its phrases
+  // (the pieces the server cut it into, newsreader/phrases), so its lines break between words in every browser;
+  // without pieces, the text as it is.
+  NR.phrased = (node, pieces, text) => {
+    if (Array.isArray(pieces) && pieces.length > 1)
+      node.replaceChildren(...pieces.flatMap((piece, i) => (i ? [document.createElement("wbr"), piece] : [piece])));
+    else node.textContent = text;
+    return node;
+  };
 })();

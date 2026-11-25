@@ -6,3 +6,5 @@ tests/fixtures/
 articles/
 instance/
 package-lock.json
+# BudouX models, copied unchanged (newsreader/phrases, as home-page homepage/phrases).
+newsreader/phrases/*.json

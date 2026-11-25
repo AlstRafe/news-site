@@ -2,7 +2,7 @@
 {% block head %}<title>{{ _('媒体くらべ') }} | {{ app_name }}</title>{% endblock %}
 {% block main_class %} outlets-page{% endblock %}
 {% block content %}<a class="back" href="{{ url_for('digest_page') }}">{{ _('今日のまとめへ') }}</a>
-<div class="list-head"><h1>{{ _('媒体くらべ') }}</h1><span class="count">{{ _('直近 {n} 日', n=stats.days) }}</span></div>
+<div class="list-head"><h1>{{ _('媒体くらべ')|wbr }}</h1><span class="count">{{ _('直近 {n} 日', n=stats.days) }}</span></div>
 <nav class="chips" aria-label="{{ _('期間') }}">{% for d in (1, 7, 30) %}<a class="chip{% if stats.days == d %} active{% endif %}" href="{{ url_for('outlets_page', days=d) }}">{{ _('{n} 日', n=d) }}</a>{% endfor %}</nav>
 {% if not stats.outlets %}<p class="empty">{{ _('この期間の記事はまだありません。') }}</p>{% else %}
 <p class="hint">{{ _('集めた記事と読み比べのグループから集計しています（翻訳は使いません）。複数の媒体が報じたニュース: {count} 件。', count=stats.shared_news) }}</p>
@@ -18,8 +18,8 @@
 {% set pr = profiles.get(o.source) %}{% if pr %}{% if pr.kind_rows %}<dt>{{ _('取材のかたち') }}</dt><dd class="prov-kinds">{% for label, n in pr.kind_rows %}<span>{{ _(label) }} <strong>{{ n }}</strong></span>{% endfor %}</dd>{% endif %}
 {% if pr.own %}<dt>{{ _('独自取材の跡') }}</dt><dd>{{ _m('{count} 本', count=pr.own|strong) }}</dd>{% endif %}
 <dt>{{ _('他社を出典に') }}</dt><dd>{% if pr.citing %}{{ _m('{count} 本', count=pr.citing|strong) }}{% if pr.top_cites %}<small class="prov-top">{% for label, n in pr.top_cites[:4] %}{{ label|tr }} {{ n }}{% if not loop.last %}{{ _('・') }}{% endif %}{% endfor %}</small>{% endif %}{% else %}—{% endif %}</dd>{% endif %}
-</dl>{% if o.recent_scoops %}<h3 class="outlet-sub">{{ _('この媒体だけが報じた（新しい順）') }}</h3><ul class="outlet-scoops">{% for a in o.recent_scoops %}<li><a href="{{ url_for('show_article', article_id=a.id) }}"{{ o.source|lang_attr }}>{{ a.title }}</a><span class="story-time">{{ a.published|localtime_short }}</span></li>{% endfor %}</ul>{% endif %}</section>{% endfor %}</div>
-{% if stats.pairs %}<section class="outlet-pairs" aria-labelledby="pairs-head"><h2 id="pairs-head">{{ _('一緒に報じたニュース') }}</h2>
+</dl>{% if o.recent_scoops %}<h3 class="outlet-sub">{{ _('この媒体だけが報じた（新しい順）')|wbr }}</h3><ul class="outlet-scoops">{% for a in o.recent_scoops %}<li><a href="{{ url_for('show_article', article_id=a.id) }}"{{ o.source|lang_attr }}>{{ a.title|wbr }}</a><span class="story-time">{{ a.published|localtime_short }}</span></li>{% endfor %}</ul>{% endif %}</section>{% endfor %}</div>
+{% if stats.pairs %}<section class="outlet-pairs" aria-labelledby="pairs-head"><h2 id="pairs-head">{{ _('一緒に報じたニュース')|wbr }}</h2>
 <ul>{% for p in stats.pairs %}<li><span class="badge" data-lang="{{ p.a|src_lang }}">{{ p.a|outlet }}</span> × <span class="badge" data-lang="{{ p.b|src_lang }}">{{ p.b|outlet }}</span> {{ _m('{count} 件', count=p.news|strong) }}</li>{% endfor %}</ul></section>{% endif %}
 <p class="hint">{{ _('「最初に報じた」は複数の媒体が報じたニュースのうち、その媒体の記事がいちばん早かった件数（その媒体が報じた件数のうち）。「遅れの中央値」は最初の報道から、その媒体の最初の記事までの時間。「数字の食い違い」はホームに出した食い違い（よく一致したグループのみ）に関わった件数です。「取材のかたち」は本文の書き出し（発信地）から、「独自取材の跡」は「told the BBC」「接受中央社訪問」などの表現から、「他社を出典に」は本文で他の報道機関を引用している記事の数です。媒体ごとに収集を始めた時期が違う間は、遅れが大きく出ることがあります。') }}</p>
 {% endif %}{% endblock %}

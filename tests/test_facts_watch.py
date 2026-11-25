@@ -148,7 +148,7 @@ class FactsWatchTests(unittest.TestCase):
                 .get("/", headers=H)
                 .get_data(as_text=True)
             )
-        self.assertIn("数字が食い違うニュース", page)
+        self.assertIn("数字が食い違うニュース", page.replace("<wbr>", ""))  # headings carry <wbr> between phrases
         self.assertIn('href="/stories/s1#facts"', page)
         self.assertIn("少なくとも 20人", page)
         self.assertNotIn("/stories/s3#facts", page)  # the outlets agree on 3

@@ -113,7 +113,10 @@ class PageTests(WebTestCase):
     def test_a_way_past_the_header(self):
         page = self.client.get("/", headers=H).get_data(as_text=True)
         self.assertIn('<body id="top"><a class="skip-link" href="#main">本文へ移動</a>', page)
-        self.assertIn('<main class="wrap" id="main" tabindex="-1">', page)
+        self.assertIn('<main class="wrap front-page" id="main" tabindex="-1">', page)
+        self.assertIn(
+            '<main class="wrap" id="main" tabindex="-1">', self.client.get("/saved", headers=H).get_data(as_text=True)
+        )
 
     def test_the_outlets_page_leads_back_to_the_digest(self):
         page = self.client.get("/outlets", headers=H).get_data(as_text=True)

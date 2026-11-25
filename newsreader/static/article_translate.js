@@ -857,7 +857,7 @@
       const { ok, payload } = await postJson(base + "/api/translate-titles", { ids: [articleId], target, auto: true });
       const text = ok && payload.translations ? payload.translations[String(articleId)] : "";
       if (!text || biTarget || target !== targetSelect.value) return;
-      biTitle.textContent = text;
+      NR.phrased(biTitle, payload.phrases?.[String(articleId)], text);
       biTitle.lang = langTags[target] || "";
       biTitle.classList.remove("kept");
       biTitle.hidden = false;

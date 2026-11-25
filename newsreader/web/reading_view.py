@@ -61,6 +61,7 @@ def article_cards():
     when already translated), for the 後で読む list a visitor's browser keeps."""
     from newsreader import i18n
     from newsreader.branding import LANG_TAGS, source_language
+    from newsreader.phrases import chunks
     from newsreader.services import translation
 
     ids = list(dict.fromkeys(int(part) for part in request.args.get("ids", "").split(",") if part.isdigit()))
@@ -82,6 +83,9 @@ def article_cards():
                 "time": localtime_short_filter(record.get("published") or ""),
                 "thumb": image_url(record["id"], 0, thumb) if image_service.allowed_image_url(thumb) else "",
                 "ja": ja,
+                # both headlines cut between their phrases (Japanese, Chinese) for NR.phrased
+                "title_phrases": chunks(record.get("title") or "", i18n.current()),
+                "ja_phrases": chunks(ja, i18n.current()) if ja else [],
             }
         )
     response = jsonify({"items": items})

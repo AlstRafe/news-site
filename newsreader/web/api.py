@@ -248,7 +248,18 @@ def translate_list_titles():
             translated = translate_titles([title for _, title in found], target)
     except TranslationError as exc:
         return jsonify({"error": str(exc)}), 503
-    return jsonify({"translations": {str(i): text for (i, _), text in zip(found, translated) if text}})
+    texts = {str(i): text for (i, _), text in zip(found, translated) if text}
+    # and each one cut between its phrases, so the page breaks its lines between words in every browser
+    return jsonify({"translations": texts, "phrases": _phrases(texts)})
+
+
+def _phrases(texts: dict[str, str]) -> dict[str, list[str]]:
+    """The texts that have places between phrases (Japanese, Chinese), as their pieces (newsreader/phrases)."""
+    from newsreader import i18n
+    from newsreader.phrases import chunks
+
+    cut = {key: chunks(text, i18n.current()) for key, text in texts.items()}
+    return {key: pieces for key, pieces in cut.items() if len(pieces) > 1}
 
 
 #: A same-news page compares at most this many openings at once, each cut to LEAD_CHARS.

@@ -66,6 +66,7 @@
       ),
     ];
     const translations = {};
+    const phrases = {};
     try {
       for (let i = 0; i < ids.length; i += 40) {
         const payload = await post(base + "/api/translate-titles", {
@@ -74,6 +75,7 @@
           auto: true,
         });
         Object.assign(translations, payload.translations || {});
+        Object.assign(phrases, payload.phrases || {});
       }
       say("");
     } catch (error) {
@@ -86,7 +88,7 @@
       const line = document.createElement("span");
       line.className = "story-gloss";
       line.lang = langTag(targetLang());
-      line.textContent = text;
+      NR.phrased(line, phrases[el.dataset.glossId], text);
       // A group's headline reads in the reader's language first, the original under it; in the
       // lists of articles the original stays first, its translation under it.
       if (el.closest(".story-members, .story-item, .arc-body, li")) el.after(line);

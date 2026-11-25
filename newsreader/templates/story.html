@@ -7,8 +7,8 @@
 <a class="story-link" href="{{ url_for('show_article', article_id=m.id) }}">
 {% if m.thumb %}<img src="{{ m.thumb }}" alt="" loading="lazy" decoding="async">{% endif %}
 <span class="story-time">{% if show_source %}<span class="badge" data-lang="{{ m.source|src_lang }}">{{ (m.source or '未分類')|outlet }}</span> {% endif %}{{ m.published|localtime }}{% set lag = m.published|lag(story.oldest) %}{% if lag %} <span class="lag" title="{{ _('最初の報道から') }}">{{ lag }}</span>{% elif story.oldest and m.published == story.oldest and story.members|length > 1 %} <span class="lag first">{{ _('最初の報道') }}</span>{% endif %}</span>
-<strong data-gloss-id="{{ m.id }}"{{ m.source|lang_attr }}>{{ m.title }}</strong></a>
-{% if m.lead %}<p class="story-lead" data-lead-for="{{ m.id }}"{{ m.source|lang_attr }}>{{ m.lead }}</p>{% endif %}
+<strong data-gloss-id="{{ m.id }}"{{ m.source|lang_attr }}>{{ m.title|wbr }}</strong></a>
+{% if m.lead %}<p class="story-lead" data-lead-for="{{ m.id }}"{{ m.source|lang_attr }}>{{ m.lead|wbr }}</p>{% endif %}
 {% if provenance.lines[m.id] %}<p class="story-prov">{{ provenance.lines[m.id] }}</p>{% endif %}
 <p class="lead-tr" data-lead-tr-for="{{ m.id }}" hidden></p>
 <div class="cmp-tr" data-cmp-for="{{ m.id }}" hidden></div>
@@ -16,7 +16,7 @@
 </article>{% endmacro %}
 {% block content %}<a class="back" href="{{ url_for('stories_page') }}">{{ _('読み比べの一覧へ') }}</a>
 <div class="eyebrow">{{ _('読み比べ · {outlets} 媒体 · {count} 本', outlets=story.columns|length, count=story.members|length) }}</div>
-<h1><span data-gloss-id="{{ story.lead_id }}"{{ story.lead_source|lang_attr }}>{{ story.lead_title }}</span></h1>
+<h1><span data-gloss-id="{{ story.lead_id }}"{{ story.lead_source|lang_attr }}>{{ story.lead_title|wbr }}</span></h1>
 <p class="story-summary">{% if story.first %}{{ _('最初の報道:') }} <span class="badge" data-lang="{{ story.first.source|src_lang }}">{{ story.first.source|outlet }}</span> {{ story.first.published|localtime }}{% endif %}{% if story.newest_time and story.newest_time != story.oldest %} · {{ _('最新: {when}', when=story.newest_time|localtime) }}{% endif %}{% if arc %} · <a href="#arc-title">{{ _('このニュースの流れ（ほか {count} 件）', count=arc|length - 1) }}</a>{% endif %}</p>
 <div class="story-tools">
 <div class="segmented" role="group" aria-label="{{ _('並べ方') }}"><button type="button" class="seg" data-view="outlets" aria-pressed="true">{{ _('媒体ごと') }}</button><button type="button" class="seg" data-view="timeline" aria-pressed="false">{{ _('時系列') }}</button></div>
@@ -40,21 +40,21 @@
 <div class="story-view" data-view-panel="timeline" hidden><ol class="story-timeline">{% for m in story.timeline %}<li>{{ item(m, true) }}</li>{% endfor %}</ol></div>
 {# The articles first; the comparisons follow, for whoever has read them. #}
 {% if story.columns|length > 1 %}<section class="insights" aria-labelledby="insights-title">
-<div class="insights-head"><h2 id="insights-title">{{ _('違いを見る') }}</h2><p class="hint">{{ _('媒体どうしで、数字や言葉づかいがどう違うか。押したときだけ翻訳します。') }}<span class="key-hint">{{ _('キー: F 数字・W 言葉・Q 発言・T 並べ方') }}</span></p>{% if disputes %}<span class="diff-flag">{{ _('{kinds}の数字が媒体で違います', kinds=disputes|map(attribute='label')|map('tr')|join(_('・'))) }}</span>{% endif %}</div>
+<div class="insights-head"><h2 id="insights-title">{{ _('違いを見る')|wbr }}</h2><p class="hint">{{ _('媒体どうしで、数字や言葉づかいがどう違うか。押したときだけ翻訳します。') }}<span class="key-hint">{{ _('キー: F 数字・W 言葉・Q 発言・T 並べ方') }}</span></p>{% if disputes %}<span class="diff-flag">{{ _('{kinds}の数字が媒体で違います', kinds=disputes|map(attribute='label')|map('tr')|join(_('・'))) }}</span>{% endif %}</div>
 <div class="insight-buttons"><button type="button" class="secondary" id="compare-facts" aria-expanded="false" aria-controls="facts-panel">{{ _('数字を比べる') }}</button><button type="button" class="secondary" id="compare-words" aria-expanded="false" aria-controls="words-panel">{{ _('言葉の違い') }}</button><button type="button" class="secondary" id="compare-quotes" aria-expanded="false" aria-controls="quotes-panel">{{ _('発言を比べる') }}</button></div>
 <div class="insight-panel" id="facts-panel" hidden></div>
 <div class="insight-panel" id="words-panel" hidden></div>
 <div class="insight-panel" id="quotes-panel" hidden></div>
 </section>{% endif %}
-{% if provenance.outlets %}<section class="provenance-box" aria-labelledby="prov-title"><h2 id="prov-title">{{ _('情報の出どころ') }}</h2>
+{% if provenance.outlets %}<section class="provenance-box" aria-labelledby="prov-title"><h2 id="prov-title">{{ _('情報の出どころ')|wbr }}</h2>
 <ul class="prov-outlets">{% for o in provenance.outlets %}<li><span class="badge" data-lang="{{ o.source|src_lang }}">{{ o.source|outlet }}</span> <span>{{ (o.datelines[:3] + o.own|map('tr')|list)|join(' · ') }}{% if o.cites %}{% if o.datelines or o.own %} · {% endif %}{{ _('出典: {list}', list=o.cites[:4]|map('tr')|join(_('・'))) }}{% endif %}</span></li>{% endfor %}</ul>
 {% for s in provenance.shared[:3] %}<p class="prov-note">{% if s.outlets|length == 2 %}{{ _('{source}を {outlets} がどちらも出典にしています。同じ元の情報をもとにした記事かもしれません。', source=s.label|tr, outlets=s.outlets|map('outlet')|join(_('・'))) }}{% else %}{{ _('{source}を {outlets} がいずれも出典にしています。同じ元の情報をもとにした記事かもしれません。', source=s.label|tr, outlets=s.outlets|map('outlet')|join(_('・'))) }}{% endif %}</p>{% endfor %}
 {% for i in provenance.internal %}<p class="prov-note">{{ _('{source} の記事は、このグループの {cited} の報道を引用しています。', source=i.from|outlet, cited=i.to|outlet) }}</p>{% endfor %}
 <p class="hint">{{ _('本文の書き出し（発信地）と、本文で引用している報道機関から判断した目安です（翻訳は使いません）。') }}</p></section>{% endif %}
-{% if arc %}<section class="story-arc" aria-labelledby="arc-title"><h2 id="arc-title">{{ _('このニュースの流れ') }}</h2>
+{% if arc %}<section class="story-arc" aria-labelledby="arc-title"><h2 id="arc-title">{{ _('このニュースの流れ')|wbr }}</h2>
 <ol class="arc-list">{% for g in arc %}<li{% if g.current %} class="current" aria-current="true"{% endif %}>
 <span class="arc-time">{{ g.oldest|localtime_short }}</span>
-<div class="arc-body">{% if g.current %}<strong data-gloss-id="{{ g.lead_id }}"{{ g.lead_source|lang_attr }}>{{ g.title }}</strong> <span class="arc-here">{{ _('このページ') }}</span>{% else %}<a href="{{ url_for('story_page', key=g.key) }}"><strong data-gloss-id="{{ g.lead_id }}"{{ g.lead_source|lang_attr }}>{{ g.title }}</strong></a>{% endif %}
+<div class="arc-body">{% if g.current %}<strong data-gloss-id="{{ g.lead_id }}"{{ g.lead_source|lang_attr }}>{{ g.title|wbr }}</strong> <span class="arc-here">{{ _('このページ') }}</span>{% else %}<a href="{{ url_for('story_page', key=g.key) }}"><strong data-gloss-id="{{ g.lead_id }}"{{ g.lead_source|lang_attr }}>{{ g.title|wbr }}</strong></a>{% endif %}
 <span class="arc-outlets">{% for source, n in g.outlet_counts %}<span class="badge" data-lang="{{ source|src_lang }}">{{ source|outlet }}</span>{% endfor %} {{ _('{count} 本', count=g.count) }}</span></div></li>{% endfor %}</ol>
 <p class="hint">{{ _('前後10日の読み比べのうち、同じ言語の記事どうしは本文の書き出し、言語が違えば見出しの英訳と固有名詞が近いものです（新たな翻訳はしません）。') }}</p></section>{% endif %}
 {% if not visitor() %}<p class="hint">{{ _('「別のニュース」を押した記事は、このグループから外れ、以後この記事どうしが同じグループになることはありません（状態画面でまとめて取り消せます）。') }}</p>{% endif %}
