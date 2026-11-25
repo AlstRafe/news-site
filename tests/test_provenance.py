@@ -184,7 +184,7 @@ class PageTests(unittest.TestCase):
     def test_story_page(self):
         key = stories.related(self.db, self.cna)["key"]
         page = self.client.get(f"/stories/{key}", headers=H).get_data(as_text=True)
-        self.assertIn("情報の出どころ", page)
+        self.assertIn("情報の出どころ", page.replace("<wbr>", ""))
         self.assertIn("AFP通信を BBC・CNA がどちらも出典にしています", page.replace("CNA・BBC", "BBC・CNA"))
         self.assertIn("CNA の記事は、このグループの BBC の報道を引用しています。", page)
         self.assertIn('<p class="story-prov">外電のまとめ（パリ発） · 出典: AFP通信・BBC</p>', page)

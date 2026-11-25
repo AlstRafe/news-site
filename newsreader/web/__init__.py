@@ -13,7 +13,8 @@ from pathlib import Path
 from flask import Flask
 from markupsafe import Markup
 
-from newsreader import paths
+from newsreader import i18n, paths
+from newsreader.phrases import mark
 
 #: Runs in <head> before the stylesheet applies, so a saved light/dark choice never flashes
 #: the other theme first. No choice saved = follow the OS (prefers-color-scheme).
@@ -27,13 +28,19 @@ THEME_BOOT = (
 )
 
 
+def wbr(text) -> Markup:
+    """Japanese and Chinese text with ``<wbr>`` between its phrases (newsreader/phrases), so that every browser breaks
+    a line between words, never inside one (product.css sets ``word-break: keep-all`` on these texts)."""
+    return Markup(mark(str(text), i18n.current())) if text else Markup("")
+
+
 def phrases(text: str) -> Markup:
     """A big headline with each phrase (up to its 、 。 , . and the like) in its own span, so the phrases can come
-    in one after another (product.css) and a line breaks between phrases rather than inside one."""
+    in one after another (product.css), and inside a span ``<wbr>`` between its words (``wbr``)."""
     parts = re.findall(r"(.+?(?:[。．.,、，!！?？]|$))(\s*)", text.strip())
     return (
         Markup("")
-        .join(Markup('<span class="w">%s</span>%s') % (word, " " if gap else "") for word, gap in parts if word)
+        .join(Markup('<span class="w">%s</span>%s') % (wbr(word), " " if gap else "") for word, gap in parts if word)
         .rstrip()
     )
 
@@ -135,7 +142,6 @@ def create_app(
     # an outlet's name stays the key (filters, links, data-lang); only what is shown changes.
     from markupsafe import escape
 
-    from newsreader import i18n
     from newsreader.library import compare
 
     app.add_template_filter(lambda name: i18n.text(name) if name else name, "outlet")
@@ -143,6 +149,7 @@ def create_app(
     app.add_template_filter(lambda text: compare.say_fact(text, i18n.current()), "fact")
     app.add_template_filter(lambda value: Markup("<strong>%s</strong>") % escape(value), "strong")
     app.add_template_filter(phrases, "phrases")
+    app.add_template_filter(wbr, "wbr")
     from newsreader.library.provenance import dateline_label
 
     app.add_template_filter(dateline_label, "dateline_label")

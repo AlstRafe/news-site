@@ -290,7 +290,7 @@
           const line = document.createElement(el.matches("h2, strong") ? "p" : "span");
           line.className = "card-gloss";
           line.lang = langTag(lang);
-          line.textContent = text;
+          NR.phrased(line, payload.phrases?.[idOf(el)], text);
           // A headline reads in the reader's language first; in the small lists (first reports,
           // earlier reports) the original keeps its place and the translation follows it.
           if (el.closest(".digest-firsts, .digest-earlier, .outlet-scoops")) el.after(line);
@@ -518,11 +518,11 @@
       meta.append(badge, el("span", "", item.time));
       body.append(meta);
       if (item.ja) {
-        const gloss = el("p", "card-gloss", item.ja);
+        const gloss = NR.phrased(el("p", "card-gloss"), item.ja_phrases, item.ja);
         gloss.lang = NR.target === "zh-hant" ? "zh-Hant" : NR.target; // BCP 47
         body.append(gloss);
       }
-      const title = el("h2", "", item.title);
+      const title = NR.phrased(el("h2"), item.title_phrases, item.title);
       if (item.lang_tag) title.lang = item.lang_tag;
       body.append(title);
       a.append(thumb, body);

@@ -2,13 +2,13 @@
 {% block head %}<title>{{ _('単語帳') }} | {{ app_name }}</title>{% endblock %}
 {% block content %}
 <nav class="chips my-tabs" aria-label="{{ _('自分の記録') }}"><a class="chip" href="{{ url_for('saved_page') }}">{{ _('保存した記事') }}</a><a class="chip active" aria-current="page" href="{{ url_for('words_page') }}">{{ _('単語帳') }}<span>{{ entries|length }}</span></a></nav>
-<div class="list-head"><h1>{{ _('単語帳') }}</h1><span class="count">{{ _('{count} 語', count=entries|length) }}</span>{% if entries %}<button type="button" class="gloss-toggle" id="words-quiz" aria-pressed="false">{{ _('意味を隠して復習') }}</button>{% endif %}</div>
+<div class="list-head"><h1>{{ _('単語帳')|wbr }}</h1><span class="count">{{ _('{count} 語', count=entries|length) }}</span>{% if entries %}<button type="button" class="gloss-toggle" id="words-quiz" aria-pressed="false">{{ _('意味を隠して復習') }}</button>{% endif %}</div>
 <p class="hint my-note">{{ _('記事の単語を押して出る訳の「単語帳に入れる」で保存した語です。出てきた文と記事も一緒に残ります。') }}</p>
 {% if entries %}<ol class="word-list" id="word-list">{% for e in entries %}<li data-word-id="{{ e.id }}">
 <div class="wl-head"><strong class="wl-word"{{ e.source|lang_attr }}>{{ e.word }}</strong><button type="button" class="wl-remove" data-remove-word="{{ e.id }}" aria-label="{{ _('「{word}」を単語帳から外す', word=e.word) }}">{{ _('外す') }}</button></div>
 <p class="wl-meaning" lang="ja">{{ e.meaning }}</p>
 {% if e.sentence %}<p class="wl-sentence"{{ e.source|lang_attr }}>{{ e.sentence }}</p>{% endif %}
-<p class="wl-from">{% if e.source %}<span class="badge" data-lang="{{ e.source|src_lang }}">{{ e.source|outlet }}</span>{% endif %}{% if e.article_id %}<a href="{{ url_for('show_article', article_id=e.article_id) }}"{{ e.source|lang_attr }}>{{ e.title }}</a>{% else %}<span{{ e.source|lang_attr }}>{{ e.title }}</span>{% endif %}<span class="story-time">{{ e.added|localtime_short }}</span></p>
+<p class="wl-from">{% if e.source %}<span class="badge" data-lang="{{ e.source|src_lang }}">{{ e.source|outlet }}</span>{% endif %}{% if e.article_id %}<a href="{{ url_for('show_article', article_id=e.article_id) }}"{{ e.source|lang_attr }}>{{ e.title|wbr }}</a>{% else %}<span{{ e.source|lang_attr }}>{{ e.title|wbr }}</span>{% endif %}<span class="story-time">{{ e.added|localtime_short }}</span></p>
 </li>{% endfor %}</ol>
 {% else %}<p class="empty">{{ _('まだ単語はありません。記事の本文で単語を押し、訳の下の「単語帳に入れる」を押すと、ここに並びます。') }}</p>{% endif %}
 {% endblock %}

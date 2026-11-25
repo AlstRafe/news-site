@@ -1,19 +1,19 @@
 {% extends "base.html" %}
 {% block head %}<title>{{ _('保存した記事') }} | {{ app_name }}</title>{% endblock %}
 {% block content %}
-{% if local %}<div class="list-head"><h1>{{ _('保存した記事') }}</h1><span class="count" id="local-saved-count"></span></div>
+{% if local %}<div class="list-head"><h1>{{ _('保存した記事')|wbr }}</h1><span class="count" id="local-saved-count"></span></div>
 <p class="hint my-note">{{ _('記事の「後で読む」で保存した記事です。この端末のブラウザーに保存しているので、ほかの端末やブラウザーには出ません。') }}</p>
 <div class="card-grid" id="local-saved" aria-busy="true"></div>
 <p class="empty" id="local-saved-empty" hidden>{{ _('まだ保存した記事はありません。記事のページで「後で読む」を押すと、ここに並びます。') }}</p>
 {% else %}<nav class="chips my-tabs" aria-label="{{ _('自分の記録') }}"><a class="chip active" aria-current="page" href="{{ url_for('saved_page') }}">{{ _('保存した記事') }}<span>{{ items|length }}</span></a><a class="chip" href="{{ url_for('words_page') }}">{{ _('単語帳') }}</a></nav>
-<div class="list-head"><h1>{{ _('保存した記事') }}</h1><span class="count">{{ _('{count} 件', count=items|length) }}</span></div>
+<div class="list-head"><h1>{{ _('保存した記事')|wbr }}</h1><span class="count">{{ _('{count} 件', count=items|length) }}</span></div>
 <p class="hint my-note">{{ _('記事の「後で読む」で保存した記事です。このパソコンのサーバーに保存するので、PC で保存した記事もスマホで読めます。') }}</p>
 {% if items %}<div class="card-grid">{% for item in items %}{% if item.id %}
 <a class="card{% if item.read %} is-read{% endif %}" data-id="{{ item.id }}" href="{{ url_for('show_article', article_id=item.id) }}">
 {% set short = (item.source or 'News').split()[0] %}<div class="card-thumb" data-initial="{{ short }}" data-lang="{{ item.source|src_lang }}">{% if item.thumb %}<img src="{{ item.thumb }}" alt="" loading="lazy" decoding="async">{% else %}<span class="thumb-fallback">{{ short }}</span>{% endif %}</div>
 <div class="card-body"><div class="card-meta"><span class="badge" data-lang="{{ item.source|src_lang }}">{{ item.source|outlet }}</span><span>{{ item.published|localtime_short }}</span>{% if item.read %}<span class="read-mark">{{ _('既読') }}</span>{% endif %}</div>
-{% if item.ja %}<p class="card-gloss" lang="{{ gloss_tag }}">{{ item.ja }}</p>{% endif %}<h2{{ item.source|lang_attr }}>{{ item.title }}</h2></div></a>
-{% else %}<div class="card gone"><div class="card-body"><div class="card-meta"><span class="badge">{{ item.source|outlet }}</span><span>{{ _('記事ファイルがありません') }}</span></div><h2>{{ item.title }}</h2></div></div>{% endif %}{% endfor %}</div>
+{% if item.ja %}<p class="card-gloss" lang="{{ gloss_tag }}">{{ item.ja|wbr }}</p>{% endif %}<h2{{ item.source|lang_attr }}>{{ item.title|wbr }}</h2></div></a>
+{% else %}<div class="card gone"><div class="card-body"><div class="card-meta"><span class="badge">{{ item.source|outlet }}</span><span>{{ _('記事ファイルがありません') }}</span></div><h2>{{ item.title|wbr }}</h2></div></div>{% endif %}{% endfor %}</div>
 {% else %}<p class="empty">{{ _('まだ保存した記事はありません。記事のページで「後で読む」を押すと、ここに並びます。') }}</p>{% endif %}
 {% endif %}
 {% endblock %}

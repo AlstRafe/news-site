@@ -87,8 +87,8 @@ class TopicTests(unittest.TestCase):
     def test_home_lists_matches_in_every_language(self):
         self.assertEqual(self.follow("台湾").get_json(), {"topics": ["台湾"]})
         home = self.client.get("/", headers=H).get_data(as_text=True)
-        self.assertIn("追っている話題", home)
-        card = home[home.index('data-topic-card="台湾"') : home.index("本すべて")]
+        self.assertIn("追っている話題", home.replace("<wbr>", ""))
+        card = home[home.index('data-topic-card="台湾"') : home.index("本すべて")].replace("<wbr>", "")
         self.assertIn("Taiwan holds drills", card)
         self.assertIn("台灣舉行軍演", card)  # Chinese headline, found through its English pivot
         self.assertIn("24時間で 2 本", card)  # the Korean one is older than a day
