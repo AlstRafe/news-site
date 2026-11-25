@@ -64,9 +64,9 @@ class PortalTests(Library):
             f'<nav class="tabbar with-home" aria-label="メインメニュー（下）"><a class="tab-home" {back}', page
         )
         self.assertIn('<a href="/">← サイト一覧</a>', page)
-        css = self.client.get("/news/static/editorial.css", headers=H).get_data(as_text=True)
+        css = self.client.get("/news/static/product.css", headers=H).get_data(as_text=True)
         self.assertRegex(css, r"@media \(min-width: 651px\) \{\n  \.topbar \{\n    position: sticky;\n    top: 0;")
-        self.assertRegex(css, r"@media \(max-width: 650px\) \{\n  \.portal-link \{\n    display: none;")
+        self.assertRegex(css, r"\n  \.portal-link \{\n    display: none;\n  \}")
         self.assertEqual(self.client.get(f"/news/a/{self.article}", headers=H).status_code, 200)
         response = self.client.get("/news", headers=H)
         self.assertEqual((response.status_code, response.headers["Location"]), (302, "/news/"))

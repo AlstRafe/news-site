@@ -296,7 +296,7 @@ class WebTests(StoryTestCase):
             '<span class="badge" data-lang="en">BBC ×2</span><span class="badge" data-lang="zh">CNA</span>', html
         )
         self.assertIn("3 本を並べて読む", html)
-        self.assertIn(NOBEL_ZH, html)
+        self.assertIn(NOBEL_ZH, html.replace("<wbr>", ""))
         self.assertEqual(html.count("data-gloss-id="), 3)  # headline + the two other members
         self.assertIn('aria-current="page">読み比べ', html)
         self.assertEqual(page.headers["Cache-Control"], "no-cache")

@@ -94,7 +94,7 @@
     // Phone browsers colour their toolbar from theme-color; follow a forced choice there too.
     document.querySelectorAll('meta[name="theme-color"]').forEach((meta) => {
       const forDark = theme === "auto" ? meta.media.includes("dark") : theme === "dark";
-      meta.content = forDark ? "#141822" : "#edf0f2"; // the page's paper (base.html, editorial.css)
+      meta.content = forDark ? "#0f0f10" : "#fbfbfa"; // the page's ground (base.html, product.css)
     });
     if (toggle) {
       const label = THEMES[theme] || THEMES.auto;
@@ -290,7 +290,7 @@
           const line = document.createElement(el.matches("h2, strong") ? "p" : "span");
           line.className = "card-gloss";
           line.lang = langTag(lang);
-          line.textContent = text;
+          NR.phrased(line, payload.phrases?.[idOf(el)], text);
           // A headline reads in the reader's language first; in the small lists (first reports,
           // earlier reports) the original keeps its place and the translation follows it.
           if (el.closest(".digest-firsts, .digest-earlier, .outlet-scoops")) el.after(line);
@@ -317,16 +317,6 @@
     glossToggle.addEventListener("click", () => set(glossToggle.getAttribute("aria-pressed") !== "true"));
     set(readLocal(GLOSS_KEY) !== "0");
   }
-
-  // 3b'. このサイトについて (public visitors): closed once, gone for good on this device.
-  document.querySelector("[data-intro-close]")?.addEventListener("click", () => {
-    document.documentElement.classList.add("intro-off");
-    try {
-      localStorage.setItem("news-html-reader-intro", "0");
-    } catch (_) {
-      /* optional */
-    }
-  });
 
   // 3c. 前回からの新着: on the plain list (first page, no filter), a line under the articles that
   //     came in since this device last looked at it. "Last looked" is the newest article shown,
@@ -528,11 +518,11 @@
       meta.append(badge, el("span", "", item.time));
       body.append(meta);
       if (item.ja) {
-        const gloss = el("p", "card-gloss", item.ja);
+        const gloss = NR.phrased(el("p", "card-gloss"), item.ja_phrases, item.ja);
         gloss.lang = NR.target === "zh-hant" ? "zh-Hant" : NR.target; // BCP 47
         body.append(gloss);
       }
-      const title = el("h2", "", item.title);
+      const title = NR.phrased(el("h2"), item.title_phrases, item.title);
       if (item.lang_tag) title.lang = item.lang_tag;
       body.append(title);
       a.append(thumb, body);

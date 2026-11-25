@@ -2,7 +2,7 @@
 {% block head %}<title>{{ _('読み比べ') }} | {{ app_name }}</title>{% endblock %}
 {% block main_class %} stories-page{% endblock %}
 {% block content %}
-<div class="list-head"><h1>{{ _('同じニュースの読み比べ') }}</h1><span class="count">{{ _('{count} 件', count=result.total) }}</span><a class="list-head-link" href="{{ url_for('digest_page') }}">{{ _('今日のまとめ') }}</a><a class="list-head-link" href="{{ url_for('outlets_page') }}">{{ _('媒体くらべ') }}</a></div>
+<div class="list-head"><h1>{{ _('同じニュースの読み比べ')|wbr }}</h1><span class="count">{{ _('{count} 件', count=result.total) }}</span><a class="list-head-link" href="{{ url_for('digest_page') }}">{{ _('今日のまとめ') }}</a><a class="list-head-link" href="{{ url_for('outlets_page') }}">{{ _('媒体くらべ') }}</a></div>
 <form class="searchbar" method="get" action="{{ url_for('stories_page') }}" role="search">
 {% if result.scope in ('all', 'disputes') %}<input type="hidden" name="scope" value="{{ result.scope }}">{% endif %}
 <input type="search" name="q" value="{{ result.query }}" placeholder="{{ _('グループを検索（日本語も可）') }}" aria-label="{{ _('読み比べを検索') }}" maxlength="100">
@@ -21,10 +21,10 @@
 <section class="story-card">
 <div class="story-meta"><span class="story-outlets">{% for name, n in story.outlet_counts %}<span class="badge" data-lang="{{ name|src_lang }}">{{ name|outlet }}{% if n > 1 %} ×{{ n }}{% endif %}</span>{% endfor %}</span>
 <span class="story-time">{{ story.oldest|localtime_short }}{% if story.newest_time and story.newest_time != story.oldest %} 〜 {{ story.newest_time|localtime_short }}{% endif %}</span>{% if story.disputes %}<a class="diff-flag" href="{{ url_for('story_page', key=story.key) }}#facts" title="{{ _('媒体によって数字が違います') }}">{{ _('{kinds}の数字が違う', kinds=story.disputes|map(attribute='label')|map('tr')|join(_('・'))) }}</a>{% endif %}</div>
-<div class="story-top"><h2 class="story-headline"><a href="{{ url_for('story_page', key=story.key) }}"><span data-gloss-id="{{ story.lead_id }}"{{ story.lead_source|lang_attr }}>{{ story.lead_title }}</span></a></h2>
+<div class="story-top"><h2 class="story-headline"><a href="{{ url_for('story_page', key=story.key) }}"><span data-gloss-id="{{ story.lead_id }}"{{ story.lead_source|lang_attr }}>{{ story.lead_title|wbr }}</span></a></h2>
 {% if story.picture %}<a class="story-thumb" href="{{ url_for('story_page', key=story.key) }}" tabindex="-1" aria-hidden="true"><img src="{{ story.picture }}" alt="" loading="lazy" decoding="async"></a>{% endif %}</div>
 <ul class="story-members">{% for m in story.preview %}
-<li><a href="{{ url_for('show_article', article_id=m.id) }}"><span class="badge" data-lang="{{ m.source|src_lang }}">{{ (m.source or '未分類')|outlet }}</span><span class="story-title" data-gloss-id="{{ m.id }}"{{ m.source|lang_attr }}>{{ m.title }}</span><span class="story-time">{{ m.published|localtime_short }}</span></a></li>
+<li><a href="{{ url_for('show_article', article_id=m.id) }}"><span class="badge" data-lang="{{ m.source|src_lang }}">{{ (m.source or '未分類')|outlet }}</span><span class="story-title" data-gloss-id="{{ m.id }}"{{ m.source|lang_attr }}>{{ m.title|wbr }}</span><span class="story-time">{{ m.published|localtime_short }}</span></a></li>
 {% endfor %}</ul>
 {% set hidden = story.count - 1 - story.preview|length %}<a class="story-more" href="{{ url_for('story_page', key=story.key) }}">{% if hidden > 0 %}{{ _('ほか {count} 本', count=hidden) }} · {% endif %}{{ _('{count} 本を並べて読む', count=story.count) }}</a>
 </section>

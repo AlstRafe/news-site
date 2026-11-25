@@ -86,7 +86,7 @@ class OutletTests(unittest.TestCase):
         with mock.patch.object(outlets, "stats", lambda db, days=7: real(db, days=days, now=NOW)):
             page = client.get("/outlets?days=30", headers={"Host": "localhost"}).get_data(as_text=True)
         self.assertIn("媒体くらべ", page)
-        self.assertIn("一緒に報じたニュース", page)
+        self.assertIn("一緒に報じたニュース", page.replace("<wbr>", ""))
         self.assertEqual(client.get("/outlets?days=abc", headers={"Host": "localhost"}).status_code, 200)
 
 

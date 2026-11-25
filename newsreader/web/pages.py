@@ -216,6 +216,7 @@ def index_page():
     from newsreader.library import facts_watch
 
     disputes = [] if narrowed else facts_watch.differing(db, limit=3)
+    from newsreader.services.settings import collects_hourly
     from newsreader.services.settings import topics as followed_topics
 
     followed = followed_topics()
@@ -246,6 +247,8 @@ def index_page():
             disputes=disputes,
             topic_cards=topic_cards,
             following=any(t.casefold() == query.casefold() for t in followed) if query else False,
+            opening=not narrowed,
+            hourly=collects_hourly(),
         )
     )
     response.headers["Cache-Control"] = CACHE_LIST
@@ -423,8 +426,8 @@ def web_manifest():
             "start_url": url_for("index"),
             "scope": url_for("index"),
             "display": "standalone",
-            "background_color": "#edf0f2",
-            "theme_color": "#edf0f2",
+            "background_color": "#fbfbfa",
+            "theme_color": "#fbfbfa",
             "icons": [
                 {"src": url_for("static", filename=f"icon-{n}.png"), "sizes": f"{n}x{n}", "type": "image/png"}
                 for n in (192, 512)
