@@ -104,16 +104,19 @@
     aloud.setAttribute("aria-pressed", "false");
     aloud.textContent = T("読み上げ");
   };
+  // where the screen's free space starts: under the header while it stays at the top, else the screen's top
+  const headerBottom = () => Math.max(0, document.querySelector(".topbar")?.getBoundingClientRect().bottom || 0);
   const start = () => {
     const bilingual = reader.classList.contains("bilingual") && reader.querySelector(".bi-tr");
     const paragraphs = [...reader.querySelectorAll(bilingual ? ":scope > p.bi-tr" : ":scope > p:not(.bi-tr)")].filter(
       (p) => p.textContent.trim(),
     );
     if (!paragraphs.length) return;
-    // start from the first paragraph on screen, so a reader halfway down is not sent back
+    // start from the first paragraph on screen (below the header, which stays at the top on wider screens),
+    // so a reader halfway down is not sent back
     const first = Math.max(
       0,
-      paragraphs.findIndex((p) => p.getBoundingClientRect().bottom > 90),
+      paragraphs.findIndex((p) => p.getBoundingClientRect().bottom > headerBottom() + 12),
     );
     speaking = true;
     aloud.setAttribute("aria-pressed", "true");
@@ -130,7 +133,8 @@
             reader.querySelectorAll(".speaking").forEach((n) => n.classList.remove("speaking"));
             p.classList.add("speaking");
             const r = p.getBoundingClientRect();
-            if (r.top < 70 || r.bottom > innerHeight - 60) p.scrollIntoView({ behavior: "smooth", block: "center" });
+            if (r.top < headerBottom() || r.bottom > innerHeight - 60)
+              p.scrollIntoView({ behavior: "smooth", block: "center" });
           };
         if (i === list.length - 1 && j === all.length - 1)
           u.onend = () => {

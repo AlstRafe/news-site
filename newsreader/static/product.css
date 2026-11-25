@@ -374,7 +374,7 @@ main {
 }
 
 /* ── The local nav: the way back to the site list, the name, the menu, light/dark and language. Fixed to the top
-   from 48rem, see-through and blurred so the page passes under it. ───────────────────────────────────────── */
+   above phone widths, see-through and blurred so the page passes under it. ───────────────────────────────────────── */
 .topbar {
   position: relative;
   z-index: 20;
@@ -387,20 +387,45 @@ main {
   font-size: 1rem;
   font-weight: 400;
 }
+/* The way back to the site list, always in reach (Home Page docs/CONVENTIONS.md 「サイト一覧へ戻る道」): above phone
+   widths the header's first link, the header staying at the top; on phones the first tab of the bottom tab bar
+   (.tab-home). Always with its words, never an arrow alone. */
 .portal-link {
   display: flex;
+  flex: none;
   align-items: center;
   gap: 0.4rem;
   min-height: 2.75rem;
   padding: 0 1rem 0 0;
   border-right: 1px solid var(--line);
-  color: var(--soft);
-  font-size: 0.82rem;
+  color: var(--ink);
+  font-size: 0.86rem;
+  font-weight: 600;
   text-decoration: none;
   white-space: nowrap;
+  transition: color var(--t) var(--ease);
 }
 .portal-link:hover {
-  color: var(--ink);
+  color: var(--link);
+}
+.portal-link svg,
+.tab-home svg {
+  flex: none;
+  width: 1.05rem;
+  height: 1.05rem;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+@media (prefers-reduced-motion: no-preference) {
+  .portal-link svg {
+    transition: transform var(--t) var(--ease);
+  }
+  .portal-link:hover svg {
+    transform: translateX(-3px);
+  }
 }
 .brand-link {
   display: flex;
@@ -611,10 +636,14 @@ main {
 .lang a[aria-current]::after {
   content: "✓";
 }
-@media (min-width: 48rem) {
+@media (min-width: 651px) {
   .topbar {
     position: sticky;
     top: 0;
+  }
+  /* jumps to an anchor (the skip link, J/K, #top) stop below the header, not under it */
+  html {
+    scroll-padding-top: calc(var(--nav) + 1rem);
   }
   @supports ((-webkit-backdrop-filter: blur(1px)) or (backdrop-filter: blur(1px))) {
     .topbar {
@@ -624,35 +653,48 @@ main {
     }
   }
 }
-/* Narrower: the way back and the language as their icons alone, then the light/dark words; on phones the menu
-   is the tab bar at the bottom */
+/* Narrower: the language as its icon alone, then the light/dark words; on phones the menu is the tab bar at the
+   bottom */
 @media (max-width: 1000px) {
-  .portal-text,
   .lang summary span {
     display: none;
   }
   .portal-link {
     padding-right: 0.85rem;
-    font-size: 1rem;
   }
   .topnav {
     gap: 0 1.1rem;
   }
 }
-/* the owner's header holds more (the collection's state, settings): the state shrinks to its coloured dot first */
-@media (max-width: 900px) {
-  .status-badge {
+/* the owner's header holds more (the collection's state, settings) beside the way back: up to 1100px (English)
+   the state as its dot, light/dark and the language as their icons; on the narrowest tablets the state and 設定
+   are in the footer only */
+@media (max-width: 1100px) {
+  .topnav:has(.status-badge) .lang summary span {
+    display: none;
+  }
+  .topnav .status-badge {
     justify-content: center;
     min-width: 2.25rem;
     font-size: 0 !important;
   }
-  .status-badge::before {
+  .topnav .status-badge::before {
     content: "";
     display: block !important;
     width: 0.55rem;
     height: 0.55rem;
     border-radius: 50% !important;
     background: currentColor;
+  }
+  .topnav:has(.status-badge) .theme-toggle {
+    font-size: 0 !important;
+    padding: 0 0.7rem !important;
+  }
+}
+@media (min-width: 651px) and (max-width: 760px) {
+  .topnav a.settings-nav,
+  .topnav a.status-badge {
+    display: none !important;
   }
 }
 @media (max-width: 820px) {
@@ -675,9 +717,7 @@ main {
     gap: 0;
   }
   .portal-link {
-    min-height: 2.75rem;
-    padding-right: 0.75rem;
-    font-size: 1.05rem;
+    display: none;
   }
   .theme-toggle,
   .lang summary {
@@ -3036,6 +3076,24 @@ html:lang(en) .foot-outlets span:not(:last-child)::after {
   .tabbar a[aria-current="page"] {
     color: var(--link) !important;
   }
+  /* the way back takes a narrow first column of its own, the site's tabs share the rest */
+  .tabbar.with-home {
+    grid-template-columns: 64px !important;
+    grid-auto-columns: minmax(0, 1fr);
+    padding-inline: 2px;
+  }
+  .tabbar.with-home a {
+    padding: 0 1px;
+  }
+  .tabbar a.tab-home {
+    gap: 2px;
+    padding: 0 3px;
+    border-right: 1px solid var(--line);
+    color: var(--ink) !important;
+    font-size: 0.66rem !important;
+    line-height: 1.15;
+    text-align: center;
+  }
   main {
     padding-bottom: calc(var(--space) * 0.6) !important;
   }
@@ -3055,6 +3113,17 @@ html:lang(en) .foot-outlets span:not(:last-child)::after {
   }
   .story-top .story-thumb {
     width: 6.5rem;
+  }
+}
+/* the narrowest phones with the owner's sixth tab: smaller words, so each keeps its line */
+@media (max-width: 380px) {
+  .tabbar.with-home a:not(.tab-home) {
+    font-size: 0.75rem !important;
+  }
+}
+@media (max-width: 340px) {
+  .tabbar.with-home a:not(.tab-home) {
+    font-size: 0.7rem !important;
   }
 }
 
