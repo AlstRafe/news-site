@@ -1149,7 +1149,7 @@ main.front-page > .alert:first-child {
 /* The opening: the paper's name, what it does in two plain sentences, how much it holds and the search. Short
    and left-aligned, so the news itself starts within the first screen. */
 .hero {
-  padding-block: clamp(2.25rem, 1.5rem + 3vw, 3.75rem) clamp(2rem, 1.5rem + 2vw, 3rem);
+  padding-block: clamp(3rem, 1.5rem + 5vw, 6rem) clamp(3rem, 2rem + 3vw, 4.5rem);
 }
 .hero-in > * {
   max-width: 50rem;
@@ -1159,14 +1159,15 @@ main.front-page > .alert:first-child {
   align-items: center;
   gap: 0.6rem;
   margin: 0;
-  font-size: clamp(2rem, 1.4rem + 2.2vw, 3rem);
+  font-size: clamp(2.75rem, 1.2rem + 5.5vw, 5.5rem);
   font-weight: 800;
-  line-height: 1.1;
-  letter-spacing: -0.02em;
+  line-height: 1.04;
+  letter-spacing: -0.035em;
 }
 .hero .name .mark {
-  width: 0.9em;
-  height: 0.9em;
+  width: 0.8em;
+  height: 0.8em;
+  font-size: inherit;
 }
 .hero .tally {
   margin: 0.6rem 0 0;
@@ -1187,10 +1188,10 @@ main.front-page > .alert:first-child {
 }
 .hero .lead {
   max-width: 40rem;
-  margin-top: 0.9rem;
+  margin-top: 1.4rem;
   margin-bottom: 0;
-  font-size: clamp(1rem, 0.95rem + 0.25vw, 1.1rem);
-  line-height: 1.8;
+  font-size: clamp(1.05rem, 0.95rem + 0.45vw, 1.25rem);
+  line-height: 1.75;
 }
 .hero .searchbar {
   max-width: 36rem;
