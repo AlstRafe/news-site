@@ -1,6 +1,7 @@
 {
  "pages": {
   " ほか{n}": " and {n} more",
+  "1 時間ごとに取得": "collected hourly",
   "24時間で {n}{more} 本": {
    "one": "{n}{more} article in 24 hours",
    "other": "{n}{more} articles in 24 hours"
@@ -16,8 +17,8 @@
   "Azureのリージョン名が長すぎます。": "The Azure region name is too long.",
   "BBC Verify の検証": "BBC Verify check",
   "BBC が独自に確認": "Verified by the BBC",
-  "BBC・中央社・聯合ニュースや InfoQ・iThome の記事を毎時集めて、原文と訳を並べて読めます。": "Articles from the BBC, CNA, Yonhap, InfoQ and iThome, collected every hour, each original beside its translation.",
   "BBC・中央社・聯合ニュースや技術系メディアの記事を毎時集め、原文と日本語訳を並べて、同じニュースを各社で読み比べるサイト。": "Hourly news from the BBC, CNA, Yonhap and tech media, with the original beside a translation, to compare how each outlet covers the same story.",
+  "BBC・中央社・聯合ニュース・InfoQ・iThome などの記事を 1 時間ごとに集めて訳し、原文と並べています。同じ出来事を何社かが書いていれば、まとめて読み比べられます。": "Articles from the BBC, CNA, Yonhap, InfoQ, iThome and others, collected every hour, translated and set beside the original. When several outlets cover the same event, they are grouped so you can compare them.",
   "FOXニュース": "Fox News",
   "HTMLファイルが大きすぎます（最大12MB）。": "The HTML file is too large (12 MB at most).",
   "HTMLファイルを読み取れません。": "The HTML file cannot be read.",
@@ -410,7 +411,6 @@
    "other": "{count} other articles on this story"
   },
   "同じニュースの読み比べ": "Same story, compared",
-  "同じニュースを、各社で読み比べ。": "The same news, compared outlet by outlet.",
   "同じ一覧の前後の記事": "Earlier and later in this list",
   "同じ出来事を、媒体ごとに違う数字で報じています": "Outlets report the same event with different figures",
   "名古屋": "Nagoya",
@@ -433,7 +433,6 @@
   "媒体ごとに並べて読む": "Read side by side by outlet",
   "媒体どうしで、数字や言葉づかいがどう違うか。押したときだけ翻訳します。": "How the outlets differ in figures and wording. Translated only when you press.",
   "媒体によって数字が違います": "Figures differ between outlets",
-  "媒体（英語・中国語・韓国語）": "outlets (English, Chinese, Korean)",
   "安東": "Andong",
   "宜蘭": "Yilan",
   "対訳": "Parallel",
@@ -466,7 +465,6 @@
   "文字の大きさ": "Text size",
   "新しい": "Newer",
   "新しい記事": "Newer articles",
-  "新しい記事を取得": "new articles collected",
   "新着なし": "Nothing new",
   "新着記事": "New articles",
   "新竹": "Hsinchu",
@@ -494,7 +492,6 @@
   "未分類": "Uncategorised",
   "未取得": "Not fetched yet",
   "未対応のHTML形式です。BBC、NAVER NEWS、中央社の記事に対応しています。": "Unsupported HTML format. Articles from the BBC, NAVER NEWS and CNA are supported.",
-  "本の記事を収録": "articles in the library",
   "本文が見つかりません。保存したHTMLの構造を確認してください。": "No article text found. Check the structure of the saved HTML.",
   "本文の書き出し（発信地）と、本文で引用している報道機関から判断した目安です": "A rough guide, judged from the article's opening (the dateline) and the news organisations it quotes",
   "本文の書き出し（発信地）と、本文で引用している報道機関から判断した目安です（翻訳は使いません）。": "A rough guide, judged from the article's opening (the dateline) and the news organisations it quotes (no translation is used).",
@@ -514,7 +511,6 @@
   "段落ごとの訳がずれるときに": "For when the paragraph translations don't line up",
   "段落を対訳表示": "Show paragraphs in parallel",
   "毎日新聞": "The Mainichi",
-  "毎時": "Hourly",
   "比べる": "Compare",
   "水原": "Suwon",
   "江陵": "Gangneung",

@@ -6,16 +6,15 @@
 {% if error %}<div class="alert" role="alert">{{ _(error) }}</div>{% endif %}
 {% if warning %}<div class="alert" role="status">{{ _(warning) }}</div>{% endif %}
 {% if opening %}<section class="hero" aria-labelledby="hero-head"><div class="hero-in">
-<p class="name"><span class="mark" aria-hidden="true"><svg viewBox="0 0 64 64"><path d="M9 42h46M14 42Q32 6 50 42" fill="none" stroke="currentColor" stroke-width="5" stroke-linecap="round"/><path d="M24 29v13M32 25v17M40 29v13" stroke="currentColor" stroke-width="3.5" stroke-linecap="round"/></svg></span>{{ app_name }}</p>
-<h1 id="hero-head">{{ _('同じニュースを、各社で読み比べ。')|phrases }}</h1>
-<p class="lead">{{ _('BBC・中央社・聯合ニュースや InfoQ・iThome の記事を毎時集めて、原文と訳を並べて読めます。')|wbr }}</p>
+<h1 class="name" id="hero-head"><span class="mark" aria-hidden="true"><svg viewBox="0 0 64 64"><path d="M9 42h46M14 42Q32 6 50 42" fill="none" stroke="currentColor" stroke-width="5" stroke-linecap="round"/><path d="M24 29v13M32 25v17M40 29v13" stroke="currentColor" stroke-width="3.5" stroke-linecap="round"/></svg></span>{{ app_name }}</h1>
+<p class="lead">{{ _('BBC・中央社・聯合ニュース・InfoQ・iThome などの記事を 1 時間ごとに集めて訳し、原文と並べています。同じ出来事を何社かが書いていれば、まとめて読み比べられます。')|wbr }}</p>
+{% if total %}<p class="tally">{{ _('{outlets} 媒体・{count} 本', outlets=sources|selectattr('count')|list|length, count='{:,}'.format(total)) }}{% if hourly %} · {{ _('1 時間ごとに取得') }}{% endif %}</p>{% endif %}
 <form class="searchbar" method="get" action="{{ url_for('index') }}" role="search">
 {% if source %}<input type="hidden" name="source" value="{{ source }}">{% endif %}{% if genre %}<input type="hidden" name="genre" value="{{ genre }}">{% endif %}
 <input type="search" name="q" value="{{ query }}" placeholder="{{ _('記事を検索（日本語も可）') }}" aria-label="{{ _('記事を検索') }}" maxlength="100">
 <button type="submit">{{ _('検索') }}</button>
 </form>
 <p class="go"><a class="more" href="{{ url_for('stories_page') }}">{{ _('読み比べ一覧') }}<span aria-hidden="true">›</span></a><a class="more" href="{{ url_for('digest_page') }}">{{ _('今日のまとめ') }}<span aria-hidden="true">›</span></a></p></div>
-{% if total %}<ul class="facts"><li><b>{{ sources|selectattr('count')|list|length }}</b><span>{{ _('媒体（英語・中国語・韓国語）')|wbr }}</span></li><li><b>{{ '{:,}'.format(total) }}</b><span>{{ _('本の記事を収録') }}</span></li>{% if hourly %}<li><b>{{ _('毎時') }}</b><span>{{ _('新しい記事を取得') }}</span></li>{% endif %}</ul>{% endif %}
 </section>{% endif %}
 {% if highlights %}{% set lead = highlights[0] %}<section class="front sect{{ band() }}" aria-labelledby="front-head"><div class="front-words">
 <h2 class="kicker" id="front-head">{{ _('各社が報じているニュース')|wbr }}</h2>
