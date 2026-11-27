@@ -1149,6 +1149,10 @@ main.front-page > .alert:first-child {
 /* The opening: the paper's name, what it does in two plain sentences, how much it holds and the search. Short
    and left-aligned, so the news itself starts within the first screen. */
 .hero {
+  /* The first screen, as a product page's opening (it steps back as the page moves on: Motion) */
+  display: grid;
+  align-content: center;
+  min-height: min(42rem, calc(100svh - var(--nav)));
   padding-block: clamp(3rem, 1.5rem + 5vw, 6rem) clamp(3rem, 2rem + 3vw, 4.5rem);
 }
 .hero-in > * {
@@ -3180,9 +3184,21 @@ html:lang(en) .foot-outlets span:not(:last-child)::after {
    scroll, so scrolling back up plays them backwards; nothing moves by itself except the opening, once. Each
    part of a page has its own way of coming in, not one effect everywhere. */
 @media (prefers-reduced-motion: no-preference) {
-  /* The opening comes in once, as one piece */
-  .hero-in {
-    animation: arrive 0.7s var(--settle) both;
+  /* The opening: the name, the words, the count, the search and the links arrive one after another, once */
+  .hero-in > * {
+    animation: arrive 1s var(--settle) both;
+  }
+  .hero-in > :nth-child(2) {
+    animation-delay: 0.12s;
+  }
+  .hero-in > :nth-child(3) {
+    animation-delay: 0.22s;
+  }
+  .hero-in > :nth-child(4) {
+    animation-delay: 0.32s;
+  }
+  .hero-in > :nth-child(n + 5) {
+    animation-delay: 0.42s;
   }
   /* An article's and a comparison's title come up once as the page opens */
   .article :is(.title-tr, h1, .article-meta),
@@ -3199,6 +3215,37 @@ html:lang(en) .foot-outlets span:not(:last-child)::after {
   }
 
   @supports (animation-timeline: view()) {
+    /* ...and as the page moves on, the opening steps back and fades */
+    .hero {
+      view-timeline: --hero block;
+    }
+    .hero-in {
+      animation: step-back linear both;
+      animation-timeline: --hero;
+      animation-range: exit 0% exit 85%;
+    }
+    /* A section's heading is uncovered from below like a mask lifting; its words and links only fade in after it */
+    .sect > .kicker,
+    .front .kicker {
+      animation: uncover var(--follow) both;
+      animation-timeline: view();
+      animation-range: entry 5% cover 25%;
+    }
+    .sect > .sect-lead,
+    .front :is(.front-lead, .go) {
+      animation: fade linear both;
+      animation-timeline: view();
+      animation-range: entry 15% cover 32%;
+    }
+    /* The comparisons assemble card by card, from both sides */
+    .topic-card {
+      animation: assemble var(--follow) both;
+      animation-timeline: view();
+      animation-range: entry 0% cover 25%;
+    }
+    .topic-card:nth-child(even) {
+      animation-name: assemble-down;
+    }
     /* The lead story's picture grows to its full size and opens from the middle, a little behind the page */
     .front-photo img {
       animation: open-up var(--follow) both;
@@ -3281,6 +3328,29 @@ html:lang(en) .foot-outlets span:not(:last-child)::after {
   from {
     opacity: 0;
     transform: translateY(1.25rem);
+  }
+}
+@keyframes step-back {
+  to {
+    opacity: 0;
+    transform: translateY(-3rem) scale(0.94);
+  }
+}
+@keyframes fade {
+  from {
+    opacity: 0;
+  }
+}
+@keyframes assemble {
+  from {
+    opacity: 0;
+    transform: translateY(1.5rem) scale(0.96);
+  }
+}
+@keyframes assemble-down {
+  from {
+    opacity: 0;
+    transform: translateY(-1.5rem) scale(0.96);
   }
 }
 @keyframes rise {
